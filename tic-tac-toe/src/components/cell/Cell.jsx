@@ -1,10 +1,25 @@
 import "./Cell.css";
 
-export const Cell = ({ value }) => {
+import classNames from "classnames"
+
+
+export const Cell = ({ value, canHighlight, onClick }) => {
+
+  const cellClasses = classNames({
+    cell: true, 
+    winner: canHighlight
+  });
+
+  let cellContentClasses = "cell-content;"
+
+  if (value) {
+    cellContentClasses += " populated";
+  }
+
   return (
     <>
-      <button className="cell">
-        <span className="cell-content populated">{value}</span>
+      <button className={cellClasses} onClick={onClick}>
+        <span className={cellContentClasses}>{value}</span>
       </button>
     </>
   );
