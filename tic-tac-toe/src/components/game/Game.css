@@ -1,17 +1,13 @@
 #game {
-    background: var(--content-background-color);
-    border-radius: var(--default-border-radius);
-    padding: 3vmin;
-    box-shadow: var(--box-shadow);
-  }
-  
-  h1 {
-    color: var(--primary-color);
-    text-align: center;
-    margin-bottom: 2vmin;
-    font-size: var(--main-title-font-size);
-  }
-  
+  background: var(--content-background-color);
+  border-radius: var(--default-border-radius);
+  padding: 3vmin;
+  box-shadow: var(--box-shadow);
+}
 
-  
-  
+h1 {
+  color: var(--primary-color);
+  text-align: center;
+  margin-bottom: 2vmin;
+  font-size: var(--main-title-font-size);
+}
