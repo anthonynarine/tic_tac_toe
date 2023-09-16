@@ -1,41 +1,50 @@
 import "./Game.css";
 import { ResultModal } from "../reslutModal/ResultModal";
-import { Board } from "../boad/Board";
+import { Board } from "../board/Board";
 import { useState } from "react";
 import { calculateWinner } from "../../utils/WinnerCalculator";
 
 const INITIAL_CELL_VALUES = ["", "", "", "", "", "", "", "", ""];
 
 export const Game = () => {
-  // State definitions
+  // State variables to maintain the game's status, moves, and results.
   const [cellValues, setCellValues] = useState(INITIAL_CELL_VALUES);
   const [xIsNext, setXisNext] = useState(true);
   const [isGameOver, setIsGameOver] = useState(false);
   const [numOfTurnsLeft, setNumOfTurnsLeft] = useState(9);
-  const [winner, setWinner] = useState()
+  const [winner, setWinner] = useState();
+  const [winningCombination, setWinningCombination] = useState([]);
 
-  // Helper functions
+  // Checks if a specific cell is empty.
   const isCellEmpty = (cellIndex) => cellValues[cellIndex] === "";
 
-  const onCellClicked = (cellIndex) => {
-    if (isCellEmpty(cellIndex)) {
-      const newCellValues = [...cellValues];
-      newCellValues[cellIndex] = xIsNext ? "X" : "O";
+  // Rstart game
+  const restartGame = () => {
+    setCellValues(INITIAL_CELL_VALUES);
+    setXisNext(true);
+    setIsGameOver(false);
+    setNumOfTurnsLeft(9);
+    setWinner(undefined);
+    setWinningCombination([]);
+  };
 
-      const newNumberOfTurnsLeft = numOfTurnsLeft - 1;
+  // Handle a cell click event, update game state and check for winner.
+  const handleCellClick = (cellIndex) => {
+    if (!isCellEmpty(cellIndex)) return;
 
-      const calcResults = calculateWinner(
-        newCellValues,
-        newNumberOfTurnsLeft,
-        cellIndex
-      );
+    const updatedCellValues = [...cellValues];
+    updatedCellValues[cellIndex] = xIsNext ? "X" : "O";
 
-      setCellValues(newCellValues);
-      setXisNext(!xIsNext);
-      setIsGameOver(calcResults.hasResult);
-      setNumOfTurnsLeft(newNumberOfTurnsLeft);
-      setWinner(calcResults.winner);
-    }
+    const newNumberOfTurnsLeft = numOfTurnsLeft - 1;
+
+    const gameResults = calculateWinner(updatedCellValues, newNumberOfTurnsLeft, cellIndex);
+
+    setCellValues(updatedCellValues);
+    setXisNext(!xIsNext);
+    setIsGameOver(gameResults.hasResult);
+    setNumOfTurnsLeft(newNumberOfTurnsLeft);
+    setWinner(gameResults.winner);
+    setWinningCombination(gameResults.winningCombination);
   };
 
   return (
@@ -44,11 +53,11 @@ export const Game = () => {
         <h1>Tic Tac Toe</h1>
         <Board
           cellValues={cellValues}
-          winningCombination={[]}
-          cellClicked={onCellClicked}
+          winningCombination={winningCombination}
+          cellClicked={handleCellClick} 
         />
       </div>
-      <ResultModal isGameOver={isGameOver} winner={winner}/>
+      <ResultModal isGameOver={isGameOver} winner={winner} onNewGameClicked={restartGame}/>
     </>
   );
 };
