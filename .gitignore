@@ -1,15 +1,15 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
-/node_modules
-/.pnp
-.pnp.js
+tic-tac-toe/node_modules/
+tic-tac-toe/.pnp
+tic-tac-toe/.pnp.js
 
 # testing
-/coverage
+tic-tac-toe/coverage
 
 # production
-/build
+tic-tac-toe/build
 
 # misc
 .DS_Store
@@ -21,3 +21,12 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Python virtual environment
+backend/ttt_venv/
+
+# Django related
+backend/*.pyc
+backend/__pycache__/
+backend/db.sqlite3
+backend/media/
