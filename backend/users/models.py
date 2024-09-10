@@ -44,10 +44,6 @@ class CustomUser(AbstractUser):
         default=0,
         help_text='The total number of games lost by the user.'
     )
-    achievements = models.JSONField(
-        default=list,
-        help_text='A list of achievements or badges earned by the user.'
-    )
     status = models.CharField(
         max_length=10,
         default='offline',
@@ -55,7 +51,7 @@ class CustomUser(AbstractUser):
     )
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []
+    REQUIRED_FIELDS = ['first_name', 'last_name']
 
     objects = CustomUserManager()
 
