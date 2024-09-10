@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from .manager import CustomUserManager
-
+from validators.image_validators import validate_icon_image_size, validate_image_file_extension
 class CustomUser(AbstractUser):
     """
     Custom user model where email is the unique identifier for authentication
@@ -30,6 +30,7 @@ class CustomUser(AbstractUser):
         upload_to='avatars/',
         blank=True,
         null=True,
+        validators=[validate_icon_image_size, validate_image_file_extension]
         help_text='Upload a profile picture to represent you in the game.'
     )
     total_games_played = models.IntegerField(
