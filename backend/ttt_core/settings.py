@@ -31,7 +31,9 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     # native
     "game", 
-    "users",
+    # signals
+    "users.apps.UsersConfig",
+    
 ]
 
 MIDDLEWARE = [
@@ -113,7 +115,7 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 # Addded - create a medial folder (handling images)
-MEDIA_ROOT = os.path.path.join(BASE_DIR, "media") # Dir where media files arr stored
+MEDIA_ROOT = os.path.join(BASE_DIR, "media") # Dir where media files arr stored
 MEDIA_URL = "/media/" # URL for accessing media files in the browser
 
 AUTH_USER_MODEL = 'users.CustomUser'

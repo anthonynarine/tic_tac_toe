@@ -2,7 +2,10 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from .manager import CustomUserManager
-from validators.image_validators import validate_icon_image_size, validate_image_file_extension
+from .image_validators import validate_icon_image_size, validate_image_file_extension
+from .image_path import avatar_upload_path, default_avatar
+
+
 class CustomUser(AbstractUser):
     """
     Custom user model where email is the unique identifier for authentication
@@ -27,10 +30,11 @@ class CustomUser(AbstractUser):
 
     # Additional fields for gaming
     avatar = models.ImageField(
-        upload_to='avatars/',
+        upload_to=avatar_upload_path, # Custom upload path for avatars with UUID
         blank=True,
         null=True,
-        validators=[validate_icon_image_size, validate_image_file_extension]
+        default=default_avatar,
+        validators=[validate_icon_image_size, validate_image_file_extension],
         help_text='Upload a profile picture to represent you in the game.'
     )
     total_games_played = models.IntegerField(
@@ -55,6 +59,17 @@ class CustomUser(AbstractUser):
     REQUIRED_FIELDS = ['first_name', 'last_name']
 
     objects = CustomUserManager()
+
+    def save(self, *args, **kwargs):
+        # Check if updating the avatar and delete the old one if necessary
+        try:
+            this = CustomUser.objects.get(id=self.id)
+            if this.avatar and self.avatar != this.avatar:
+                this.avatar.delete(save=False) # Delete the old avatar file
+        except CustomUser.DoesNotExist:
+            pass # If creating a new user, no action is neded
+        
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email
