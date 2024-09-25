@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from .manager import CustomUserManager
 from .image_validators import validate_icon_image_size, validate_image_file_extension
 from .image_path import avatar_upload_path, default_avatar
+from .resize_img import resize_image
 
 
 class CustomUser(AbstractUser):
@@ -34,7 +35,7 @@ class CustomUser(AbstractUser):
         blank=True,
         null=True,
         default=default_avatar,
-        validators=[validate_icon_image_size, validate_image_file_extension],
+        validators=[validate_image_file_extension],
         help_text='Upload a profile picture to represent you in the game.'
     )
     total_games_played = models.IntegerField(
@@ -68,6 +69,10 @@ class CustomUser(AbstractUser):
                 this.avatar.delete(save=False) # Delete the old avatar file
         except CustomUser.DoesNotExist:
             pass # If creating a new user, no action is neded
+
+        # Resize avatar if necessary
+        if self.avatar:
+            self.avatar = resize_image(self.avatar)
         
         super().save(*args, **kwargs)
 

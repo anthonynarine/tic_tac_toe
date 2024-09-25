@@ -7,6 +7,19 @@ const useGameServices = (gameId) => {
     const [loading, setLoading] = useState(true); 
     const [error, setError] = useState(null);
 
+    const createNewGame = async (playerOUsername) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await authAxios.post("/games", { player_o: playerOUsername});
+            setGameData(response.data); // update the state with the newly created game   
+        } catch (error) {
+            console.error("Failed to create new game:", error);
+            setError(error); 
+        } finally {
+            setGameData(false);
+        }
+    };
     // Fetch game state from the backend
     const fetchGame = async () => {
         setLoading(true);
