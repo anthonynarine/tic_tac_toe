@@ -33,7 +33,6 @@ const Game = ({ gameId }) => {
     </div>
   )
 
-
 };
 
 export default Game;

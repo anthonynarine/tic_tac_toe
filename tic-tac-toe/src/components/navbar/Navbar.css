@@ -1,0 +1,56 @@
+/* Navbar Container */
+.navbar {
+    position: fixed; /* Fixes navbar at the top of the viewport */
+    top: 0; /* Sticks to the top */
+    left: 0; /* Ensures it starts from the very left */
+    width: 100vw; /* Full viewport width */
+    z-index: 1000; /* Ensure it's above other content */
+    background-color: #f5a623; /* Your existing background color */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    margin-bottom: 20px;
+    color: white;
+    box-sizing: border-box; /* Ensures padding is included in the width */
+  }
+  
+  /* Navbar Links */
+  .navbar-links ul {
+    list-style: none;
+    display: flex;
+    gap: 1.5rem;
+  }
+  
+  .navbar-links ul li a {
+    color: white;
+    text-decoration: none;
+    font-size: 1.2rem;
+  }
+  
+  .navbar-toggle {
+    display: none;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .navbar-toggle {
+      display: block;
+    }
+  
+    .navbar-links {
+      display: none;
+      flex-direction: column;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background-color: #0e6c56;
+      padding: 1rem 0;
+    }
+  
+    .navbar-links.active {
+      display: flex;
+    }
+  }
+  

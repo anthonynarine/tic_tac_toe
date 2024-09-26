@@ -18,7 +18,7 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
     """
     queryset = TicTacToeGame.objects.all()
     serializer_class = TicTacToeGameSerializer
-    permission_classes = [IsAuthenticated]
+    # permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         """
