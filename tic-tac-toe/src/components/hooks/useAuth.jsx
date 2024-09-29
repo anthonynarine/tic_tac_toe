@@ -4,49 +4,65 @@ import { useNavigate } from "react-router-dom";
 import useAuthAxios from "./useAuthAxios";
 
 export const useAuth = () => {
-    const { authAxios } = useAuthAxios();
+    const { authAxios, getToken, setToken } = useAuthAxios();
     const navigate = useNavigate();
 
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(!!Cookies.get("access_token")); //Check if token exist in cookies
+    const [isLoggedIn, setIsLoggedIn] = useState(!!getToken("access_token")); //Check token using getToken()
     const [user, setUser] = useState(null);
     const [error, setError] = useState("");
 
-    const login = useCallback(async ({ email, password}) => {
-        setIsLoading(true);
-        setError("");
+// Login function
+const login = useCallback(async ({ email, password }) => {
+    setIsLoading(true);
+    setError("");
 
-        try {
-            //STEP 1:  Make the request to the login endpoint to obtain tokens
-            const loginResponse = await authAxios.post("/token/", { email, password});
+    try {
+        // STEP 1: Make the request to the login endpoint to obtain tokens
+        const loginResponse = await authAxios.post("/token/", { email, password });
 
-            //STEP 2: Fetch the user data using the access token stored by axios
+        const accessToken = loginResponse.data.access;
+        const refreshToken = loginResponse.data.refresh;
+
+        if (accessToken && refreshToken) {
+            // STEP 2: Store tokens using the setToken method
+            setToken("access_token", accessToken);  // Store access token
+            setToken("refresh_token", refreshToken);  // Store refresh token
+
+            console.log("Tokens successfully set.");
+            
+            // STEP 3: Fetch the user data using the access token stored by authAxios
             const userResponse = await authAxios.get("/users/profile/");
             
             // Update the user state
             setUser(userResponse.data);
             setIsLoggedIn(true);
 
-            navigate("/");          
-        } catch (error) {
-            console.error("Login failed:", error);
-
-            // Handle invalid user credentials (this error is returned by simple jwt)
-            if (error.response?.status === 401) {
-                setError("Invalid email or password.");
-            } else {
-                setError("An error occured. Please try again later");
-            }
-        } finally {
-            setIsLoading(false);
+            // Navigate to home after successful login
+            navigate("/");  
+        } else {
+            console.error("Login successful, but tokens are missing from the response.");
+            setError("Login failed due to missing tokens.");
         }
-    },[authAxios, navigate]);
+    } catch (error) {
+        console.error("Login failed:", error);
+
+        // Handle invalid user credentials
+        if (error.response?.status === 401) {
+            setError("Invalid email or password.");
+        } else {
+            setError("An error occurred. Please try again later.");
+        }
+    } finally {
+        setIsLoading(false);
+    }
+}, [authAxios, setToken, navigate]);
 
 
-    // Registration Function
+    // Registration function
     const register = useCallback(async ({ email, first_name, last_name, password }) => {
         setIsLoading(true);
-        setError("")
+        setError("");
 
         try {
             // STEP 1: Send registration request to the backend
@@ -58,12 +74,13 @@ export const useAuth = () => {
             });
 
             if (registerResponse.status === 201) {
-                // Automitacally log the user in afer successful registration
+                // Automatically log the user in after successful registration
                 await login({ email, password });
             }
         } catch (error) {
             console.error("Registration failed:", error);
 
+            // More explicit error handling
             if (error.response?.status === 400) {
                 setError("Validation error. Please ensure all fields are correctly filled.");
             } else if (error.response?.status === 500) {
@@ -74,7 +91,7 @@ export const useAuth = () => {
                 setError("An unexpected error occurred.");
             }
         } finally {
-            setIsLoading(false)
+            setIsLoading(false);
         }
     }, [authAxios, login]);
 
@@ -87,4 +104,3 @@ export const useAuth = () => {
         register,
     };
 };
-
