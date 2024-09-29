@@ -9,42 +9,67 @@ const useAuthAxios = () => {
 
     // Create the Axios instance
     const authAxios = axios.create({
-        baseURL: process.env.REACT_APP_GAME_API_URL,
-        withCredentials: true // Ensure cookies are sent with the request
+        baseURL: process.env.REACT_APP_DEV_URL, // Backend URL
+        withCredentials: true // Always true, for both environments
     });
+
+    /**
+     * Set token in cookies (production) or localStorage (development)
+     */
+    const setToken = (name, value, options = {}) => {
+        if (isProduction) {
+            Cookies.set(name, value, {
+                secure: true,
+                sameSite: "None",
+                expires: name === "refresh_token" ? 7 : undefined, // 7 days for refresh token
+                ...options
+            });
+        } else {
+            localStorage.setItem(name, value);
+        }
+    };
+
+    /**
+     * Get token from cookies (production) or localStorage (development)
+     */
+    const getToken = (name) => {
+        return isProduction ? Cookies.get(name) : localStorage.getItem(name);
+    };
+
+    /**
+     * Remove token from cookies (production) or localStorage (development)
+     */
+    const removeToken = (name) => {
+        if (isProduction) {
+            Cookies.remove(name);
+        } else {
+            localStorage.removeItem(name);
+        }
+    };
 
     /**
      * Handle authentication errors by clearing tokens and redirecting to the login page.
      */
     const handleAuthError = () => {
-        Cookies.remove("access_token");
-        Cookies.remove("refresh_token");
-        Cookies.remove("csrftoken");
-        Cookies.remove("sessionid");
-        navigate("/login"); // Redirect to the login page
-    };
+        // Remove tokens from cookies or local storage
+        removeToken("access_token");
+        removeToken("refresh_token");
+        Cookies.remove("csrftoken");  // Always remove CSRF token from cookies
+        Cookies.remove("sessionid");  // Optional: Remove session ID if stored
 
-    /**
-     * Helper function to set cookies with secure and sameSite options.
-     */
-    const setCookie = (name, value, options = {}) => {
-        Cookies.set(name, value, {
-            ...options,
-            secure: isProduction,
-            sameSite: isProduction ? "None" : "Lax"
-        });
+        navigate("/login"); // Redirect to the login page
     };
 
     /**
      * Request interceptor to attach access token and CSRF token to request headers.
      */
     const requestInterceptor = (config) => {
-        const accessToken = Cookies.get("access_token");
+        const accessToken = getToken("access_token");
         if (accessToken) {
             config.headers["Authorization"] = `Bearer ${accessToken}`;
         }
 
-        const csrfToken = Cookies.get("csrftoken");  // Fixed typo
+        const csrfToken = Cookies.get("csrftoken");  // Always get CSRF from cookies
         if (csrfToken) {
             config.headers["X-CSRFToken"] = csrfToken;
         }
@@ -56,24 +81,29 @@ const useAuthAxios = () => {
      * Response interceptor to handle token updates and other response modifications.
      */
     const responseInterceptor = (response) => {
+        console.log("Login response:", response.data);
+
+        // In production, set CSRF tokens
         const newCsrfToken = response.headers["x-csrftoken"];
         if (newCsrfToken) {
-            setCookie("csrftoken", newCsrfToken);
+            Cookies.set("csrftoken", newCsrfToken, { secure: isProduction, sameSite: "Lax" });
         }
 
-        const accessToken = response.data.access_token;
+        // Store access and refresh tokens
+        const accessToken = response.data.access;
         if (accessToken) {
-            setCookie("access_token", accessToken, { expires: new Date(Date.now() + 15 * 60 * 1000) });
+            setToken("access_token", accessToken);
         }
 
-        const refreshToken = response.data.refresh_token;
+        const refreshToken = response.data.refresh;
         if (refreshToken) {
-            setCookie("refresh_token", refreshToken, { expires: 7 });
+            setToken("refresh_token", refreshToken, { expires: 7 });
         }
 
+        // Handle logout scenario
         if (response.config.url.includes("/logout/")) {
-            Cookies.remove("access_token");
-            Cookies.remove("refresh_token");
+            removeToken("access_token");
+            removeToken("refresh_token");
             Cookies.remove("csrftoken");
             Cookies.remove("sessionid");
         }
@@ -94,9 +124,10 @@ const useAuthAxios = () => {
                 const response = await authAxios.post("/token/refresh/", {}, { withCredentials: true });
 
                 if (response.status === 200) {
-                    const newAccessToken = response.data.access_token;
-                    setCookie("access_token", newAccessToken, { expires: new Date(Date.now() + 15 * 60 * 1000) });
+                    const newAccessToken = response.data.access;
+                    setToken("access_token", newAccessToken);
 
+                    // Update the auth headers with new access token
                     originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
                     return authAxios(originalRequest); // Retry original request with new token
                 }
@@ -124,7 +155,7 @@ const useAuthAxios = () => {
         };
     }, [navigate]);
 
-    return { authAxios, setCookie };
+    return { authAxios, setToken, getToken, removeToken };
 };
 
 export default useAuthAxios;

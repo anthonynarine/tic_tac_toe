@@ -4,7 +4,7 @@ from .views import TicTacToeGameViewsets
 
 # Create a router and register your viewsets
 router = DefaultRouter()
-router.register("games", TicTacToeGameViewsets, basename="tictactoe")
+router.register("", TicTacToeGameViewsets, basename="tictactoe")
 
 # Include the router-generated URLs
 urlpatterns = router.urls

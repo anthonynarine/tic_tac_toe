@@ -1,5 +1,5 @@
 
-
+from decouple import config
 from pathlib import Path
 from datetime import timedelta
 import os
@@ -7,14 +7,10 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+SECRET_KEY = config('SECRET_KEY')
+DEBUG = config('DEBUG', default=True, cast=bool)
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-ae*%)&mp_x9hgz7(8adww@nh==zt@o+-cqb8h!uy2_lhw49(16"
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["add production-domain "]
 
 
 # Application definition
@@ -53,7 +49,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://your-frontend-domain.com",  # update on deployment
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+# Allow credentials (cookies) in cross-origin requests
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = "ttt_core.urls"
 
@@ -135,17 +132,38 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.IsAuthenticated", 
-    ),
+    # "DEFAULT_PERMISSION_CLASSES": (
+    #     "rest_framework.permissions.IsAuthenticated", 
+    # ),
 }
 
 
+# Base settings for Simple JWT
 SIMPLE_JWT = {
-    'AUTH_HEADER_TYPES': ("JWT",),
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'BLACKIST_AFTER_ROTATION': True,
-    'ROTATE_REFRESH_TOKENS': False, 
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),  # Token lifetime
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),     # Refresh token lifetime
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),  # Use Bearer for Authorization header
+    'SIGNING_KEY': config('SECRET_KEY'),  # Ensure the signing key is secure
 }
 
+# CSRF settings (ensure CSRF tokens are handled in production)
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',  # Local development domain
+    'https://your-production-domain.com',  # Production frontend domain
+]
+
+# Session & CSRF cookie settings for different environments
+if DEBUG:
+    # Development settings (cookies over HTTP)
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    CSRF_COOKIE_SAMESITE = 'Lax'
+else:
+    # Production settings (cookies over HTTPS)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = 'None'
+    CSRF_COOKIE_SAMESITE = 'None'

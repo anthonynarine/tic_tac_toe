@@ -18,7 +18,7 @@ export const useAuth = () => {
 
         try {
             //STEP 1:  Make the request to the login endpoint to obtain tokens
-            const loginResponse = await authAxios.post("/login/", { email, password});
+            const loginResponse = await authAxios.post("/token/", { email, password});
 
             //STEP 2: Fetch the user data using the access token stored by axios
             const userResponse = await authAxios.get("/users/profile/");
@@ -42,21 +42,6 @@ export const useAuth = () => {
         }
     },[authAxios, navigate]);
 
-    // Logout function
-    const logout = useCallback(() => {
-        // Remove tokens from cookies
-        Cookies.remove("access_token");
-        Cookies.remove("refresh_token");
-        Cookies.remove("csrftoken");
-        Cookies.remove("sessionid");
-
-        // Reset user state
-        setUser(null);
-        setIsLoggedIn(false);
-
-        // Redirect to login page
-        navigate("/login");
-    },[navigate]);
 
     // Registration Function
     const register = useCallback(async ({ email, first_name, last_name, password }) => {
@@ -65,7 +50,7 @@ export const useAuth = () => {
 
         try {
             // STEP 1: Send registration request to the backend
-            const registerResponse = await authAxios.post("/users/register/", {
+            const registerResponse = await authAxios.post("/users/", {
                 email,
                 first_name,
                 last_name,
@@ -99,7 +84,6 @@ export const useAuth = () => {
         user,
         error,
         login,
-        logout,
         register,
     };
 };
