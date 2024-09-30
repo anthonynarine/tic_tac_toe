@@ -12,7 +12,6 @@ export const useAuth = () => {
     const [user, setUser] = useState(null);
     const [error, setError] = useState("");
 
-// Login function
 const login = useCallback(async ({ email, password }) => {
     setIsLoading(true);
     setError("");
@@ -20,30 +19,34 @@ const login = useCallback(async ({ email, password }) => {
     try {
         // STEP 1: Make the request to the login endpoint to obtain tokens
         const loginResponse = await authAxios.post("/token/", { email, password });
+        console.log("Login response:", loginResponse.data);
 
+        // Manually set the tokens
         const accessToken = loginResponse.data.access;
         const refreshToken = loginResponse.data.refresh;
+        setToken("access_token", accessToken);
+        setToken("refresh_token", refreshToken);
+        console.log("Tokens successfully set.");
 
-        if (accessToken && refreshToken) {
-            // STEP 2: Store tokens using the setToken method
-            setToken("access_token", accessToken);  // Store access token
-            setToken("refresh_token", refreshToken);  // Store refresh token
+        // Ensure the token is stored
+        console.log("Stored access token:", getToken("access_token"));
 
-            console.log("Tokens successfully set.");
-            
-            // STEP 3: Fetch the user data using the access token stored by authAxios
-            const userResponse = await authAxios.get("/users/profile/");
-            
-            // Update the user state
-            setUser(userResponse.data);
-            setIsLoggedIn(true);
+        // STEP 2: Manually set the Authorization header for the profile request
+        const userResponse = await authAxios.get("/users/profile/", {
+            // HAD TO ADD THE HEADERS MANUALLY FOR SOME REASON MY AXIOS INSTANCE REQUEST FUNCTION FOR 
+            // THIS ISN'T WORKING AS EXPECTED. ITS NOT A TIMING ISSUE I ALREADY TESTED WITH SETTIMEOUT. 
+            headers: {
+                Authorization: `Bearer ${accessToken}`
+            }
+        });
+        console.log("User profile fetched:", userResponse.data);
 
-            // Navigate to home after successful login
-            navigate("/");  
-        } else {
-            console.error("Login successful, but tokens are missing from the response.");
-            setError("Login failed due to missing tokens.");
-        }
+        // Update the user state
+        setUser(userResponse.data);
+        setIsLoggedIn(true);
+
+        // Navigate to home after successful login
+        navigate("/");  
     } catch (error) {
         console.error("Login failed:", error);
 
@@ -56,7 +59,10 @@ const login = useCallback(async ({ email, password }) => {
     } finally {
         setIsLoading(false);
     }
-}, [authAxios, setToken, navigate]);
+}, [authAxios, navigate]);
+
+    
+    
 
 
     // Registration function

@@ -12,7 +12,7 @@ const useAuthAxios = () => {
 
     // Create the Axios instance
     const authAxios = axios.create({
-        baseURL: process.env.REACT_APP_DEV_URL, // Backend URL
+        baseURL: isProduction ? process.env.REACT_APP_PROD_URL : process.env.REACT_APP_DEV_URL,
         withCredentials: true // Always true, for both environments
     });
 
@@ -39,7 +39,6 @@ const useAuthAxios = () => {
      */
     const getToken = (name) => {
         const token = isProduction ? Cookies.get(name) : localStorage.getItem(name);
-        console.log(`Getting token ${name}:`, token);
         return token;
     };
 
@@ -74,16 +73,15 @@ const useAuthAxios = () => {
      */
     const requestInterceptor = (config) => {
         console.log("Intercepting request:", config.url);
-        const accessToken = getToken("access_token");
+
+        const accessToken = getToken("access_token"); // Retrieve the access token
+        console.log("Getting token access_token:", accessToken);  // Log the token
+        
         if (accessToken) {
             config.headers["Authorization"] = `Bearer ${accessToken}`;
-            console.log("Added Authorization header:", accessToken);
-        }
-
-        const csrfToken = Cookies.get("csrftoken");  // Always get CSRF from cookies
-        if (csrfToken) {
-            config.headers["X-CSRFToken"] = csrfToken;
-            console.log("Added CSRF token:", csrfToken);
+            console.log("Added Authorization header:", config.headers["Authorization"]);
+        } else {
+            console.warn("No access token found in localstorage")
         }
 
         return config;
@@ -95,24 +93,20 @@ const useAuthAxios = () => {
     const responseInterceptor = (response) => {
         console.log("Intercepting response:", response.config.url);
 
-        // In production, set CSRF tokens
-        const newCsrfToken = response.headers["x-csrftoken"];
-        if (newCsrfToken) {
-            console.log("Setting new CSRF token:", newCsrfToken);
-            Cookies.set("csrftoken", newCsrfToken, { secure: isProduction, sameSite: "Lax" });
-        }
-
-        // Store access and refresh tokens
+        // Store access and refresh tokens if they are present in the response
         const accessToken = response.data.access;
+        const refreshToken = response.data.refresh;
+
         if (accessToken) {
-            console.log("Setting new access token:", accessToken);
             setToken("access_token", accessToken);
+            console.log("Access token set:", accessToken);
+            console.log("Access token in localStorage:", localStorage.getItem('access_token'));  // Check if stored
         }
 
-        const refreshToken = response.data.refresh;
         if (refreshToken) {
-            console.log("Setting new refresh token:", refreshToken);
-            setToken("refresh_token", refreshToken, { expires: 7 });
+            setToken("refresh_token", refreshToken, { expires: 7 });  // Store the refresh token
+            console.log("Refresh token set:", refreshToken);
+            console.log("Refresh token in localStorage:", localStorage.getItem('refresh_token'));  // Check if stored
         }
 
         // Handle logout scenario
@@ -169,14 +163,13 @@ const useAuthAxios = () => {
         console.log("Setting up Axios interceptors.");
         const reqInterceptor = authAxios.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
         const resInterceptor = authAxios.interceptors.response.use(responseInterceptor, responseErrorInterceptor);
-
+    
         return () => {
             console.log("Cleaning up Axios interceptors.");
-            // Eject the interceptors when the component unmounts
             authAxios.interceptors.request.eject(reqInterceptor);
             authAxios.interceptors.response.eject(resInterceptor);
         };
-    }, [navigate]);
+    }, [authAxios, navigate]);
 
     return { authAxios, setToken, getToken, removeToken };
 };
