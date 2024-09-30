@@ -71,7 +71,7 @@ class CustomUser(AbstractUser):
             pass # If creating a new user, no action is neded
 
         # Resize avatar if necessary
-        if self.avatar:
+        if self.avatar and not self.avatar.name.endswith('default.jpg'):
             self.avatar = resize_image(self.avatar)
         
         super().save(*args, **kwargs)
