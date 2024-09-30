@@ -1,33 +1,80 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ===== Node.js Dependencies =====
+node_modules/
+.pnp
+.pnp.js
 
-# dependencies
-tic-tac-toe/node_modules/
-tic-tac-toe/.pnp
-tic-tac-toe/.pnp.js
+# ===== Python Virtual Environments =====
+backend/ttt_venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
 
-# testing
-tic-tac-toe/coverage
+# ===== Python Byte-compiled / Optimized / DLL Files =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.cache
+*.coverage
+.cache/
+.pytest_cache/
 
-# production
-tic-tac-toe/build
+# ===== Django Related =====
+backend/db.sqlite3
+backend/media/
+staticfiles/
+local_settings.py
 
-# misc
+# ===== React/Frontend Related =====
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# ===== Testing =====
+coverage/
+.tox/
+.nox/
+*.cover
+.hypothesis/
+
+# ===== Production =====
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+MANIFEST
+
+# ===== Miscellaneous =====
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# ===== Environment Variables =====
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env
 
+# ===== Logs =====
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Python virtual environment
-backend/ttt_venv/
+# ===== Custom Virtual Environments =====
+ttt_venv
 
-# Django related
-backend/*.pyc
-backend/__pycache__/
-backend/db.sqlite3
-backend/media/
+# ===== Ignore Git Directory in Subfolders =====
+*/.git
