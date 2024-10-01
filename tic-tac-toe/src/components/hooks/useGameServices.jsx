@@ -1,70 +1,111 @@
-import { useState, useEffect } from  "react"
-import useAuthAxios from "./useAuthAxios"
+import { useState, useEffect, useCallback } from "react";
+import useAuthAxios from "./useAuthAxios";
 
 const useGameServices = (gameId) => {
     const { authAxios } = useAuthAxios();
-    const [gameData, setGameData] = useState(null) // Game state
+    const [gameData, setGameData] = useState(null); // Game state
     const [loading, setLoading] = useState(true); 
     const [error, setError] = useState(null);
 
-    const createNewGame = async (playerOUsername) => {
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await authAxios.post("/games", { player_o: playerOUsername});
-            setGameData(response.data); // update the state with the newly created game   
-        } catch (error) {
-            console.error("Failed to create new game:", error);
-            setError(error); 
-        } finally {
-            setGameData(false);
-        }
+    // Helper function to extract error message
+    const extractErrorMessage = (error) => {
+        return error.response?.data?.error || "An error occurred";
     };
-    // Fetch game state from the backend
-    const fetchGame = async () => {
+
+    // Create new game
+    const createNewGame = useCallback(async (playerOUsername, isAIGame = false) => {
+        if (!authAxios) {
+            setError("Authorization service unavailable");
+            return;
+        }
+
         setLoading(true);
         setError(null);
-
         try {
-            const response = await authAxios.get(`/games/${gameId}`);
-            setGameData(response.data);
-            
+            const response = await authAxios.post("/games", {
+                player_o: playerOUsername,
+                is_ai_game: isAIGame
+            });
+            setGameData(response.data); // Update the state with the newly created game   
         } catch (error) {
-            console.error("Failed to fetch game:", error);
-            setError(error);
+            setError(extractErrorMessage(error));
         } finally {
             setLoading(false);
         }
-    };
+    }, [authAxios]);
 
-    // Make a move in the game 
-    const makeMove = async (position) => {
-        if (gameData.winner) return; // Prevent making a move if the game is over
+    // Join an open game
+    const joinGame = useCallback(async (gameId) => {
+        if (!authAxios) {
+            setError("Authorization service unavailable");
+            return;
+        }
+
         setLoading(true);
         setError(null);
+        try {
+            const response = await authAxios.post(`/games/${gameId}/join_game/`);
+            setGameData(response.data);
+        } catch (error) {
+            setError(extractErrorMessage(error));
+        } finally {
+            setLoading(false);
+        }
+    }, [authAxios]);
 
+    // Fetch game state from the backend
+    const fetchGame = useCallback(async () => {
+        if (!authAxios) {
+            setError("Authorization service unavailable");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await authAxios.get(`/games/${gameId}`);
+            setGameData(response.data);
+        } catch (error) {
+            setError(extractErrorMessage(error));
+        } finally {
+            setLoading(false);
+        }
+    }, [authAxios, gameId]);
+
+    // Make a move in the game
+    const makeMove = useCallback(async (position) => {
+        if (gameData?.winner) return; // Prevent making a move if the game is over
+        if (!authAxios) {
+            setError("Authorization service unavailable");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
         try {
             const response = await authAxios.put(`/games/${gameId}`, { position });
             setGameData(response.data); // Update game state with the new data
         } catch (error) {
-            console.error("Failed to make move:", error);
-            setError(error);
+            setError(extractErrorMessage(error));
         } finally {
             setLoading(false);
         }
-    };
+    }, [authAxios, gameId, gameData]);
 
     // Fetch game state on component mount or when the gameId changes
     useEffect(() => {
         fetchGame();
-    }, [gameId])
+    }, [fetchGame]);
 
     return {
+        createNewGame,
+        joinGame,
         gameData,
         makeMove,
         fetchGame,
         loading,
-        error
+        error,
     };
 };
+
 export default useGameServices;
