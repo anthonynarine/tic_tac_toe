@@ -1,5 +1,4 @@
-import Cookies from "js-cookie";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthAxios from "./useAuthAxios";
 
