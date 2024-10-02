@@ -93,9 +93,9 @@ const useGameServices = (gameId) => {
     }, [authAxios, gameId, gameData]);
 
     // Fetch game state on component mount or when the gameId changes
-    useEffect(() => {
-        fetchGame();
-    }, [fetchGame]);
+    // useEffect(() => {
+    //     fetchGame();
+    // }, [fetchGame]);
 
     return {
         createNewGame,

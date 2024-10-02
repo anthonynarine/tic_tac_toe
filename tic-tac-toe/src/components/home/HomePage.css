@@ -1,0 +1,74 @@
+/* Container for the homepage */
+.homepage-container {
+    background: var(--content-background-color); 
+    border-radius: var(--default-border-radius); 
+    padding: 3vmin;
+    box-shadow: var(--box-shadow); 
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  
+  h1 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 2vmin;
+    font-size: var(--main-title-font-size);
+  }
+  
+  h2 {
+    color: var(--primary-color); 
+    margin-bottom: 1.5vmin;
+    font-size: 2.5vmin;
+  }
+  
+  p {
+    font-size: 1.8vmin;
+    color: var(--primary-color);
+  }
+  
+  .game-options {
+    margin-top: 2vmin;
+  }
+  
+  .game-btn {
+    padding: 1.5vmin 4vmin;
+    margin: 1.5vmin;
+    font-size: 2vmin;
+    cursor: pointer;
+    border: none;
+    border-radius: var(--default-border-radius);
+    box-shadow: var(--box-shadow);
+    transition: background 0.3s ease;
+  }
+  
+  .multiplayer-btn {
+    background-color: #007bff; 
+    color: white;
+  }
+  
+  .ai-btn {
+    background-color: #28a745; 
+    color: white;
+  }
+  
+  .game-btn:hover {
+    background-color: var(--primary-highlight-gradient);
+  }
+  
+  /* Add the board preview section */
+  .board-preview {
+    margin-top: 3vmin;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .user-stats {
+    margin-top: 4vmin;
+    font-size: 2vmin;
+  }
+  
+  .user-stats p {
+    margin: 1vmin 0;
+  }
+  
