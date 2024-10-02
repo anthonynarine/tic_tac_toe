@@ -13,7 +13,7 @@ const useAuthAxios = () => {
     // Create the Axios instance
     const authAxios = axios.create({
         baseURL: isProduction ? process.env.REACT_APP_PROD_URL : process.env.REACT_APP_DEV_URL,
-        withCredentials: true // Always true, for both environments
+        withCredentials: true, // Always true, for both environments
     });
 
     /**
@@ -26,7 +26,7 @@ const useAuthAxios = () => {
                 secure: true,
                 sameSite: "None",
                 expires: name === "refresh_token" ? 7 : undefined, // 7 days for refresh token
-                ...options
+                ...options,
             });
         } else {
             console.log(`Setting token ${name} in localStorage:`, value);
@@ -38,8 +38,7 @@ const useAuthAxios = () => {
      * Get token from cookies (production) or localStorage (development)
      */
     const getToken = (name) => {
-        const token = isProduction ? Cookies.get(name) : localStorage.getItem(name);
-        return token;
+        return isProduction ? Cookies.get(name) : localStorage.getItem(name);
     };
 
     /**
@@ -59,31 +58,24 @@ const useAuthAxios = () => {
      */
     const handleAuthError = () => {
         console.log("Handling auth error, clearing tokens.");
-        // Remove tokens from cookies or local storage
         removeToken("access_token");
         removeToken("refresh_token");
-        Cookies.remove("csrftoken");  // Always remove CSRF token from cookies
-        Cookies.remove("sessionid");  // Optional: Remove session ID if stored
-
-        navigate("/login"); // Redirect to the login page
+        Cookies.remove("csrftoken");
+        Cookies.remove("sessionid");
+        navigate("/login");
     };
 
     /**
      * Request interceptor to attach access token and CSRF token to request headers.
      */
     const requestInterceptor = (config) => {
-        console.log("Intercepting request:", config.url);
-
-        const accessToken = getToken("access_token"); // Retrieve the access token
-        console.log("Getting token access_token:", accessToken);  // Log the token
-        
+        const accessToken = getToken("access_token");
         if (accessToken) {
             config.headers["Authorization"] = `Bearer ${accessToken}`;
             console.log("Added Authorization header:", config.headers["Authorization"]);
         } else {
-            console.warn("No access token found in localstorage")
+            console.warn("No access token found.");
         }
-
         return config;
     };
 
@@ -91,27 +83,21 @@ const useAuthAxios = () => {
      * Response interceptor to handle token updates and other response modifications.
      */
     const responseInterceptor = (response) => {
-        console.log("Intercepting response:", response.config.url);
-
-        // Store access and refresh tokens if they are present in the response
         const accessToken = response.data.access;
         const refreshToken = response.data.refresh;
 
         if (accessToken) {
             setToken("access_token", accessToken);
             console.log("Access token set:", accessToken);
-            console.log("Access token in localStorage:", localStorage.getItem('access_token'));  // Check if stored
         }
 
         if (refreshToken) {
-            setToken("refresh_token", refreshToken, { expires: 7 });  // Store the refresh token
+            setToken("refresh_token", refreshToken, { expires: 7 });
             console.log("Refresh token set:", refreshToken);
-            console.log("Refresh token in localStorage:", localStorage.getItem('refresh_token'));  // Check if stored
         }
 
         // Handle logout scenario
         if (response.config.url.includes("/logout/")) {
-            console.log("User logged out, clearing tokens.");
             removeToken("access_token");
             removeToken("refresh_token");
             Cookies.remove("csrftoken");
@@ -125,8 +111,6 @@ const useAuthAxios = () => {
      * Response error interceptor to handle token expiration and refresh logic.
      */
     const responseErrorInterceptor = async (error) => {
-        console.error("Response error intercepted:", error.response?.status);
-
         const originalRequest = error.config;
 
         // Handle expired access tokens and attempt to refresh them ONCE
@@ -134,15 +118,18 @@ const useAuthAxios = () => {
             originalRequest._retry = true;
             console.log("Attempting token refresh.");
 
+            const refreshToken = getToken("refresh_token");
+            if (!refreshToken) {
+                console.log("No refresh token available. Logging out.");
+                handleAuthError();
+                return Promise.reject(error);
+            }
+
             try {
                 const response = await authAxios.post("/token/refresh/", {}, { withCredentials: true });
-
                 if (response.status === 200) {
                     const newAccessToken = response.data.access;
-                    console.log("Setting refreshed access token:", newAccessToken);
                     setToken("access_token", newAccessToken);
-
-                    // Update the auth headers with new access token
                     originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
                     return authAxios(originalRequest); // Retry original request with new token
                 }
@@ -163,7 +150,7 @@ const useAuthAxios = () => {
         console.log("Setting up Axios interceptors.");
         const reqInterceptor = authAxios.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
         const resInterceptor = authAxios.interceptors.response.use(responseInterceptor, responseErrorInterceptor);
-    
+
         return () => {
             console.log("Cleaning up Axios interceptors.");
             authAxios.interceptors.request.eject(reqInterceptor);
@@ -175,4 +162,3 @@ const useAuthAxios = () => {
 };
 
 export default useAuthAxios;
-

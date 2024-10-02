@@ -1,76 +1,82 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthAxios from "./useAuthAxios";
+import { useUserContext } from "../context/userContext";
 
 export const useAuth = () => {
-    const { authAxios, getToken, setToken } = useAuthAxios();
+    const { authAxios, getToken, setToken, removeToken } = useAuthAxios(); // Axios instance with token helpers
+    const { setUser, setIsLoggedIn } = useUserContext(); // Context functions for user state
     const navigate = useNavigate();
 
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(!!getToken("access_token")); //Check token using getToken()
-    const [user, setUser] = useState(null);
     const [error, setError] = useState("");
 
-const login = useCallback(async ({ email, password }) => {
-    setIsLoading(true);
-    setError("");
+    // Login function
+    const login = useCallback(async ({ email, password }) => {
+        setIsLoading(true);
+        setError(""); // Clear previous errors
 
-    try {
-        // STEP 1: Make the request to the login endpoint to obtain tokens
-        const loginResponse = await authAxios.post("/token/", { email, password });
-        console.log("Login response:", loginResponse.data);
+        try {
+            // STEP 1: Request tokens from login endpoint
+            const { data: loginData } = await authAxios.post("/token/", { email, password });
+            const accessToken = loginData.access;
+            const refreshToken = loginData.refresh;
+            
+            // STEP 2: Store tokens in cookies or localStorage
+            setToken("access_token", accessToken);
+            setToken("refresh_token", refreshToken);
+            console.log("Tokens successfully set.");
 
-        // Manually set the tokens
-        const accessToken = loginResponse.data.access;
-        const refreshToken = loginResponse.data.refresh;
-        setToken("access_token", accessToken);
-        setToken("refresh_token", refreshToken);
-        console.log("Tokens successfully set.");
+            // STEP 3: Fetch user profile data
+            const { data: userData } = await authAxios.get("/users/profile/", {
+                headers: {
+                    Authorization: `Bearer ${accessToken}` // Attach access token to request
+                }
+            });
+            console.log("User profile fetched:", userData);
 
-        // Ensure the token is stored
-        console.log("Stored access token:", getToken("access_token"));
+            // STEP 4: Update user context with profile data
+            setUser(userData);
+            setIsLoggedIn(true);
 
-        // STEP 2: Manually set the Authorization header for the profile request
-        const userResponse = await authAxios.get("/users/profile/", {
-            // HAD TO ADD THE HEADERS MANUALLY FOR SOME REASON MY AXIOS INSTANCE REQUEST FUNCTION FOR 
-            // THIS ISN'T WORKING AS EXPECTED. ITS NOT A TIMING ISSUE I ALREADY TESTED WITH SETTIMEOUT. 
-            headers: {
-                Authorization: `Bearer ${accessToken}`
+            // Navigate to the homepage after login
+            navigate("/");
+
+        } catch (error) {
+            console.error("Login failed:", error);
+
+            // Handle login error based on response status
+            if (error.response?.status === 401) {
+                setError("Invalid email or password.");
+            } else {
+                setError("An error occurred. Please try again later.");
             }
-        });
-        console.log("User profile fetched:", userResponse.data);
-
-        // Update the user state
-        setUser(userResponse.data);
-        setIsLoggedIn(true);
-
-        // Navigate to home after successful login
-        navigate("/");  
-    } catch (error) {
-        console.error("Login failed:", error);
-
-        // Handle invalid user credentials
-        if (error.response?.status === 401) {
-            setError("Invalid email or password.");
-        } else {
-            setError("An error occurred. Please try again later.");
+        } finally {
+            setIsLoading(false); // Reset loading state
         }
-    } finally {
-        setIsLoading(false);
-    }
-}, [authAxios, navigate]);
+    }, [authAxios, setUser, setIsLoggedIn, setToken, navigate]);
 
-    
-    
+    // Logout function
+    const logout = useCallback(() => {
+        // Remove tokens
+        removeToken("access_token");
+        removeToken("refresh_token");
 
+        // Clear user context data
+        setUser(null);
+        setIsLoggedIn(false);
+
+        // Redirect to login page
+        navigate("/login");
+    }, [removeToken, setUser, setIsLoggedIn, navigate]);
 
     // Registration function
     const register = useCallback(async ({ email, first_name, last_name, password }) => {
         setIsLoading(true);
-        setError("");
+        setError(""); // Clear previous errors
 
         try {
-            // STEP 1: Send registration request to the backend
+            // STEP 1: Send registration request
             const registerResponse = await authAxios.post("/users/", {
                 email,
                 first_name,
@@ -79,13 +85,13 @@ const login = useCallback(async ({ email, password }) => {
             });
 
             if (registerResponse.status === 201) {
-                // Automatically log the user in after successful registration
+                // STEP 2: Automatically log in after successful registration
                 await login({ email, password });
             }
         } catch (error) {
             console.error("Registration failed:", error);
 
-            // More explicit error handling
+            // Handle registration errors
             if (error.response?.status === 400) {
                 setError("Validation error. Please ensure all fields are correctly filled.");
             } else if (error.response?.status === 500) {
@@ -96,16 +102,15 @@ const login = useCallback(async ({ email, password }) => {
                 setError("An unexpected error occurred.");
             }
         } finally {
-            setIsLoading(false);
+            setIsLoading(false); // Reset loading state
         }
     }, [authAxios, login]);
 
     return {
-        isLoading,
-        isLoggedIn,
-        user,
-        error,
-        login,
-        register,
+        isLoading,  // Boolean indicating if a request is in progress
+        error,      // Any error message encountered during auth operations
+        login,      // Login function
+        register,   // Registration function
+        logout,     // Logout function 
     };
 };
