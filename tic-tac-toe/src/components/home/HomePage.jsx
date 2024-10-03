@@ -3,24 +3,23 @@ import { ResultModal } from "../reslutModal/ResultModal";
 import { Board } from "../board/Board";
 import { useState } from "react";
 import useGameServices from "../hooks/useGameServices";
-import { useAuth } from "../hooks/useAuth";
+import { useUserContext } from "../context/userContext"; // Import UserContext
 
 const HomePage = () => {
-  const { user, isLoggedIn } = useAuth();
-  console.log(user)
-  const { createNewGame, gameData, makeMove, loading, error } =
-    useGameServices();
+  const { user, isLoggedIn } = useUserContext(); // Access user and isLoggedIn from UserContext
+  console.log("User:", user);
+
+  const { createNewGame, gameData, makeMove, loading, error } = useGameServices();
   const [isAIGame, setIsAIGame] = useState(false);
   const [isGameStarted, setIsGameStarted] = useState(false);
 
   const startMultiplayerGame = () => {
-    createNewGame(user.first_name, false);
+    createNewGame(user.first_name, false); // Use user data from context
     setIsAIGame(true);
   };
 
   const startAIGame = () => {
-    createNewGame(user.first_name, true);
-    setIsGameStarted(true);
+    createNewGame(user.first_name, true); // Use user data from context
     setIsGameStarted(true);
   };
 
@@ -55,8 +54,6 @@ const HomePage = () => {
           Play vs AI
         </button>
       </div>
-
-
     </div>
   );
 };

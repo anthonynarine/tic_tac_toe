@@ -6,9 +6,10 @@ from .serializers import TicTacToeGameSerializer
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import action
 from .ai_logic.ai_logic import get_best_move
+import logging
 
 User = get_user_model()
-
+logger = logging.getLogger(__name__)
 
 class TicTacToeGameViewsets(viewsets.ModelViewSet):
     """
@@ -18,49 +19,48 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
     """
     queryset = TicTacToeGame.objects.all()
     serializer_class = TicTacToeGameSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        """
-        Automatically set player_x (the requesting user) and player_o (provided via username) when creating a game. 
+def perform_create(self, serializer):
+    logger.debug("Request user: %s", self.request.user)  # Log the user making the request
+    logger.debug("Request headers: %s", self.request.headers.get('Authorization'))  # Log the token being sent
 
-        Args:
-            serializer (ModelSerializer): The serializer instance used to create the game.
+    """
+    Automatically set player_x (the requesting user) and player_o (provided via email or AI).
+    """
+    player_x = self.request.user  # The user creating the game is assigned as player_x
+    player_o_email = self.request.data.get("player_o")  # Email for player_o if specified
+    is_ai_game = self.request.data.get("is_ai_game", False)
 
-        Returns:
-            Response: An error message if player_o does not exist, or proceeds to save the game. 
-        """
-        player_x = self.request.user
-        player_o_username = self.request.data.get("player_o")
-        is_ai_game = self.request.data.get("is_ai_game", False)
+    if is_ai_game:
+        # Assign AI as player_o if it's an AI game
+        player_o = User.objects.filter(email="ai@example.com").first()  # Ensure AI user exists
+    elif player_o_email:
+        try:
+            player_o = User.objects.get(email=player_o_email)  # Get player_o by email
+        except User.DoesNotExist:
+            return Response({"error": "Player O does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        player_o = None  # Wait for a second player if not provided
 
-        if is_ai_game:
-            # Assign AI as player_o if it's an AI game
-            player_o = User.objects.get(username="AI")  # Ensure an AI user exists in the database
-        elif player_o_username:
-            try:
-                player_o = User.objects.get(username=player_o_username)
-            except User.DoesNotExist:
-                return Response({"error": "Player O does not exist"}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            player_o = None  # Game will wait for a second player to join
+    # Save the game with player_x and player_o (if provided)
+    serializer.save(player_x=player_x, player_o=player_o)
 
-        # Save the game with both players
-        serializer.save(player_x=player_x, player_o=player_o)
 
-    @action(detail=True, methods=["post"])
-    def join_game(self, request, pk=None):
-        """
-        Allow a second player to join a game that has an open spot.
-        """
-        game = self.get_object()
-        if game.player_o:
-            return Response({"error": "Game already has two players"}, status=status.HTTP_400_BAD_REQUEST)
 
-        game.player_o = request.user  # Requesting player becomes player_o
-        game.save()
+@action(detail=True, methods=["post"])
+def join_game(self, request, pk=None):
+    """
+    Allow a second player to join a game that has an open spot.
+    """
+    game = self.get_object()
+    if game.player_o:
+        return Response({"error": "Game already has two players"}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(self.get_serializer(game).data)
+    game.player_o = request.user  # Requesting player becomes player_o
+    game.save()
+
+    return Response(self.get_serializer(game).data)
 
 def update(self, request, *args, **kwargs):
     """
@@ -92,7 +92,7 @@ def update(self, request, *args, **kwargs):
             return Response(self.get_serializer(game).data)  # Return the result if the game is over
 
         # Check if the AI should make a move (for AI games only)
-        if game.player_o and game.player_o.username == "AI" and game.current_turn == "O":
+        if game.player_o and game.player_o.email == "ai@example.com" and game.current_turn == "O":  # AI email check
             ai_move = get_best_move(game, "X", "O")
             if ai_move is not None:
                 game.make_move(ai_move, "O")  # AI makes its move
@@ -107,3 +107,4 @@ def update(self, request, *args, **kwargs):
         return Response(self.get_serializer(game).data)
     else:
         return Response({"error": "It's not your turn"}, status=status.HTTP_400_BAD_REQUEST)
+

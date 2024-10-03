@@ -21,13 +21,15 @@ class TicTacToeGame(models.Model):
         settings.AUTH_USER_MODEL, 
         related_name="player_x_games",
         on_delete=models.CASCADE,
-        help_text="The player assigned to 'X' in the game."
+        help_text="The user who created the game is automatically assigned as Player X."
     )
     player_o = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         related_name="player_o_games",
         on_delete=models.CASCADE,
-        help_text="The player assigned to 'O' in the game."
+        null=True,
+        blank=True,
+        help_text="Player O can either be an AI or a second human player. If not provided, the game waits for a second player to join."
     )
     board_state = models.CharField(
         max_length=9,

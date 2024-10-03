@@ -22,7 +22,7 @@ const useGameServices = (gameId) => {
         setLoading(true);
         setError(null);
         try {
-            const response = await authAxios.post("/games", {
+            const response = await authAxios.post("/games/", {
                 player_o: playerOUsername,
                 is_ai_game: isAIGame
             });

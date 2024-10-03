@@ -3,6 +3,8 @@ from decouple import config
 from pathlib import Path
 from datetime import timedelta
 import os
+from .logging_conf import julia_fiesta_logs
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -104,20 +106,13 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
-
+# Internationalization and Time Zone
 LANGUAGE_CODE = "en-us"
-
-TIME_ZONE = "UTC"
-
+TIME_ZONE = 'America/New_York'
 USE_I18N = True
-
+USE_L10N = True
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = "static/"
 
