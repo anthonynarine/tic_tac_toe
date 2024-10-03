@@ -12,27 +12,53 @@ const useGameServices = (gameId) => {
         return error.response?.data?.error || "An error occurred";
     };
 
-    // Create new game
-    const createNewGame = useCallback(async (playerOUsername, isAIGame = false) => {
-        if (!authAxios) {
-            setError("Authorization service unavailable");
-            return;
+/**
+ * createNewGame
+ * 
+ * Function to create a new Tic-Tac-Toe game by sending a POST request to the backend.
+ * 
+ * Satisfies the backend `perform_create` logic by:
+ * - Automatically assigning the user making the request as player_x.
+ * - If it's a multiplayer game, includes player_o (opponent's email) in the request.
+ * - If it's an AI game, no player_o is included in the request, and the backend assigns the AI as player_o.
+ * 
+ * @param {string} playerOEmail - The email of the second player (if it's a multiplayer game).
+ * @param {boolean} isAIGame - A flag indicating if the game is against AI.
+ */
+ const createNewGame = useCallback(async (playerOEmail, isAIGame = false) => {
+    if (!authAxios) {
+        setError("Authorization service unavailable"); // Handle missing axios instance
+        return;
+    }
+
+    setLoading(true); // Indicate that the request is in progress
+    setError(null); // Reset any previous error
+
+    try {
+        // Payload to send in the POST request
+        const payload = {
+            is_ai_game: isAIGame, // Flag for whether this is an AI game
+        };
+
+        if (!isAIGame && playerOEmail) {
+            // If it's a multiplayer game, include the email for player_o
+            payload.player_o = playerOEmail;
         }
 
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await authAxios.post("/games/", {
-                player_o: playerOUsername,
-                is_ai_game: isAIGame
-            });
-            setGameData(response.data); // Update the state with the newly created game   
-        } catch (error) {
-            setError(extractErrorMessage(error));
-        } finally {
-            setLoading(false);
-        }
-    }, [authAxios]);
+        // Send POST request to create a new game
+        const response = await authAxios.post("/games/", payload);
+
+        // Update the state with the newly created game data
+        setGameData(response.data);
+    } catch (error) {
+        // Extract and set the error message in case of failure
+        setError(extractErrorMessage(error));
+    } finally {
+        // Indicate that the request is complete
+        setLoading(false);
+    }
+}, [authAxios]);
+
 
     // Join an open game
     const joinGame = useCallback(async (gameId) => {
