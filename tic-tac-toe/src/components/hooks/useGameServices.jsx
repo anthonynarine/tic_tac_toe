@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import useAuthAxios from "./useAuthAxios";
+import axios from "axios";
 
 const useGameServices = (gameId) => {
     const { authAxios } = useAuthAxios();
@@ -35,6 +36,7 @@ const useGameServices = (gameId) => {
     setError(null); // Reset any previous error
 
     try {
+        const token = localStorage.getItem("access_token")
         // Payload to send in the POST request
         const payload = {
             is_ai_game: isAIGame, // Flag for whether this is an AI game
@@ -46,8 +48,15 @@ const useGameServices = (gameId) => {
         }
 
         // Send POST request to create a new game
-        const response = await authAxios.post("/games/", payload);
+        const response = await axios.post("http://localhost:8000/api/games/", payload, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            }
+        });
 
+        console.log(response.data);
+
+    
         // Update the state with the newly created game data
         setGameData(response.data);
     } catch (error) {

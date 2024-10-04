@@ -141,8 +141,9 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),     # Refresh token lifetime
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),  # Use Bearer for Authorization header
+    'AUTH_HEADER_TYPES': ('Bearer',),
     'SIGNING_KEY': config('SECRET_KEY'),  # Ensure the signing key is secure
+    'ALGORITHM': 'HS256',  # Add algorithm if not using the default
 }
 
 # CSRF settings (ensure CSRF tokens are handled in production)

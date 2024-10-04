@@ -48,6 +48,30 @@ def julia_fiesta_logs():
                 'level': 'DEBUG',
                 'propagate': True,
             },
+            # Add django logger for general request lifecycle
+            'django': {
+                'handlers': ['console', 'file'],
+                'level': 'DEBUG',
+                'propagate': True,
+            },
+            # Add django request logger to track incoming requests
+            'django.request': {
+                'handlers': ['console', 'file'],
+                'level': 'DEBUG',
+                'propagate': False,
+            },
+            # Add authentication logger for tracking auth-related events
+            'django_auth': {
+                'handlers': ['console', 'file'],
+                'level': 'DEBUG',
+                'propagate': True,
+            },
+            # Add a custom logger for JWT-related logging in views or middleware
+            'auth': {
+                'handlers': ['console', 'file'],
+                'level': 'DEBUG',
+                'propagate': True,
+            },
         },
     }
     logging.config.dictConfig(logging_config)
