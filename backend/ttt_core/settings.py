@@ -6,6 +6,7 @@ import os
 from .logging_conf import julia_fiesta_logs
 
 
+julia_fiesta_logs()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

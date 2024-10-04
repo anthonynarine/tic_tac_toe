@@ -22,13 +22,14 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
 def perform_create(self, serializer):
-    logger.debug("Request user: %s", self.request.user)  # Log the user making the request
+    logger.debug("Entered perform_create method")  
     logger.debug("Request headers: %s", self.request.headers.get('Authorization'))  # Log the token being sent
 
     """
     Automatically set player_x (the requesting user) and player_o (provided via email or AI).
     """
     player_x = self.request.user  # The user creating the game is assigned as player_x
+    logger.debug("Request user: %s", self.request.user)  # Log the user making the request
     player_o_email = self.request.data.get("player_o")  # Email for player_o if specified
     is_ai_game = self.request.data.get("is_ai_game", False)
 
