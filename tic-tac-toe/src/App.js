@@ -13,17 +13,17 @@ import { UserProvider } from "./components/context/userContext";
 function App() {
   return (
     <>
-    <Navbar />
-    <div className="main-content">
-      <UserProvider>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/register" element={<RegistrationPage/>} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/game" element={<Game />} />
-        </Routes>
-      </UserProvider>
-      </div>
+    <UserProvider>
+      <Navbar />
+      <div className="main-content">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/register" element={<RegistrationPage/>} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/game" element={<Game />} />
+          </Routes>
+        </div>
+    </UserProvider>
     </>
   );
 }

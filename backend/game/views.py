@@ -21,7 +21,7 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
     """
     queryset = TicTacToeGame.objects.all()
     serializer_class = TicTacToeGameSerializer
-    permission_classes = [AllowAny]  # Temporarily disable authentication
+    permission_classes = [IsAuthenticated]  # Temporarily disable authentication
 
     def perform_create(self, serializer):
         """
