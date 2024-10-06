@@ -1,74 +1,75 @@
-/* Container for the homepage */
+/* Twitter-styled homepage container */
 .homepage-container {
-    background: var(--content-background-color); 
-    border-radius: var(--default-border-radius); 
-    padding: 3vmin;
-    box-shadow: var(--box-shadow); 
-    max-width: 800px;
-    margin: 0 auto;
-    text-align: center;
-  }
-  
-  h1 {
-    color: var(--primary-color);
-    text-align: center;
-    margin-bottom: 2vmin;
-    font-size: var(--main-title-font-size);
-  }
-  
-  h2 {
-    color: var(--primary-color); 
-    margin-bottom: 1.5vmin;
-    font-size: 2.5vmin;
-  }
-  
-  p {
-    font-size: 1.8vmin;
-    color: var(--primary-color);
-  }
-  
-  .game-options {
-    margin-top: 2vmin;
-  }
-  
-  .game-btn {
-    padding: 1.5vmin 4vmin;
-    margin: 1.5vmin;
-    font-size: 2vmin;
-    cursor: pointer;
-    border: none;
-    border-radius: var(--default-border-radius);
-    box-shadow: var(--box-shadow);
-    transition: background 0.3s ease;
-  }
-  
-  .multiplayer-btn {
-    background-color: #007bff; 
-    color: white;
-  }
-  
-  .ai-btn {
-    background-color: #28a745; 
-    color: white;
-  }
-  
-  .game-btn:hover {
-    background-color: var(--primary-highlight-gradient);
-  }
-  
-  /* Add the board preview section */
-  .board-preview {
-    margin-top: 3vmin;
-    display: flex;
-    justify-content: center;
-  }
-  
-  .user-stats {
-    margin-top: 4vmin;
-    font-size: 2vmin;
-  }
-  
-  .user-stats p {
-    margin: 1vmin 0;
-  }
-  
+  background-color: #0D0D0D; /* Dark background */
+  border-radius: 15px;
+  padding: 2vmin;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Softer shadow */
+  max-width: 600px;
+  margin: 4vmin auto;
+  text-align: center;
+  position: relative;
+  min-height: 65vh; /* Ensure the container has a minimum height */
+  display: flex;
+  flex-direction: column; /* Stack children vertically */
+  justify-content: space-between; /* Push content to the top and bottom */
+  border: 0.20px solid#E1E8ED; /* Light grey border */
+}
+
+/* Game Options Section (buttons at the bottom) */
+.game-options {
+  margin-top: 2vmin;
+  display: flex;
+  justify-content: center;
+  gap: 6vmin;
+  margin-top: auto; /* Ensure it sits at the bottom */
+}
+
+/* Buttons styled with Twitter blue */
+.game-btn {
+  padding: 1.2vmin 4vmin;
+  font-size: 1.6vmin;
+  cursor: pointer;
+  border: none;
+  border-radius: 15px; /* Rounded buttons similar to Twitter */
+  background-color: #1DA1F2; /* Twitter blue */
+  color: #ffffff;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.game-btn:hover {
+  background-color: #1a91da; /* Darker blue on hover */
+  transform: translateY(-2px); /* Lift effect for interactivity */
+}
+
+.multiplayer-btn {
+  background-color: #17252d; /* Same Twitter blue for multiplayer */
+}
+
+.ai-btn {
+  background-color: #17252d; /* Twitter-like green for AI button */
+}
+
+.ai-btn:hover {
+  background-color: #1DA1F2;
+}
+
+.join-btn {
+  background-color: #007BFF; /* Button color */
+  color: solid#E1E8ED;
+  padding: 10px 100px;
+  border: none;
+  border-radius: 15px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.join-btn:hover {
+  background-color: solid#E1E8ED; /* Darker blue on hover */
+  transform: scale(1.05); /* Slightly enlarge button on hover */
+  color: solid#E1E8ED; /* Keep text color white */
+}
+
+.join-btn:active {
+  transform: scale(0.98); /* Slight shrink effect on click */
+}

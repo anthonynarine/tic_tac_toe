@@ -1,8 +1,17 @@
+/* Use a Twitter-like font stack */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, Arial, sans-serif;
+  background-color: var(--background-dark-color); /* Similar dark background */
+  color: #333; /* Neutral text color */
+}
+
 :root {
   --background-light-color: #57ebd7;
-  --background-dark-color: #24a88b;
+  --background-dark-color: #0D0D0D; /* Similar to Twitter's dark mode */
   --content-background-color: #fff6be;
-  --primary-color: #007541;
+  --primary-color: white;
   --accent-color: #FD0;
   --box-shadow-color: rgba(0, 0, 0, 0.75);
   --box-shadow: 0 1vmin 2vmin -1vmin rgba(0, 0, 0, 0.75);
@@ -13,10 +22,37 @@
 
 /* Main content area below the navbar */
 .main-content {
-  padding-top: 100px; /* Adjust for navbar height + margin */
-  min-height: calc(100vh - 100px); /* Full viewport height minus navbar */
+  padding-top: 0px;
+  min-height: calc(100vh - 10px);
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: var(--background-dark-color);
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 1rem;
+}
+
+/* Headings with a Twitter-like feel */
+h1, h2, h3 {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, Arial, sans-serif;
+  font-weight: 700; /* Twitter uses bold text for headers */
+  color: #1DA1F2; /* Twitter blue */
+}
+
+/* Example of Twitter-like button styles */
+button {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, Arial, sans-serif;
+  background-color: #1DA1F2; /* Twitter blue */
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover {
+  background-color: #1a91da; /* Darker hover effect */
 }

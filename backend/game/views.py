@@ -137,3 +137,9 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
         else:
             logger.error("It's not the player's turn")
             return Response({"error": "It's not your turn"}, status=status.HTTP_400_BAD_REQUEST)
+        
+    @action(detail=False, methods=["get"], url_path="open-games")
+    def list_open_games(self, request):
+        open_games = TicTacToeGame.objects.filter(player_o__isnull=True, winner__isnull=True)
+        serializer = self.get_serializer(open_games, many=True)
+        return Response(serializer.data)
