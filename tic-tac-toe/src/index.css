@@ -1,10 +1,14 @@
 /* Use a Twitter-like font stack */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;700&display=swap');
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, Arial, sans-serif;
   background-color: var(--background-dark-color); /* Similar dark background */
   color: #333; /* Neutral text color */
+}
+
+.thin-text {
+  font-weight: 100; /* Thin font weight for clean lines */
 }
 
 :root {
@@ -37,8 +41,8 @@ body {
 /* Headings with a Twitter-like feel */
 h1, h2, h3 {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, Arial, sans-serif;
-  font-weight: 700; /* Twitter uses bold text for headers */
-  color: #1DA1F2; /* Twitter blue */
+  background-color: var(--background-dark-color); /* Similar dark background */
+  color: #333; /* Neutral text color */
 }
 
 /* Example of Twitter-like button styles */

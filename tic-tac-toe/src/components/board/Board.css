@@ -1,9 +1,10 @@
 #board {
     display: grid;
-    grid-template-columns: repeat(3, 20vmin);
-    grid-template-rows: repeat(3, 20vmin);
+    grid-template-columns: repeat(3, 12vmin);
+    grid-template-rows: repeat(3, 12vmin);
     grid-gap: 1vmin;
-    margin: 2vmin 0;
+    margin: 4vmin ;
+    justify-content: center;
   }
   
   

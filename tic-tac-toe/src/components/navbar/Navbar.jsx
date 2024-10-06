@@ -1,12 +1,16 @@
 import React, { useState } from "react";
 import { FaBars, FaTimes, FaUser, FaSignInAlt, FaSignOutAlt } from "react-icons/fa";
-import { GrGamepad } from "react-icons/gr";
 import "./Navbar.css";
-import logo from "../assets/logo1.png";
+import { PiGameControllerThin } from "react-icons/pi";
+import { CiLogin, CiLogout } from "react-icons/ci";
 import logored from "../assets/logo-red.png";
 import { useAuth } from "../hooks/useAuth";
 import { useUserContext } from "../context/userContext";
 import useGameServices from "../hooks/useGameServices";
+import { RiUserHeartLine } from "react-icons/ri";
+import { PiUserCirclePlusThin } from "react-icons/pi";
+import { LiaUserNinjaSolid } from "react-icons/lia";
+
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false); // For mobile menu toggle
@@ -44,10 +48,10 @@ const Navbar = () => {
         </div>
 
         <div className="game-icon-container" onClick={toggleDropdown}>
-          <GrGamepad className="game-icon" />
+          <PiGameControllerThin className="game-icon" />
           {dropdownOpen && (
             <div className="dropdown-menu">
-              <button onClick={startMultiplayerGame}>Play Multiplayer</button>
+              <button onClick={startMultiplayerGame}>Multiplayer</button>
               <button onClick={startAIGame}>Play vs AI</button>
             </div>
           )}
@@ -58,19 +62,19 @@ const Navbar = () => {
             {!isLoggedIn ? (
               <li>
                 <a href="/login" title="Login">
-                  <FaSignInAlt className="nav-icon" />
+                  <CiLogin className="nav-icon" />
                 </a>
               </li>
             ) : (
               <>
                 <li>
                   <button onClick={logout} title="Logout" className="nav-button">
-                    <FaSignOutAlt className="nav-icon" />
+                    <CiLogout className="nav-icon" />
                   </button>
                 </li>
                 <li>
                   <a href="/profile" title="Profile">
-                    <FaUser className="nav-icon" />
+                    <LiaUserNinjaSolid className="nav-icon" />
                   </a>
                 </li>
               </>

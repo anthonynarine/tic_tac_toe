@@ -21,6 +21,9 @@ const Home = () => {
     // Call join game service (useGameServices) here to update the state
   };
 
+  // Initial empty board state (9 cells, all empty)
+  const emptyBoardState = Array(9).fill("");
+
   return (
     <div className="homepage-container">
       <h1> The tic-tac-anto</h1>
@@ -43,7 +46,15 @@ const Home = () => {
               </div>
             </div>
           ) : (
-            <p className="no-games-msg">No games are currently available. You can create a new game!</p>
+            <div>
+              <p className="no-games-msg">No games are currently available. You can create a new game!</p>
+              {/* Display empty board when no games are available */}
+              <Board
+                cellValues={emptyBoardState}
+                winningCombination={[]} // No winning combination for empty board
+                cellClicked={() => {}} // No interaction in the empty board
+              />
+            </div>
           )}
 
           <div className="game-options">

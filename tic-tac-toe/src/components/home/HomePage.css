@@ -8,11 +8,13 @@
   margin: 4vmin auto;
   text-align: center;
   position: relative;
-  min-height: 65vh; /* Ensure the container has a minimum height */
+  min-height: 50vh; /* Ensure the container has a minimum height */
   display: flex;
   flex-direction: column; /* Stack children vertically */
   justify-content: space-between; /* Push content to the top and bottom */
   border: 0.20px solid#E1E8ED; /* Light grey border */
+  margin-top: 10rem;
+  margin-bottom: 5rem;
 }
 
 /* Game Options Section (buttons at the bottom) */
@@ -34,6 +36,7 @@
   background-color: #1DA1F2; /* Twitter blue */
   color: #ffffff;
   transition: background 0.3s ease, transform 0.2s ease;
+  border: 1px solid;
 }
 
 .game-btn:hover {
@@ -42,11 +45,11 @@
 }
 
 .multiplayer-btn {
-  background-color: #17252d; /* Same Twitter blue for multiplayer */
+  background-color: #0D0D0D; /* Same Twitter blue for multiplayer */
 }
 
 .ai-btn {
-  background-color: #17252d; /* Twitter-like green for AI button */
+  background-color: #0D0D0D; /* Twitter-like green for AI button */
 }
 
 .ai-btn:hover {
