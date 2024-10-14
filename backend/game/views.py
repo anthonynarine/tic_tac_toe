@@ -38,21 +38,15 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
             logger.error("Authenticated user not found.")
             raise ValidationError("Authenticated user not found.")
 
-        player_o_email = self.request.data.get("player_o")  # Get player_o email from frontend
+        # check if it's an AI game
         is_ai_game = self.request.data.get("is_ai_game", False)
 
-        # Set player_o based on the game type (AI or another player)
+        # If it's an AI game, asign the AI as player_o (make sure to add tis player in the production db)
         if is_ai_game:
             player_o = User.objects.filter(email="ai@example.com").first()
             logger.debug(f"AI player_o set: {player_o}")
-        elif player_o_email:
-            try:
-                player_o = User.objects.get(email=player_o_email)
-                logger.debug(f"Player O found: {player_o}")
-            except User.DoesNotExist:
-                logger.error(f"Player O with email {player_o_email} does not exist.")
-                raise ValidationError(f"Player O with email {player_o_email} does not exist.")
         else:
+        # For multiplayer games, player_o will remain None until anoter user joins
             player_o = None
 
         # Save the game with player_x and player_o
@@ -140,6 +134,6 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
         
     @action(detail=False, methods=["get"], url_path="open-games")
     def list_open_games(self, request):
-        open_games = TicTacToeGame.objects.filter(player_o__isnull=True, winner__isnull=True)
+        open_games = TicTacToeGame.objects.filter(player_o__isnull=True, winner__isnull=True, is_ai_game=False)
         serializer = self.get_serializer(open_games, many=True)
         return Response(serializer.data)

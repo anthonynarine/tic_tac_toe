@@ -31,6 +31,11 @@ class TicTacToeGame(models.Model):
         blank=True,
         help_text="Player O can either be an AI or a second human player. If not provided, the game waits for a second player to join."
     )
+    is_ai_game = models.BooleanField(
+        default=False,
+        help_text="Indicates if the game is played against an AI opponent. "
+            "Set to True for AI games and False for multiplayer games."
+    )
     board_state = models.CharField(
         max_length=9,
         default="_________",
