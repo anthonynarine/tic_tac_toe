@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import useGameServices from "../hooks/useGameServices";
 import { Board } from "../board/Board";
 import "./HomePage.css";
+import "../board/Board.css"
+
 
 const Home = () => {
   const { fetchJoinableGames, joinableGames, createNewGame, loading, error } = useGameServices();

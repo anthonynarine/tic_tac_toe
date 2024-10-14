@@ -13,7 +13,7 @@ html, body {
     max-width: 500px; /* Maximum width for larger screens */
     min-width: 280px; /* Minimum width for smaller screens */
     padding: 2rem;
-    background-color: #0e6c56; /* Form background - dark green */
+    background-color: #0D0D0D; /* Form background - dark green */
     border-radius: var(--default-border-radius);
     box-shadow: var(--box-shadow);
     border: var(--default-primary-border); /* Primary border from global settings */
@@ -32,7 +32,7 @@ html, body {
   /* Form Heading */
   #login-form h2 {
     text-align: center;
-    color: #f5a623; /* Keep white for contrast */
+    color: white; /* Keep white for contrast */
     font-size: var(--main-title-font-size);
   }
   
@@ -49,17 +49,18 @@ html, body {
   /* Form Button */
   #login-form button {
     padding: 1rem;
-    background: #30bd9c; /* Light green button background */
+    background: #0D0D0D; /* Light green button background */
     color: white; /* White text on the button */
     border: none;
     border-radius: var(--default-border-radius);
     font-size: 1.2rem;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    border: 1px solid White;
   }
   
   #login-form button:hover {
-    background: #f5a623; /* Hover color matches other primary accents */
+    background: #1DA1F2; /* Hover color matches other primary accents */
   }
   
   /* Responsive Design Adjustments */
@@ -119,3 +120,19 @@ html, body {
     }
   }
   
+  /* Style fo the register link */
+  .register-link {
+    text-align: center;
+    margin-top: 1rem;
+  }
+
+  .register-link a {
+    color: white;
+    text-decoration: none;
+    font-size: 1rem;
+    transition: color 0.3s ease;
+  }
+
+  .register-link a:hover {
+    color:#1DA1FE;
+  }

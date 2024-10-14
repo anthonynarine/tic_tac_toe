@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "./Login.css";
 import { useAuth } from "../hooks/useAuth"
+import { Link } from "react-router-dom";
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -44,6 +45,9 @@ const LoginPage = () => {
           required
         />
         <button type="submit">Submit</button>
+        <div className="register-link">
+          <Link to="/register/">Don't have an account? Register here</Link>
+        </div>
       </form>
     </div>
   );
