@@ -43,7 +43,12 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
 
         # If it's an AI game, asign the AI as player_o (make sure to add tis player in the production db)
         if is_ai_game:
-            player_o = User.objects.filter(email="ai@example.com").first()
+            player_o = User.objects.filter(email="ai@tictactoe.com").first()
+            
+            if not player_o:
+                logger.error("AI user with email 'ai@tictactoe.com' not found in the database.")
+                raise ValidationError("AI user not found.")
+                
             logger.debug(f"AI player_o set: {player_o}")
         else:
         # For multiplayer games, player_o will remain None until anoter user joins
@@ -51,8 +56,10 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
 
         # Save the game with player_x and player_o
         logger.debug(f"Saving game with Player X: {player_x} and Player O: {player_o}")
-        serializer.save(player_x=player_x, player_o=player_o)
+        game = serializer.save(player_x=player_x, player_o=player_o, is_ai_game=is_ai_game)
         logger.debug("Game saved successfully")
+        
+        return Response(self.get_serializer(game).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])
     def join_game(self, request, pk=None):
@@ -74,24 +81,23 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
 
         return Response(self.get_serializer(game).data)
 
-    def update(self, request, *args, **kwargs):
+    @action(detail=True, methods=["post"], url_path="move")
+    def make_move(self, request, pk=None):
         """
-        Handle making a move in the game and, if applicable, trigger an AI move.
-        
-        Args:
-            request (HttpRequest): The request containing the position to move.
+        Custom action to handle making a move in the game and triggering an AI move if applicable.
+        The URL for this action will be /games/<game_id>/move/
         """
-        logger.debug("update called")
+        logger.debug("make_move called")
         game = self.get_object()
         position = request.data.get("position")
         player = request.user
 
         logger.debug(f"Player {player} attempting to make a move at position {position}")
 
-        # Check if it's the player's turn
+        # Check if it's the player's turn and that the game is not already over
         if (game.current_turn == "X" and player == game.player_x) or (game.current_turn == "O" and player == game.player_o):
             try:
-                # Validate position
+                # Validate position (ensure it's within bounds and the cell is empty)
                 position = int(position)
                 if not 0 <= position <= 8 or game.board_state[position] != '_':
                     logger.error("Invalid position or cell is not empty.")
@@ -112,7 +118,7 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
                 return Response(self.get_serializer(game).data)  # Return the result if the game is over
 
             # Check if the AI should make a move (for AI games only)
-            if game.player_o and game.player_o.email == "ai@example.com" and game.current_turn == "O":
+            if game.player_o and game.player_o.email == "ai@tictactoe.com" and game.current_turn == "O":
                 logger.debug("AI making a move")
                 ai_move = get_best_move(game, "X", "O")
                 if ai_move is not None:
@@ -126,11 +132,29 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
                     logger.debug(f"Game over. Winner: {game.winner}")
                     return Response(self.get_serializer(game).data)  # Return the result if the AI has won or drawn
 
-            # Return the updated game state
+            # Return the updated game state after the player's move or AI move
             return Response(self.get_serializer(game).data)
         else:
             logger.error("It's not the player's turn")
             return Response({"error": "It's not your turn"}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"], url_path="reset")
+    def reset_game(self, request, pk=None):
+        logger.debug("reset_game called")
+        game = self.get_object()
+
+        # Reset the game to its initial state
+        game.board_state = "_________"  # Reset the board to empty state
+        game.current_turn = "X"  # Reset the current turn to Player X
+        game.winner = None  # Clear the winner
+        game.winning_combination = None  # Clear any winning combination
+        game.save()
+        
+        logger.debug(f"Game {game.id} has been reset")
+
+        return Response(self.get_serializer(game).data, status=status.HTTP_200_OK)
+
+
         
     @action(detail=False, methods=["get"], url_path="open-games")
     def list_open_games(self, request):

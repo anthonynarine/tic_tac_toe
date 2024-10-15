@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import useGameServices from "../hooks/useGameServices";
+import { useNavigate } from "react-router-dom";
 import { Board } from "../board/Board";
 import "./HomePage.css";
 import "../board/Board.css"
@@ -9,14 +10,32 @@ const Home = () => {
   const { fetchJoinableGames, joinableGames, createNewGame, loading, error } = useGameServices();
   const [selectedGame, setSelectedGame] = useState(null);
 
+  const navigate = useNavigate();
+
   // Fetch joinable games on component mount
   useEffect(() => {
     fetchJoinableGames();
   }, []);
 
-  const handleCreateGame = (isAIGame = false) => {
-    createNewGame(null, isAIGame);
+  const handleCreateGame = async (isAIGame = false) => {
+    // Call createNewGame to initiate game creation with the specified type (AI or multiplayer)
+    // `null` is passed for `player_o` since it's determined by the backend
+     // Await the promise returned by createNewGame to ensure we wait for the game to be created
+    const newGame = await createNewGame(null, isAIGame);
+  
+    // If the game creation is successful, the new game object will be returned
+    if (newGame) {
+      // Log the game ID and player_o 
+      console.log(newGame.id, newGame.player_o);
+      
+      // If the created game is an AI game, automatically navigate to the game page
+      if (isAIGame) {
+        // Navigate to the game page with the newly created game's ID
+        navigate(`/games/${newGame.id}`);
+      }
+    }
   };
+  
 
   const handleJoinGame = async (game) => {
     setSelectedGame(game);
