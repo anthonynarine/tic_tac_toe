@@ -40,6 +40,7 @@ const Home = () => {
   const handleJoinGame = async (game) => {
     setSelectedGame(game);
     // Call join game service (useGameServices) here to update the state
+    navigate(`/games/${game.id}`);
   };
 
   // Initial empty board state (9 cells, all empty)
