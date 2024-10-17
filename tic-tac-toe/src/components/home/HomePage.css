@@ -1,6 +1,6 @@
 /* Twitter-styled homepage container */
 .homepage-container {
-  background-color: #0D0D0D; /* Dark background */
+  background-color: black; /* Dark background */
   border-radius: 15px;
   padding: 2vmin;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Softer shadow */
@@ -34,26 +34,27 @@
   border: none;
   border-radius: 15px; /* Rounded buttons similar to Twitter */
   background-color: #1DA1F2; /* Twitter blue */
-  color: #ffffff;
+  color: #69717B;
   transition: background 0.3s ease, transform 0.2s ease;
   border: 1px solid;
 }
 
 .game-btn:hover {
-  background-color: #1a91da; /* Darker blue on hover */
+  background-color: black; /* Darker blue on hover */
+  color: white;
   transform: translateY(-2px); /* Lift effect for interactivity */
 }
 
 .multiplayer-btn {
-  background-color: #0D0D0D; /* Same Twitter blue for multiplayer */
+  background-color: black; /* Same Twitter blue for multiplayer */
 }
 
 .ai-btn {
-  background-color: #0D0D0D; /* Twitter-like green for AI button */
+  background-color: black; /* Twitter-like green for AI button */
 }
 
 .ai-btn:hover {
-  background-color: #1DA1F2;
+  background-color: black;
 }
 
 .join-btn {
