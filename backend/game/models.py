@@ -84,8 +84,16 @@ class TicTacToeGame(models.Model):
             board = list(self.board_state)  # Convert board_state to list for easy modification
             board[position] = player  # Update the board with the player's move
             self.board_state = "".join(board)  # Convert the list back to a string
-            self.current_turn = "O" if player == "X" else "X"  # Switch turn to the other player
-            self.check_winner()  # Check if the move results in a win or draw
+            
+            # Check if the move results in a win or draw
+            self.check_winner()  
+            
+            if self.winner: # if a winner has be declared, no further moves are allowed
+                return
+            
+            # Switch turn to the other player if no winner yet
+            self.current_turn = "O" if player == "X" else "X"
+            self.save()
         else:
             raise ValidationError("Invalid move. The position is either occupied or it's not the player's turn.")
 
@@ -110,12 +118,18 @@ class TicTacToeGame(models.Model):
             (0, 3, 6), (1, 4, 7), (2, 5, 8),  # columns
             (0, 4, 8), (2, 4, 6)              # diagonals
         ]
+        
+        # Check each winning combination
         for combo in winning_combinations:
             if self.board_state[combo[0]] == self.board_state[combo[1]] == self.board_state[combo[2]] != '_':
                 self.winner = self.board_state[combo[0]]  # Declare the winner ('X' or 'O')
-                return
+                self.save() # ensure the game state is saved with the winner
+                return # Exit the function after declaing a winner
+        
+        # If all spaces are filled and no winner is found, declare a draw
         if "_" not in self.board_state:
             self.winner = "D"  # If all spaces are filled and there's no winner, it's a draw
+            self.save() # Ensure the game state is saved with the draw. 
 
     def __str__(self):
         """
