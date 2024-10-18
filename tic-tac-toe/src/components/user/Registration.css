@@ -13,10 +13,10 @@ html, body {
   max-width: 500px; /* Maximum width for larger screens */
   min-width: 280px; /* Minimum width for smaller screens */
   padding: 2rem;
-  background-color: #0D0D0D; /* Form background - dark green */
+  background-color: balck; /* Form background - dark green */
   border-radius: var(--default-border-radius);
   box-shadow: var(--box-shadow);
-  border: var(--default-primary-border); /* Primary border from global settings */
+  border: 1px solid white; /* Primary border from global settings */
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -61,7 +61,7 @@ html, body {
 }
 
 #registration-form button:hover {
-  background: #1DA1FE;; /* Hover color matches other primary accents */
+  background: black;; /* Hover color matches other primary accents */
 }
 
 /* Responsive Design Adjustments */

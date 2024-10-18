@@ -6,7 +6,7 @@
   width: 100%;
   height: 6rem;
   z-index: 1000;
-  background-color: #0D0D0D; /* Background stretches full width */
+  background-color: black; /* Background stretches full width */
   padding: 1rem 2rem;
   box-sizing: border-box;
   border-bottom: 1px solid #C0C0C0; /* Bright silver bottom border */

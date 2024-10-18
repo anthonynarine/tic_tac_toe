@@ -108,6 +108,7 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
 
             # Make the player's move
             game.make_move(position, "X" if player == game.player_x else "O")
+            game.current_turn = "O" if player == game.player_x else "X" # Flip the turn
             game.save()
             logger.debug(f"Move made at position {position} by player {player}")
 
@@ -117,27 +118,34 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
                 logger.debug(f"Game over. Winner: {game.winner}")
                 return Response(self.get_serializer(game).data)  # Return the result if the game is over
 
-            # Check if the AI should make a move (for AI games only)
-            if game.player_o and game.player_o.email == "ai@tictactoe.com" and game.current_turn == "O":
+            # Setp # 2: Hanle AI's Move (if appkicable)
+            if game.is_ai_game and game.current_turn == "O":
                 logger.debug("AI making a move")
-                ai_move = get_best_move(game, "X", "O")
-                if ai_move is not None:
-                    game.make_move(ai_move, "O")  # AI makes its move
-                    game.save()
-                    logger.debug(f"AI made a move at position {ai_move}")
-
-                # Check if the game is over after the AI's move
-                game.check_winner()
-                if game.winner:
-                    logger.debug(f"Game over. Winner: {game.winner}")
-                    return Response(self.get_serializer(game).data)  # Return the result if the AI has won or drawn
-
-            # Return the updated game state after the player's move or AI move
+                ai_move = self.handle_ai_move(game) # Ai logic seperated into its own function
+                return Response(ai_move)
+            
+            # Return the updated game state after the player's move
             return Response(self.get_serializer(game).data)
         else:
             logger.error("It's not the player's turn")
             return Response({"error": "It's not your turn"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    def handle_ai_move(self, game):
+        ai_move = get_best_move(game, "X", "O")
+        if ai_move is not None:
+            game.make_move(ai_move, "O") # AI makes it's move
+            game.current_turn = "X"
+            game.save()
+            logger.debug(f"AI Made a move at pisition {ai_move}")
+            
+        # Check if the game is over after the move
+        game.check_winner()
+        if game.winner:
+            logger.debug(f"Game over. Winner: {game.winner}")
+            
+        return self.get_serializer(game).data
 
+            
     @action(detail=True, methods=["post"], url_path="reset")
     def reset_game(self, request, pk=None):
         logger.debug("reset_game called")

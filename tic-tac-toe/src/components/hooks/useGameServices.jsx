@@ -159,6 +159,7 @@ const useGameServices = () => {
         loading,
         error,
         createNewGame,
+        makeMove
     };
 };
 

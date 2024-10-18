@@ -6,6 +6,7 @@
   grid-gap: 1.5vmin;
   margin: 2vmin auto;
   justify-content: center;
+  background-color: black;
 }
 
 #board div {
