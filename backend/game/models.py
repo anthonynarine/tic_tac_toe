@@ -1,6 +1,9 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TicTacToeGame(models.Model):
     """
@@ -94,25 +97,19 @@ class TicTacToeGame(models.Model):
             # Switch turn to the other player if no winner yet
             self.current_turn = "O" if player == "X" else "X"
             self.save()
+            
+            if self.is_ai_game and self.current_turn == "O":
+                self.handle_ai_move()
         else:
             raise ValidationError("Invalid move. The position is either occupied or it's not the player's turn.")
 
     def check_winner(self):
         """
         Checks the board for a winning combination or a draw.
-
-        The board is checked against predefined winning combinations (rows, columns, diagonals). 
-        If a player has completed a winning combination, the `winner` field is updated with 'X' or 'O'.
-        If all cells are filled and no one has won, the game is marked as a draw with 'D'.
-
-        Winning combinations:
-        - Rows: (0, 1, 2), (3, 4, 5), (6, 7, 8)
-        - Columns: (0, 3, 6), (1, 4, 7), (2, 5, 8)
-        - Diagonals: (0, 4, 8), (2, 4, 6)
-
-        Example:
-            If `board_state` is 'XXX_O_O__', the game will detect a win for 'X'.
+        Logs the board state and any detected winning combinations or draw conditions.
         """
+        logger.debug(f"Checking winner for board state: {self.board_state}")
+        
         winning_combinations = [
             (0, 1, 2), (3, 4, 5), (6, 7, 8),  # rows
             (0, 3, 6), (1, 4, 7), (2, 5, 8),  # columns
@@ -122,14 +119,17 @@ class TicTacToeGame(models.Model):
         # Check each winning combination
         for combo in winning_combinations:
             if self.board_state[combo[0]] == self.board_state[combo[1]] == self.board_state[combo[2]] != '_':
+                logger.debug(f"Winner found: {self.board_state[combo[0]]} for combination {combo}")
                 self.winner = self.board_state[combo[0]]  # Declare the winner ('X' or 'O')
-                self.save() # ensure the game state is saved with the winner
-                return # Exit the function after declaing a winner
+                self.save()  # Ensure the game state is saved with the winner
+                return  # Exit the function after declaring a winner
         
         # If all spaces are filled and no winner is found, declare a draw
         if "_" not in self.board_state:
-            self.winner = "D"  # If all spaces are filled and there's no winner, it's a draw
-            self.save() # Ensure the game state is saved with the draw. 
+            logger.debug("Game ended in a draw")
+            self.winner = "D"  # It's a draw
+            self.save()  # Ensure the game state is saved with the draw
+
 
     def __str__(self):
         """

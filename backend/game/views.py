@@ -106,11 +106,14 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
                 logger.error("Position must be an integer between 0 and 8.")
                 return Response({"error": "Position must be an integer between 0 and 8."}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Log board state before the player's move
+            logger.debug(f"Board state before move: {game.board_state}")
+
             # Make the player's move
             game.make_move(position, "X" if player == game.player_x else "O")
-            game.current_turn = "O" if player == game.player_x else "X" # Flip the turn
-            game.save()
-            logger.debug(f"Move made at position {position} by player {player}")
+            
+            # Log board state after the player's move
+            logger.debug(f"Board state after player's move: {game.board_state}")
 
             # Check if the game is over after the player's move
             game.check_winner()
@@ -118,32 +121,50 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
                 logger.debug(f"Game over. Winner: {game.winner}")
                 return Response(self.get_serializer(game).data)  # Return the result if the game is over
 
-            # Setp # 2: Hanle AI's Move (if appkicable)
+            # Step # 2: Handle AI's Move (if applicable)
             if game.is_ai_game and game.current_turn == "O":
                 logger.debug("AI making a move")
-                ai_move = self.handle_ai_move(game) # Ai logic seperated into its own function
+                ai_move = self.handle_ai_move(game)  # AI logic separated into its own function
+
+                # Log the returned game state after AI move
+                logger.debug(f"Board state after AI's move: {game.board_state}")
                 return Response(ai_move)
-            
+
             # Return the updated game state after the player's move
+            logger.debug(f"Returning game state to frontend: {game.board_state}")
             return Response(self.get_serializer(game).data)
+
         else:
             logger.error("It's not the player's turn")
             return Response({"error": "It's not your turn"}, status=status.HTTP_400_BAD_REQUEST)
+
     
     def handle_ai_move(self, game):
+        """
+        AI move handler. This method is called after the player's move if the game is against the AI.
+        """
+        if game.winner:
+            logger.debug("Game already over, AI cannot make a move.")
+            return self.get_serializer(game).data
+
         ai_move = get_best_move(game, "X", "O")
         if ai_move is not None:
-            game.make_move(ai_move, "O") # AI makes it's move
-            game.current_turn = "X"
-            game.save()
-            logger.debug(f"AI Made a move at pisition {ai_move}")
+            logger.debug(f"AI is making a move at position {ai_move}")
+            game.make_move(ai_move, "O")  # AI makes its move
             
-        # Check if the game is over after the move
-        game.check_winner()
-        if game.winner:
-            logger.debug(f"Game over. Winner: {game.winner}")
+            # Check if the game is over after the AI's move
+            game.check_winner()
             
+            if game.winner:
+                logger.debug(f"Game over after AI move. Winner: {game.winner}")
+            else:
+                # Only switch turn back to player if no winner
+                game.current_turn = "X"
+                game.save()
+
         return self.get_serializer(game).data
+
+
 
             
     @action(detail=True, methods=["post"], url_path="reset")
@@ -162,8 +183,6 @@ class TicTacToeGameViewsets(viewsets.ModelViewSet):
 
         return Response(self.get_serializer(game).data, status=status.HTTP_200_OK)
 
-
-        
     @action(detail=False, methods=["get"], url_path="open-games")
     def list_open_games(self, request):
         open_games = TicTacToeGame.objects.filter(player_o__isnull=True, winner__isnull=True, is_ai_game=False)
