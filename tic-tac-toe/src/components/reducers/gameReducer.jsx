@@ -12,13 +12,14 @@ export const INITIAL_STATE = {
 
 // Reducer function to handle the game state transitions
 export const gameReducer = (state, action) => {
+    console.log("Reducer received payload for SET_GAME:", action.payload);
     switch (action.type) {
         // Handles setting the initial game state when a game is loaded
         case "SET_GAME":
             return {
                 ...state,  // Spread the current state to preserve other state properties
                 game: action.payload,  // The full game object from the backend
-                cellValues: action.payload.board_state.split(""),  // Convert the board_state string into an array
+                cellValues: action.payload.board_state.split("").map(cell => cell === "_" ? "" : cell), // Convert the board_state string into an array
                 xIsNext: action.payload.current_turn === "X",  // Determine if it's X's turn based on the current_turn value
                 isGameOver: !!action.payload.winner,  // If there's a winner, set the game as over
                 winner: action.payload.winner,  // Set the winner if the game has ended
@@ -29,21 +30,29 @@ export const gameReducer = (state, action) => {
 
         // Case to handle when a player or AI makes a move
         case "MAKE_MOVE":
-            return {
-                ...state,  // Keep the current state but update the board and game progression
-                cellValues: action.payload.board_state.split(""),  // Update the board state after a move
-                xIsNext: action.payload.current_turn === "X",  // Set the current player's turn based on the updated game data
-                isGameOver: !!action.payload.winner,  // Set isGameOver to true if the game has ended with a winner
-                winner: action.payload.winner,  // Update the winner if there is one after this move
-                winningCombination: action.payload.winning_combination || [],  // Update the winning combination of cells (if any)
-                numOfTurnsLeft: action.payload.board_state.split("").filter(cell => cell === "").length,  // Calculate how many turns are left
+            console.log("Reducer received payload for MAKE_MOVE:", action.payload);
+        
+            const updatedState = {
+                ...state,
+                cellValues: action.payload.board_state.split("").map(cell => cell === "_" ? "" : cell), // Convert "_" to ""
+                xIsNext: action.payload.current_turn === "X",
+                isGameOver: !!action.payload.winner,
+                winner: action.payload.winner,
+                winningCombination: action.payload.winning_combination || [],
+                numOfTurnsLeft: action.payload.board_state.split("").filter(cell => cell === "").length,
             };
+        
+            console.log("Updated cellValues after MAKE_MOVE:", updatedState.cellValues);
+            console.log("Updated state after MAKE_MOVE:", updatedState);
+        
+            return updatedState;
+        
         
         // Case to handle when the game is reset to the initial state
         case "RESET_GAME":
             return {
                 ...state, // Keep the current state but reset relevant properties for a new game
-                cellValues: action.payload.board_state.split(""),  // Reset the board to an empty state
+                cellValues: action.payload.board_state.split("").map(cell => cell === "_" ? "" : cell), // Reset the board to an empty state
                 xIsNext: true,  // Set the game to start with Player X
                 isGameOver: false,  // Reset the game over state
                 winner: null,  // Clear the winner

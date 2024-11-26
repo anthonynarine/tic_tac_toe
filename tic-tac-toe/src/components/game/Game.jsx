@@ -11,6 +11,10 @@ export const Game = () => {
   const { state, dispatch } = useGameContext(); // Get current game state and dispatch function from context
   const { fetchGame, makeMove, resetGame } = useGameServices(); // Destructure backend service calls from custom hook
 
+  useEffect(() => {
+    console.log("Game state updated:", state);
+  }, [state]);
+
   // Component loading and error state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -59,6 +63,8 @@ export const Game = () => {
    */
   const handleCellClick = async (cellIndex) => {
     // Prevent invalid moves: if the game is over or the cell is already filled, do nothing
+    console.log("cell clicked:", cellIndex);
+
     if (state.isGameOver || state.cellValues[cellIndex] !== "") return;
 
     initializeRequest(); // Start the loading state while making the API request

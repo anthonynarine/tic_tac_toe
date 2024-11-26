@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from game.ai_logic.ai_logic import get_best_move
 import logging
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ class TicTacToeGame(models.Model):
             Each position in the string is either '_', 'X', or 'O'.
         current_turn (CharField): A character indicating whose turn it is ('X' or 'O').
         winner (CharField): A character indicating the winner of the game. It can be 'X', 'O', or 'D' (for draw).
+        is_ai_game (BooleanField): Indicates whether the game is being played against an AI.
         created_at (DateTimeField): Timestamp when the game was created.
         updated_at (DateTimeField): Timestamp when the game was last updated.
     """
@@ -37,7 +39,7 @@ class TicTacToeGame(models.Model):
     is_ai_game = models.BooleanField(
         default=False,
         help_text="Indicates if the game is played against an AI opponent. "
-            "Set to True for AI games and False for multiplayer games."
+                "Set to True for AI games and False for multiplayer games."
     )
     board_state = models.CharField(
         max_length=9,
@@ -66,47 +68,59 @@ class TicTacToeGame(models.Model):
 
     def make_move(self, position, player):
         """
-        Updates the board state when a move is made by one of the players.
-
-        This method updates the `board_state` with the player's move at the specified position,
-        and checks if there is a winner after the move. It also switches the turn to the other player.
+        Executes a move by updating the board state and switching the turn.
 
         Args:
-            position (int): The index on the board (0-8) where the player is making their move. 
-                The board is represented as a 9-character string, where each character represents a cell.
+            position (int): The index (0-8) where the player wants to place their marker.
             player (str): The player making the move ('X' or 'O').
-        
-        Raises:
-            ValidationError: If the position is already occupied or if it is not the player's turn.
 
-        Example:
-            If `board_state` is 'XOX_O____' and `position` is 4, then the board will be updated to 'XOXOX____'
-            if it's 'X's turn.
+        Raises:
+            ValidationError: If the move is invalid (e.g., position is occupied, wrong player's turn, or game over).
         """
-        if self.board_state[position] == "_" and self.current_turn == player:
-            board = list(self.board_state)  # Convert board_state to list for easy modification
-            board[position] = player  # Update the board with the player's move
-            self.board_state = "".join(board)  # Convert the list back to a string
-            
-            # Check if the move results in a win or draw
-            self.check_winner()  
-            
-            if self.winner: # if a winner has be declared, no further moves are allowed
-                return
-            
-            # Switch turn to the other player if no winner yet
+        if self.winner:
+            raise ValidationError("Invalid move: The game is already over.")
+
+        if not isinstance(position, int) or not (0 <= position < 9):
+            raise ValidationError("Invalid move: Position must be an integer between 0 and 8.")
+
+        if self.board_state[position] != "_":
+            raise ValidationError("Invalid move: The position is already occupied.")
+
+        if self.current_turn != player:
+            raise ValidationError("Invalid move: It's not your turn.")
+
+        # Update the board state with the player's marker
+        board = list(self.board_state)
+        board[position] = player
+        self.board_state = "".join(board)
+
+        # Check for a winner or draw
+        self.check_winner()
+
+        if not self.winner:  # If the game is not over, switch turns
             self.current_turn = "O" if player == "X" else "X"
-            self.save()
-            
-            if self.is_ai_game and self.current_turn == "O":
-                self.handle_ai_move()
-        else:
-            raise ValidationError("Invalid move. The position is either occupied or it's not the player's turn.")
+
+        # Save the updated game state
+        self.save()
+
+        # Trigger AI move if applicable
+        if self.is_ai_game and self.current_turn == "O":
+            self.handle_ai_move()
 
     def check_winner(self):
         """
-        Checks the board for a winning combination or a draw.
-        Logs the board state and any detected winning combinations or draw conditions.
+        Determines if there is a winner or if the game has ended in a draw.
+
+        Winning conditions:
+            - Three markers of the same type ('X' or 'O') appear in a row, column, or diagonal.
+            - If no winning condition is met and all cells are filled, the game is declared a draw.
+
+        Logs:
+            - The board state being checked.
+            - The winner, if found, or a draw condition.
+
+        Updates:
+            - Sets `self.winner` to 'X', 'O', or 'D' based on the result.
         """
         logger.debug(f"Checking winner for board state: {self.board_state}")
         
@@ -116,31 +130,48 @@ class TicTacToeGame(models.Model):
             (0, 4, 8), (2, 4, 6)              # diagonals
         ]
         
-        # Check each winning combination
         for combo in winning_combinations:
             if self.board_state[combo[0]] == self.board_state[combo[1]] == self.board_state[combo[2]] != '_':
                 logger.debug(f"Winner found: {self.board_state[combo[0]]} for combination {combo}")
-                self.winner = self.board_state[combo[0]]  # Declare the winner ('X' or 'O')
-                self.save()  # Ensure the game state is saved with the winner
-                return  # Exit the function after declaring a winner
+                self.winner = self.board_state[combo[0]]
+                return
         
-        # If all spaces are filled and no winner is found, declare a draw
         if "_" not in self.board_state:
-            logger.debug("Game ended in a draw")
-            self.winner = "D"  # It's a draw
-            self.save()  # Ensure the game state is saved with the draw
+            logger.debug("All spaces are filled. Declaring a draw.")
+            self.winner = "D"
 
+    def handle_ai_move(self):
+        """
+        Handles the AI's turn by calculating and applying the optimal move.
+
+        Workflow:
+            1. Checks if the game has already ended.
+            2. Uses the AI logic (`get_best_move`) to determine the best move for the AI.
+            3. Executes the move using the `make_move` method.
+
+        Logs:
+            - The AI's chosen position.
+            - If the AI cannot find a valid move, the game ends in a draw.
+        """
+        logger.debug("Handling AI move")
+        if self.winner:
+            logger.debug("Game already has a winner or is a draw. Cannot make move.")
+            return
+
+        ai_move = get_best_move(self, "X", "O")
+        if ai_move is not None:
+            logger.debug(f"AI chooses position {ai_move}")
+            self.make_move(ai_move, "O")
+        else:
+            logger.debug("AI cannot find a valid move. Declaring a draw.")
 
     def __str__(self):
         """
-        Returns a string representation of the game instance.
+        Returns a string representation of the game.
 
-        The string contains the usernames (or email if no username) of the two players in the game.
+        Format:
+            "Game between <Player X> and <Player O>"
 
-        Returns:
-            str: A string representing the game.
-
-        Example:
-            "Game between player_x and player_o"
+        Handles cases where usernames may not be set by falling back to email addresses.
         """
-        return f"Game between {self.player_x} and {self.player_o}"
+        return f"Game between {self.player_x.username or self.player_x.email} and {self.player_o.username or self.player_o.email}"
