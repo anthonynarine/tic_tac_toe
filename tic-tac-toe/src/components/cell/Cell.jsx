@@ -5,7 +5,7 @@ import classNames from "classnames"
 
 export const Cell = ({ value, canHighlight, onClick }) => {
 
-  console.log("Rendering Cell - Value:", value, "CanHighlight:", canHighlight);
+  // console.log("Rendering Cell - Value:", value, "CanHighlight:", canHighlight);
 
   const cellClasses = classNames({
     cell: true, 

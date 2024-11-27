@@ -7,6 +7,9 @@ export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
     "modal-open": isGameOver
   });
 
+  console.log("Modal Props:", { isGameOver, winner });
+
+
   return (
     <div id="modal-overlay" className={resultModalClasses}>
       <div id="game-result-modal">

@@ -113,6 +113,7 @@ export const Game = () => {
             cellClicked={handleCellClick} // Pass the handleCellClick function to handle user interactions
           />
           {/* Render ResultModal to show game result */}
+          {console.log("Modal Props:", { isGameOver: state.isGameOver, winner: state.winner })}
           <ResultModal 
             isGameOver={state.isGameOver} 
             winner={state.winner} 

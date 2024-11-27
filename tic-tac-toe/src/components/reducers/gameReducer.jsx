@@ -25,7 +25,7 @@ export const gameReducer = (state, action) => {
                 winner: action.payload.winner,  // Set the winner if the game has ended
                 winningCombination: action.payload.winning_combination || [],  // Set the winning combination, if any
                 numOfTurnsLeft: action.payload.board_state.split("").filter(cell => cell === "").length,  // Count the remaining empty cells
-                isAI: action.payload.player_o === "ai@tictactoe.com",  // Check if the opponent is the AI
+                isAI: action.payload.is_ai_game,  // Use is_ai_game from the backend respons
             };
 
         // Case to handle when a player or AI makes a move

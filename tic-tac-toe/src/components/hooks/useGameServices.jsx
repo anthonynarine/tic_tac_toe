@@ -90,7 +90,9 @@ const useGameServices = () => {
             };
 
             // Send POST request to create a new game
+            console.log("Payload for creating game:", { is_ai_game: isAIGame });
             const response = await authAxios.post("/games/", payload);
+            console.log("Response from creating game:", response.data);
 
             // Return the created game data
             return response.data;

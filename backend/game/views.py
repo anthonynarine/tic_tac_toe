@@ -28,6 +28,8 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         Automatically set Player X to the requesting user and assign Player O based on input (either AI or another user).
         """
         logger.debug("perform_create called")
+        logger.debug(f"Request data received: {self.request.data}")
+
 
         # Use the authenticated user from the request as player_x
         player_x = self.request.user

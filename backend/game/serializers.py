@@ -7,5 +7,5 @@ class TicTacToeGameSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TicTacToeGame
-        fields = ["id", "player_x", "player_o", "board_state", "current_turn", "winner", "created_at", "updated_at"]
-        read_only_fields = ["id", "player_x", "player_o", "winner", "created_at", "updated_at"]
+        fields = ["id", "player_x", "player_o", 'is_ai_game', "board_state", "current_turn", "winner", "created_at", "updated_at"]
+        read_only_fields = ["id", "player_x", "player_o", 'is_ai_game', "winner", "created_at", "updated_at"]
