@@ -1,67 +1,84 @@
 // Initial State for the game
 export const INITIAL_STATE = {
-    cellValues: ["", "", "", "", "", "", "", "", ""],  // The current state of the board
-    xIsNext: true,  // Boolean to determine whose turn it is (X or O)
-    isGameOver: false, // Boolean to track if the game has ended
-    numOfTurnsLeft: 9, // Tracks the number of remaining turns
-    winner: null, // Holds the winner (if the game is over)
-    winningCombination: [], // Holds the winning combination of cells
-    game: null, // Stores the complete game object fetched from the backend
-    isAI: false, // Tracks if the game is against AI
+    cellValues: Array(9).fill(""), // Represents the current state of the board
+    xIsNext: true, // Tracks if it's Player X's turn
+    isGameOver: false, // Indicates if the game has ended
+    numOfTurnsLeft: 9, // Remaining turns on the board
+    winner: null, // The winner of the game (if any)
+    winningCombination: [], // Winning combination of cells (if any)
+    game: null, // The full game object from the backend
+    isAI: false, // Indicates if the game is against AI
 };
 
-// Reducer function to handle the game state transitions
+// Reducer function to manage the game state transitions
 export const gameReducer = (state, action) => {
-    console.log("Reducer received payload for SET_GAME:", action.payload);
+    console.log(`Reducer action received: ${action.type}`, action.payload);
+
     switch (action.type) {
-        // Handles setting the initial game state when a game is loaded
-        case "SET_GAME":
+        case "SET_GAME": {
+            // Handles setting the initial game state when a game is loaded
+            const {
+                board_state,
+                current_turn,
+                winner,
+                is_ai_game,
+                winning_combination = [],
+            } = action.payload;
+    
             return {
-                ...state,  // Spread the current state to preserve other state properties
-                game: action.payload,  // The full game object from the backend
-                cellValues: action.payload.board_state.split("").map(cell => cell === "_" ? "" : cell), // Convert the board_state string into an array
-                xIsNext: action.payload.current_turn === "X",  // Determine if it's X's turn based on the current_turn value
-                isGameOver: !!action.payload.winner,  // If there's a winner, set the game as over
-                winner: action.payload.winner,  // Set the winner if the game has ended
-                winningCombination: action.payload.winning_combination || [],  // Set the winning combination, if any
-                numOfTurnsLeft: action.payload.board_state.split("").filter(cell => cell === "").length,  // Count the remaining empty cells
-                isAI: action.payload.is_ai_game,  // Use is_ai_game from the backend respons
-            };
-
-        // Case to handle when a player or AI makes a move
-        case "MAKE_MOVE":
-            console.log("Reducer received payload for MAKE_MOVE:", action.payload);
-        
-            const updatedState = {
                 ...state,
-                cellValues: action.payload.board_state.split("").map(cell => cell === "_" ? "" : cell), // Convert "_" to ""
-                xIsNext: action.payload.current_turn === "X",
-                isGameOver: !!action.payload.winner,
-                winner: action.payload.winner,
-                winningCombination: action.payload.winning_combination || [],
-                numOfTurnsLeft: action.payload.board_state.split("").filter(cell => cell === "").length,
+                game: action.payload, // Full game object from the backend
+                cellValues: board_state.split("").map((cell) => (cell === "_" ? "" : cell)), // Convert board_state string into an array
+                xIsNext: current_turn === "X", // Determine if it's Player X's turn
+                isGameOver: !!winner, // Game is over if a winner exists
+                winner, // Set the winner (if any)
+                winningCombination: winning_combination, // Set the winning combination (if any)
+                numOfTurnsLeft: board_state.split("").filter((cell) => cell === "_").length, // Calculate remaining empty cells
+                isAI: is_ai_game, // Set AI game flag
             };
+        }
         
-            console.log("Updated cellValues after MAKE_MOVE:", updatedState.cellValues);
-            console.log("Updated state after MAKE_MOVE:", updatedState);
-        
-            return updatedState;
-        
-        
-        // Case to handle when the game is reset to the initial state
-        case "RESET_GAME":
-            return {
-                ...state, // Keep the current state but reset relevant properties for a new game
-                cellValues: action.payload.board_state.split("").map(cell => cell === "_" ? "" : cell), // Reset the board to an empty state
-                xIsNext: true,  // Set the game to start with Player X
-                isGameOver: false,  // Reset the game over state
-                winner: null,  // Clear the winner
-                winningCombination: [],  // Clear the winning combination
-                numOfTurnsLeft: 9,  // Reset the number of turns to the initial state
-            };
+        case "MAKE_MOVE": {
+            // Handles updates when a player or AI makes a move
+            const {
+                board_state,
+                current_turn,
+                winner,
+                winning_combination = [],
+                is_ai_game,
+            } = action.payload;
 
-        // The default case that returns the current state if no action type matches
+            return {
+                ...state,
+                cellValues: board_state.split("").map((cell) => (cell === "_" ? "" : cell)), // Update board state
+                xIsNext: current_turn === "X", // Update turn
+                isGameOver: !!winner, // Check if the game is over
+                winner, // Update the winner
+                winningCombination: winning_combination, // Update the winning combination
+                numOfTurnsLeft: board_state.split("").filter((cell) => cell === "_").length, // Update remaining empty cells
+                isAI: is_ai_game !== undefined ? is_ai_game : state.isAI, // Use `is_ai_game` if available, otherwise preserve the current state
+            };
+        }
+
+        case "RESET_GAME": {
+            // Handles resetting the game to its initial state
+            const { board_state } = action.payload;
+
+            return {
+                ...state,
+                cellValues: board_state.split("").map((cell) => (cell === "_" ? "" : cell)), // Reset the board
+                xIsNext: true, // Game starts with Player X
+                isGameOver: false, // Reset game over flag
+                winner: null, // Clear the winner
+                winningCombination: [], // Clear winning combination
+                numOfTurnsLeft: 9, // Reset turns
+                game: null, // Clear the game object
+                isAI: false, // Reset AI flag
+            };
+        }
+
         default:
-            return state;
+            console.warn(`Unknown action type: ${action.type}`);
+            return state; // Return the current state for unknown actions
     }
 };

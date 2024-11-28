@@ -96,25 +96,37 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
             4. Handle any errors and return the updated game state.
         """
         logger.debug("make_move called")
+
+        # Retrieve the game instance
         game = self.get_object()
+        logger.debug(f"Game object retrieved: {game}")
+
+        # Extract the position and player details from the request
         position = request.data.get("position")
         player = request.user
-
         logger.debug(f"Player {player} attempting to make a move at position {position}")
 
         try:
             # Determine the player's marker ('X' or 'O') and call the model's make_move
             player_marker = "X" if player == game.player_x else "O"
+            logger.debug(f"Player marker determined: {player_marker}")
+
             game.make_move(position=int(position), player=player_marker)
+            logger.debug(f"Move made successfully: Board state = {game.board_state}")
+
         except ValidationError as e:
             logger.error(f"Move failed: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
         except ValueError:
             logger.error("Position must be an integer between 0 and 8.")
             return Response({"error": "Position must be an integer between 0 and 8."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Log the game's `is_ai_game` field and the serialized data
+        logger.debug(f"is_ai_game value: {game.is_ai_game}")
+        logger.debug(f"Serialized game data to be returned: {self.get_serializer(game).data}")
+
         # Return the updated game state
-        logger.debug(f"Returning updated game state: {game.board_state}")
         return Response(self.get_serializer(game).data)
 
     @action(detail=True, methods=["post"], url_path="reset")
@@ -145,3 +157,62 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         open_games = TicTacToeGame.objects.filter(player_o__isnull=True, winner__isnull=True, is_ai_game=False)
         serializer = self.get_serializer(open_games, many=True)
         return Response(serializer.data)
+    
+    @action(detail=True, methods=["post"], url_path="complete")
+    def complete_game(self, request, pk=None):
+        """
+        Marks the game as completed and updates the user's gaming stats.
+        The URL for this action is /api/games/<game_id>/complete/.
+        """
+        logger.debug("complete_game called")
+        
+        # Step 1: Retrieve the game instance using the primary key from the URL
+        game = self.get_object()
+        
+        # Step 2: Extract the winner's marker ('X' or 'O') from the request data
+        winner_marker = request.data.get("winner")
+        if not winner_marker:
+            logger.error("Winner marker not provided")
+            return Response(
+                {"error": "Winner marker must be provided"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        logger.debug(f"Winner marker received: {winner_marker}")
+        
+        # Step 3: Update stats for Player X (if they exist)
+        if game.player_x:
+            game.player_x.total_games_played += 1  # Increment total games played for Player X
+            
+            # Increment Player X's wins or losses based on the winner
+            if winner_marker == "X":
+                game.player_x.wins += 1
+            elif winner_marker == "O":
+                game.player_x.losses += 1
+            
+            # Save the updated Player X stats to the database
+            game.player_x.save()
+        
+        # Step 4: Update stats for Player O (if they exist and are not AI)
+        if game.player_o and game.player_o.email != "ai@tictactoe.com":  # Ignore AI stats
+            game.player_o.total_games_played += 1  # Increment total games played for Player O
+            
+            # Increment Player O's wins or losses based on the winner
+            if winner_marker == "O":
+                game.player_o.wins += 1
+            elif winner_marker == "X":
+                game.player_o.losses += 1
+            
+            # Save the updated Player O stats to the database
+            game.player_o.save()
+        
+        # Step 5: Mark the game as completed by setting the winner field
+        game.winner = winner_marker
+        game.save()
+        
+        logger.debug(f"Game {game.id} marked as completed with winner: {winner_marker}")
+        
+        # Step 6: Return the updated game data in the response
+        return Response(self.get_serializer(game).data, status=status.HTTP_200_OK)
+
+        

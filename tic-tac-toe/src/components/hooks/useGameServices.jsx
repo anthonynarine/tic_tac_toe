@@ -126,6 +126,7 @@ const useGameServices = () => {
             const payload = { position }; // Payload contains the cell position the player clicked
 
             const response = await authAxios.post(`/games/${gameId}/move/`, payload);
+            console.log("Move Response:", response.data); // Log the backend response
             return response.data; // Return the updated game data
         } catch (error) {
             setError(extractErrorMessage(error));
