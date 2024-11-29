@@ -157,11 +157,16 @@ class TicTacToeGame(models.Model):
         if self.winner:
             logger.debug("Game already has a winner or is a draw. Cannot make move.")
             return
-
+        
+        # Determine the AI's marker based on current_turn
+        ai_marker = self.current_turn
+        logger.debug(f"AI is playing as {ai_marker}")
+        
+        # Use the AI logic to calculate the best move
         ai_move = get_best_move(self, "X", "O")
         if ai_move is not None:
             logger.debug(f"AI chooses position {ai_move}")
-            self.make_move(ai_move, "O")
+            self.make_move(ai_move, ai_marker) # Execute the move using the determined marker
         else:
             logger.debug("AI cannot find a valid move. Declaring a draw.")
 

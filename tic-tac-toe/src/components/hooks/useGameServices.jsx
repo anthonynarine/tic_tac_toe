@@ -153,6 +153,39 @@ const useGameServices = () => {
         }
     }, [authAxios]);
 
+    /**
+     * Marks the game as completed on the backend.
+     * Updates player stats and finalizes the game record.
+     *
+     * @param {string} gameId - The ID of the game to complete.
+     * @returns {Object|null} - The response data from the backend or null if an error occurs.
+     */
+    const completeGame = useCallback(async (gameId, winner) => {
+        if (!authAxios) {
+            setError("Authorization service unavailable");
+            return null;
+        }
+
+        initializeRequest();
+
+        try {
+            // Send the winner information to the backend to complete the game
+            const response = await authAxios.post(`/games/${gameId}/complete/`, {
+                winner, 
+            });
+
+            console.log("Complete Game Response:", response.data); // Log response for debugging
+            return response.data; // Return the backend response data for further processing
+        } catch (error) {
+            setError(extractErrorMessage(error)); // Set the error message in the state
+            console.error("Error completing the game:", error); // Log the error for debugging
+            return null; // Return null if the request fails
+        } finally {
+            stopLoading(); // Stop the loading state
+        }
+    }, [authAxios]); // Include state.winner as a dependency
+
+
 
     return {
         fetchJoinableGames,
@@ -162,7 +195,9 @@ const useGameServices = () => {
         loading,
         error,
         createNewGame,
-        makeMove
+        makeMove,
+        resetGame,
+        completeGame, 
     };
 };
 

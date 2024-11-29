@@ -5,11 +5,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import useGameServices from "../hooks/useGameServices";
 import { useGameContext } from "../context/gameContext";
+import { useNavigate } from "react-router-dom";
 
 export const Game = () => {
   const { id } = useParams(); // Extract the game ID from the URL (React Router)
   const { state, dispatch } = useGameContext(); // Get current game state and dispatch function from context
-  const { fetchGame, makeMove, resetGame } = useGameServices(); // Destructure backend service calls from custom hook
+  const { fetchGame, makeMove, resetGame, completeGame } = useGameServices(); // Destructure backend service calls from custom hook
+  const navigate = useNavigate();
 
   useEffect(() => {
     console.log("Game state updated:", state);
@@ -99,6 +101,20 @@ export const Game = () => {
     }
   };
 
+  /**
+   * Automatically trigger the completeGame function when the game ends navigate to the homepage
+   */
+  useEffect(() => {
+    const finalizeGame = async () => {
+      if (state.isGameOver && state.winner) {
+        await completeGame(id, state.winner); // Complete the game
+        navigate("/")
+      }
+    };
+
+    finalizeGame(); 
+  }, [state.isGameOver, state.winner, id, completeGame])
+
   return (
     <div id="game">
       {loading ? (
@@ -118,6 +134,7 @@ export const Game = () => {
             isGameOver={state.isGameOver} 
             winner={state.winner} 
             onNewGameClicked={restartGame} // Pass the restartGame function to handle new game action
+            onCompleteGame={() => completeGame(id, state.winner)}
           />
         </>
       )}

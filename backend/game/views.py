@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import AccessToken
 import logging
+import random
 
 from .models import TicTacToeGame
 from .serializers import TicTacToeGameSerializer
@@ -25,43 +26,62 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Handle the creation of a new TicTacToe game.
-        Automatically set Player X to the requesting user and assign Player O based on input (either AI or another user).
+        Randomly assign Player X to either the human or the AI (if it's an AI game).
+        If the AI starts as Player X, make its first move automatically.
         """
         logger.debug("perform_create called")
         logger.debug(f"Request data received: {self.request.data}")
 
-
-        # Use the authenticated user from the request as player_x
+        # Use the authenticated user from the request as one of the players
         player_x = self.request.user
         logger.debug(f"Creating game for Player X: {player_x}")
 
         if not player_x:
             logger.error("Authenticated user not found.")
-            raise ValidationError("Authenticated user not found.")
+            raise ValidationError("Player X (authenticated user) is missing.")
 
-        # Check if it's an AI game
-        is_ai_game = self.request.data.get("is_ai_game", False)
+        # Check if it's an AI game and cast to boolean
+        is_ai_game = bool(self.request.data.get("is_ai_game", False))
 
-        # If it's an AI game, assign the AI as player_o
+        # If it's an AI game, assign the AI as one of the players
+        player_o = None
         if is_ai_game:
             player_o = User.objects.filter(email="ai@tictactoe.com").first()
-
             if not player_o:
                 logger.error("AI user with email 'ai@tictactoe.com' not found in the database.")
-                raise ValidationError("AI user not found.")
-
+                raise ValidationError("AI user (Player O) is missing.")
             logger.debug(f"AI player_o set: {player_o}")
-        else:
-            # For multiplayer games, player_o will remain None until another user joins
-            player_o = None
 
-        # Save the game with player_x and player_o
-        logger.debug(f"Saving game with Player X: {player_x} and Player O: {player_o}")
-        game = serializer.save(player_x=player_x, player_o=player_o, is_ai_game=is_ai_game)
-        logger.debug("Game saved successfully")
+        # Randomize the starting player
+        ai_starts = is_ai_game and random.choice([True, False])  # AI starts if random choice is True
+        if ai_starts:
+            player_x, player_o = player_o, player_x  # Swap roles if AI starts
+            logger.debug("Randomized Player X to AI and Player O to human.")
+        else:
+            logger.debug("Player X remains the human player.")
+
+        # Initialize default game state
+        logger.debug("Initializing default game state for new game")
+        game = serializer.save(
+            player_x=player_x,
+            player_o=player_o,
+            is_ai_game=is_ai_game,
+            board_state="_________",  # Ensure a fresh board
+            current_turn="X",         # Ensure Player X starts
+            winner=None               # Clear any winner
+        )
+        logger.debug(f"Game created successfully with ID: {game.id}")
+
+        # Trigger AI's first move if AI is Player X
+        if ai_starts:
+            logger.debug("AI is Player X. Making the first move.")
+            game.handle_ai_move()  # Call the AI logic to make the first move
+            logger.debug(f"AI made its move. Updated board state: {game.board_state}")
 
         # Return the serialized game data
         return Response(self.get_serializer(game).data, status=status.HTTP_201_CREATED)
+
+
 
     @action(detail=True, methods=["post"], url_path="join")
     def join_game(self, request, pk=None):
