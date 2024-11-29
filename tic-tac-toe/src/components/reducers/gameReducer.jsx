@@ -77,6 +77,10 @@ export const gameReducer = (state, action) => {
             };
         }
 
+        case "RESET_GAME_STATE": {
+            return { ...INITIAL_STATE}; // Reset the entire state to the initila values
+        }
+
         default:
             console.warn(`Unknown action type: ${action.type}`);
             return state; // Return the current state for unknown actions

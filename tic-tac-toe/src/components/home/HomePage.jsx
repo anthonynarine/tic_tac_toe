@@ -4,13 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { Board } from "../board/Board";
 import "./HomePage.css";
 import "../board/Board.css"
+import { useGameContext } from "../context/gameContext";
 
 
 const Home = () => {
   const { fetchJoinableGames, joinableGames, createNewGame, loading, error } = useGameServices();
   const [selectedGame, setSelectedGame] = useState(null);
+  const { dispatch } = useGameContext()
 
   const navigate = useNavigate();
+
+  // Clear state when Home mounts
+  useEffect(() => {
+    dispatch({ type: "RESET_GAME_STATE" });
+  }, [dispatch]);
 
   // Fetch joinable games on component mount
   useEffect(() => {
@@ -18,21 +25,32 @@ const Home = () => {
   }, []);
 
   const handleCreateGame = async (isAIGame = false) => {
-    // Call createNewGame to initiate game creation with the specified type (AI or multiplayer)
-    // `null` is passed for `player_o` since it's determined by the backend
-     // Await the promise returned by createNewGame to ensure we wait for the game to be created
-    const newGame = await createNewGame(null, isAIGame);
+    try {
+      // clear any stale state before starting a new game
+      dispatch({ type: "RESET_GAME_STATE" });
+      // Call createNewGame to initiate game creation with the specified type (AI or multiplayer)
+      // `null` is passed for `player_o` since it's determined by the backend
+       // Await the promise returned by createNewGame to ensure we wait for the game to be created
+      const newGame = await createNewGame(null, isAIGame);
+    
+      // If the game creation is successful, the new game object will be returned
+      if (newGame) {
+        // Log the game ID and player_o 
+        console.log("New game created:", newGame.id, newGame);
   
-    // If the game creation is successful, the new game object will be returned
-    if (newGame) {
-      // Log the game ID and player_o 
-      console.log(newGame.id, newGame.player_o);
-      
-      // If the created game is an AI game, automatically navigate to the game page
-      if (isAIGame) {
-        // Navigate to the game page with the newly created game's ID
-        navigate(`/games/${newGame.id}`);
+        // Dispatch to set the game state
+        dispatch({ type: "SET_GAME", payload: newGame });
+        
+        // If the created game is an AI game, automatically navigate to the game page
+        if (isAIGame) {
+          // Navigate to the game page with the newly created game's ID
+          navigate(`/games/${newGame.id}`);
+        } else {
+          console.error("Failed to create a new game");
+        }
       }
+    } catch (error) {
+      console.error("Error creating game", error);
     }
   };
   
