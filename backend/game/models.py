@@ -159,8 +159,13 @@ class TicTacToeGame(models.Model):
             return
         
         # Determine the AI's marker based on current_turn
-        ai_marker = self.current_turn
+        ai_marker = "X" if self.player_x.email == "ai@tictactoe.com" else "O"
         logger.debug(f"AI is playing as {ai_marker}")
+        
+        # Only proceed if tis' the AI's turn
+        if self.current_turn != ai_marker:
+            logger.debug(f"It's not the AI's turn ({self.current_turn}). Skipping AI move.")
+            return
         
         # Use the AI logic to calculate the best move
         ai_move = get_best_move(self, "X", "O")

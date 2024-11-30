@@ -131,8 +131,14 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
             player_marker = "X" if player == game.player_x else "O"
             logger.debug(f"Player marker determined: {player_marker}")
 
-            game.make_move(position=int(position), player=player_marker)
+            # Make the move
+            game.make_move(position=int(position), player=player_marker) # moake move model func
             logger.debug(f"Move made successfully: Board state = {game.board_state}")
+            
+            # trigger AI move if it's an AI game and it's the AI's turn
+            if game.is_ai_game and game.current_turn == ("X" if game.player_x.email == "ai@tictactoe.com" else "O"):
+                logger.debug("Triggering AI move after human move.")
+                game.handle_ai_move()
 
         except ValidationError as e:
             logger.error(f"Move failed: {str(e)}")
