@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
 import useAuthAxios from "./useAuthAxios";
 import { showToast } from "../../utils/toast/Toast";
+import { useGameContext } from "../context/gameContext"
+import { useNavigate } from "react-router-dom";
 
 const useGameServices = () => {
     const { authAxios } = useAuthAxios();
@@ -8,6 +10,8 @@ const useGameServices = () => {
     const [joinableGames, setJoinableGames] = useState([]); // For open games
     const [loading, setLoading] = useState(true); 
     const [error, setError] = useState(null);
+    const { dispatch } = useGameContext();
+    const navigate = useNavigate();
 
     // Helper function to extract error message
     const extractErrorMessage = (error) => {
@@ -115,32 +119,28 @@ const useGameServices = () => {
      * @param {number} position - The index of the cell the player clicked. 
      * @returns {object} - The updated game data from the backend. 
      */
-
     const makeMove = useCallback(async (gameId, position) => {
         if (!authAxios) {
-            showToast("error", "Authorization service unavailable"); // Notify user if Axios instance is unavailable
-            return null; // Return null to indicate failure
+            setError("Authorization service unavailable");
+            return;
         }
-    
+
         initializeRequest();
-    
+
         try {
             const payload = { position }; // Payload contains the cell position the player clicked
+
             const response = await authAxios.post(`/games/${gameId}/move/`, payload);
-    
             console.log("Move Response:", response.data); // Log the backend response
             return response.data; // Return the updated game data
         } catch (error) {
             const errorMessage = extractErrorMessage(error); // Extract error message
             console.error("Error making move:", errorMessage); // Log the error
             showToast("error", errorMessage); // Show error toast notification
-    
-            // Return a structured error response
-            return { success: false, error: errorMessage };
         } finally {
             stopLoading();
         }
-    }, [authAxios, extractErrorMessage, initializeRequest, stopLoading]);
+    }, [authAxios]);
 
     const resetGame = useCallback(async(gameId) => {
         if (!authAxios) {
@@ -192,6 +192,62 @@ const useGameServices = () => {
         }
     }, [authAxios]); // Include state.winner as a dependency
 
+    // Function to create a new AI game
+    const playAgainAI = async () => {
+        initializeRequest(); // Start the loading state
+    
+        try {
+            console.log("Creating a new AI game");
+    
+            // Create a new AI game
+            const newGame = await createNewGame(null, true); // `true` indicates an AI game
+    
+            if (newGame) {
+                console.log("New AI game created:", newGame);
+    
+                // Dispatch the newly created game to update the state
+                dispatch({ type: "SET_GAME", payload: newGame });
+    
+                // Navigate to the new game
+                navigate(`/games/${newGame.id}`);
+            } else {
+                console.error("Failed to create a new AI game.");
+            }
+        } catch (error) {
+            console.error("Error creating new AI game:", error);
+        } finally {
+            stopLoading(); // Stop the loading state after the request completes
+        }
+    };
+
+        // Function to create a new multiplayer game
+    const playAgainMultiplayer = async () => {
+        initializeRequest(); // Start the loading state
+
+        try {
+            console.log("Creating a new multiplayer game");
+
+            // Create a new multiplayer game
+            const newGame = await createNewGame(null, false); // false for multiplayer game
+
+            if (newGame) {
+                console.log("New multiplayer game created:", newGame);
+
+                // Update the game state with the new game details
+                dispatch({ type: "SET_GAME", payload: newGame });
+
+                // Navigate to the new game's page
+                navigate(`/games/${newGame.id}`);
+            } else {
+                console.error("Failed to create a new multiplayer game.");
+            }
+        } catch (error) {
+            console.error("Error creating new multiplayer game:", error);
+        } finally {
+            stopLoading(); // Stop the loading state
+        }
+    };
+    
 
 
     return {
@@ -204,7 +260,9 @@ const useGameServices = () => {
         createNewGame,
         makeMove,
         resetGame,
-        completeGame, 
+        completeGame,
+        playAgainAI,
+        playAgainMultiplayer
     };
 };
 

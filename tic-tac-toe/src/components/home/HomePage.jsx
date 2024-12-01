@@ -1,31 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-
 import useGameServices from "../hooks/useGameServices";
-import { useGameContext } from "../context/gameContext";
+import { useNavigate } from "react-router-dom";
 import { Board } from "../board/Board";
-
 import "./HomePage.css";
-import "../board/Board.css";
+import "../board/Board.css"
+import { useGameContext } from "../context/gameContext";
+
 
 const Home = () => {
-  /**
-   * Description:
-   * This page serves as the home screen for the Tic Tac Toe game. 
-   * It allows users to:
-   * - View a list of joinable multiplayer games.
-   * - Create a new multiplayer or AI game.
-   * - Display an empty board as a placeholder when no games are available.
-   * Users can also see the game details for any selected game and navigate to the game page.
-   */
-
   const { fetchJoinableGames, joinableGames, createNewGame, loading, error } = useGameServices();
-  const { dispatch } = useGameContext();
+  const [selectedGame, setSelectedGame] = useState(null);
+  const { dispatch } = useGameContext()
+
   const navigate = useNavigate();
 
-  const [selectedGame, setSelectedGame] = useState(null);
-
-  // Clear state when the Home component mounts
+  // Clear state when Home mounts
   useEffect(() => {
     dispatch({ type: "RESET_GAME_STATE" });
   }, [dispatch]);
@@ -33,30 +22,43 @@ const Home = () => {
   // Fetch joinable games on component mount
   useEffect(() => {
     fetchJoinableGames();
-  }, [fetchJoinableGames]);
+  }, []);
 
-  // Handle creation of a new game (AI or multiplayer)
   const handleCreateGame = async (isAIGame = false) => {
     try {
-      dispatch({ type: "RESET_GAME_STATE" }); // Clear any stale state
-      const newGame = await createNewGame(null, isAIGame); // Create a new game
-
+      // clear any stale state before starting a new game
+      dispatch({ type: "RESET_GAME_STATE" });
+      // Call createNewGame to initiate game creation with the specified type (AI or multiplayer)
+      // `null` is passed for `player_o` since it's determined by the backend
+       // Await the promise returned by createNewGame to ensure we wait for the game to be created
+      const newGame = await createNewGame(null, isAIGame);
+    
+      // If the game creation is successful, the new game object will be returned
       if (newGame) {
+        // Log the game ID and player_o 
         console.log("New game created:", newGame.id, newGame);
-        dispatch({ type: "SET_GAME", payload: newGame }); // Update state with the new game
-        if (isAIGame) navigate(`/games/${newGame.id}`); // Navigate to game page if AI game
-      } else {
-        console.error("Failed to create a new game");
+  
+        // Dispatch to set the game state
+        dispatch({ type: "SET_GAME", payload: newGame });
+        
+        // If the created game is an AI game, automatically navigate to the game page
+        if (isAIGame) {
+          // Navigate to the game page with the newly created game's ID
+          navigate(`/games/${newGame.id}`);
+        } else {
+          console.error("Failed to create a new game");
+        }
       }
     } catch (error) {
-      console.error("Error creating game:", error);
+      console.error("Error creating game", error);
     }
   };
+  
 
-  // Handle joining an existing game
   const handleJoinGame = async (game) => {
-    setSelectedGame(game); // Update the selected game state
-    navigate(`/games/${game.id}`); // Navigate to the game page
+    setSelectedGame(game);
+    // Call join game service (useGameServices) here to update the state
+    navigate(`/games/${game.id}`);
   };
 
   // Initial empty board state (9 cells, all empty)
@@ -64,11 +66,7 @@ const Home = () => {
 
   return (
     <div className="homepage-container">
-      <h1>The Tic-Tac-Anto</h1>
-      <p className="homepage-description">
-        Welcome to Tic Tac Toe! You can create a new game, join an existing game, or play against an AI. Start by choosing an option below.
-      </p>
-
+      <h1> The tic-tac-anto</h1>
       {loading && <p>Loading games...</p>}
       {error && <p className="error">{error}</p>}
 
@@ -90,10 +88,11 @@ const Home = () => {
           ) : (
             <div>
               <p className="no-games-msg">No games are currently available. You can create a new game!</p>
+              {/* Display empty board when no games are available */}
               <Board
                 cellValues={emptyBoardState}
-                winningCombination={[]} // No winning combination for an empty board
-                cellClicked={() => {}} // No interaction for the empty board
+                winningCombination={[]} // No winning combination for empty board
+                cellClicked={() => {}} // No interaction in the empty board
               />
             </div>
           )}
@@ -103,7 +102,7 @@ const Home = () => {
               Multiplayer Game
             </button>
             <button className="game-btn ai-btn" onClick={() => handleCreateGame(true)}>
-              Play vs AI
+              Play vs Ai
             </button>
           </div>
 
