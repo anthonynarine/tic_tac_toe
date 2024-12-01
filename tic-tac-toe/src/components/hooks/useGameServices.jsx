@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import useAuthAxios from "./useAuthAxios";
+import { showToast } from "../../utils/toast/Toast";
 
 const useGameServices = () => {
     const { authAxios } = useAuthAxios();
@@ -114,26 +115,32 @@ const useGameServices = () => {
      * @param {number} position - The index of the cell the player clicked. 
      * @returns {object} - The updated game data from the backend. 
      */
+
     const makeMove = useCallback(async (gameId, position) => {
         if (!authAxios) {
-            setError("Authorization service unavailable");
-            return;
+            showToast("error", "Authorization service unavailable"); // Notify user if Axios instance is unavailable
+            return null; // Return null to indicate failure
         }
-
+    
         initializeRequest();
-
+    
         try {
             const payload = { position }; // Payload contains the cell position the player clicked
-
             const response = await authAxios.post(`/games/${gameId}/move/`, payload);
+    
             console.log("Move Response:", response.data); // Log the backend response
             return response.data; // Return the updated game data
         } catch (error) {
-            setError(extractErrorMessage(error));
+            const errorMessage = extractErrorMessage(error); // Extract error message
+            console.error("Error making move:", errorMessage); // Log the error
+            showToast("error", errorMessage); // Show error toast notification
+    
+            // Return a structured error response
+            return { success: false, error: errorMessage };
         } finally {
             stopLoading();
         }
-    }, [authAxios]);
+    }, [authAxios, extractErrorMessage, initializeRequest, stopLoading]);
 
     const resetGame = useCallback(async(gameId) => {
         if (!authAxios) {

@@ -1,3 +1,13 @@
+/**
+ * Description:
+ * This file defines the initial state and the reducer logic for managing the Tic Tac Toe game state.
+ * - `INITIAL_STATE`: Represents the default state of the game board, turn tracking, and game status.
+ * - `gameReducer`: A reducer function used to handle state transitions for various actions (e.g., setting up the game, making moves, resetting).
+ * 
+ * The reducer processes actions to update the game state in a predictable and controlled manner. 
+ * It is primarily used with React's `useReducer` hook in the game context.
+ */
+
 // Initial State for the game
 export const INITIAL_STATE = {
     cellValues: Array(9).fill(""), // Represents the current state of the board
@@ -24,7 +34,7 @@ export const gameReducer = (state, action) => {
                 is_ai_game,
                 winning_combination = [],
             } = action.payload;
-    
+
             return {
                 ...state,
                 game: action.payload, // Full game object from the backend
@@ -37,7 +47,7 @@ export const gameReducer = (state, action) => {
                 isAI: is_ai_game, // Set AI game flag
             };
         }
-        
+
         case "MAKE_MOVE": {
             // Handles updates when a player or AI makes a move
             const {
@@ -78,11 +88,13 @@ export const gameReducer = (state, action) => {
         }
 
         case "RESET_GAME_STATE": {
-            return { ...INITIAL_STATE}; // Reset the entire state to the initila values
+            // Resets the entire state to the initial values
+            return { ...INITIAL_STATE };
         }
 
-        default:
+        default: {
             console.warn(`Unknown action type: ${action.type}`);
             return state; // Return the current state for unknown actions
+        }
     }
 };

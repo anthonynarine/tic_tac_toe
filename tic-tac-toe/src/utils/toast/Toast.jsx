@@ -57,7 +57,7 @@
 //  */
 
 
-import { Bounce, Zoom, toast } from "react-toastify";
+import { toast } from "react-toastify";
 
 
 export const showToast = (type, message) => {
