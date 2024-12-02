@@ -1,0 +1,66 @@
+.lobby-container {
+    max-width: 600px;
+    margin: 5vh auto;
+    padding: 2rem;
+    background: black; /* Dark background */
+    color: white; /* White text */
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    text-align: center;
+  }
+  
+  .player-list {
+    margin: 2rem 0;
+    font-size: 1.2rem;
+    text-align: left;
+  }
+  
+  .invite-link-container {
+    margin: 1rem 0;
+    text-align: center;
+  }
+  
+  .invite-link-container input {
+    width: 80%;
+    padding: 0.5rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+  }
+  
+  .invite-link-container button {
+    padding: 0.5rem 1rem;
+    background: #1d9bf0;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .invite-link-container button:hover {
+    background: #007bb5;
+  }
+  
+  .start-game-button {
+    padding: 0.8rem 2rem;
+    background: #28a745; /* Green for starting */
+    color: white;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .start-game-button:hover {
+    background: #218838;
+  }
+  
+  .start-game-button:disabled {
+    background: #6c757d; /* Gray for disabled */
+    cursor: not-allowed;
+  }
+  

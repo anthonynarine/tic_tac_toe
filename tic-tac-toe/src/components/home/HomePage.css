@@ -1,79 +1,104 @@
-/* Twitter-styled homepage container */
+/* General Container */
 .homepage-container {
-  background-color: black; /* Dark background */
+  background-color: black;
   border-radius: 15px;
-  padding: 2vmin;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); /* Softer shadow */
+  padding: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   max-width: 600px;
-  margin: 4vmin auto;
+  margin: 5rem auto;
   text-align: center;
-  position: relative;
-  min-height: 50vh; /* Ensure the container has a minimum height */
-  display: flex;
-  flex-direction: column; /* Stack children vertically */
-  justify-content: space-between; /* Push content to the top and bottom */
-  border: 0.20px solid#E1E8ED; /* Light grey border */
-  margin-top: 10rem;
-  margin-bottom: 5rem;
+  color: white;
+  margin-top: -15rem;
 }
 
-/* Game Options Section (buttons at the bottom) */
-.game-options {
-  margin-top: 2vmin;
+/* Title */
+.homepage-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #1DA1F2; /* Twitter blue for modern look */
+}
+
+/* Tagline */
+.homepage-tagline {
+  font-size: 1.2rem;
+  font-weight: 300;
+  margin-bottom: 2rem;
+  color: #e1e8ed; /* Subtle gray for contrast */
+}
+
+/* Game Modes Buttons */
+.game-modes {
   display: flex;
   justify-content: center;
-  gap: 6vmin;
-  margin-top: auto; /* Ensure it sits at the bottom */
+  gap: 1.5rem;
 }
 
-/* Buttons styled with Twitter blue */
-.game-btn {
-  padding: 1.2vmin 4vmin;
-  font-size: 1.6vmin;
-  cursor: pointer;
-  border: none;
-  border-radius: 15px; /* Rounded buttons similar to Twitter */
-  background-color: #1DA1F2; /* Twitter blue */
-  color: #69717B;
-  transition: background 0.3s ease, transform 0.2s ease;
-  border: 1px solid;
-}
-
-.game-btn:hover {
-  background-color: black; /* Darker blue on hover */
+.game-mode-button {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: bold;
   color: white;
-  transform: translateY(-2px); /* Lift effect for interactivity */
-}
-
-.multiplayer-btn {
-  background-color: black; /* Same Twitter blue for multiplayer */
-}
-
-.ai-btn {
-  background-color: black; /* Twitter-like green for AI button */
-}
-
-.ai-btn:hover {
-  background-color: black;
-}
-
-.join-btn {
-  background-color: #007BFF; /* Button color */
-  color: solid#E1E8ED;
-  padding: 10px 100px;
-  border: none;
-  border-radius: 15px;
+  background: black; /* Button background color */
+  border: 1px solid white; /* White border */
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Subtle shadow */
 }
 
-.join-btn:hover {
-  background-color: solid#E1E8ED; /* Darker blue on hover */
-  transform: scale(1.05); /* Slightly enlarge button on hover */
-  color: solid#E1E8ED; /* Keep text color white */
+
+.game-mode-button:hover {
+  background: white; /* Change background on hover */
+  color: black; /* Optional: Change text color on hover */
+  transform: translateY(-3px); /* Slight hover effect */
 }
 
-.join-btn:active {
-  transform: scale(0.98); /* Slight shrink effect on click */
+/* Invite Section */
+.invite-section {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.invite-message {
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.invite-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.invite-link {
+  padding: 1.2rem;
+  font-size: 1rem;
+  border: 1px solid white;
+  border-radius: 8px;
+  background: black;
+  color: #333;
+  width: 80%;
+  text-align: center;
+  cursor: pointer;
+}
+
+.copy-button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  font-weight: bold;
+  color: white;
+  background: black; /* Green for copy action */
+  border: 1px solid white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.copy-button:hover {
+  background: white;
+  color: black; /* Optional: Change text color on hover */
+  transform: translateY(-3px); /* Slight hover effect */
 }

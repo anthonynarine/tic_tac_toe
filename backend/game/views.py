@@ -241,4 +241,38 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         # Step 6: Return the updated game data in the response
         return Response(self.get_serializer(game).data, status=status.HTTP_200_OK)
 
-        
+@action(detail=True, methods=["post"], url_path="start")
+def start_game(self, request, pk=None):
+    """
+    Marks the game as ready to start and validates the lobby state.
+    The URL for this action is /api/games/<game_id>/start/.
+    """
+    logger.debug("start_game called")
+    
+    # Retrieve the game instance
+    game = self.get_object()
+    
+    # Validate that the game has both players
+    if not game.player_x or not game.player_o:
+        logger.error("Cannot start game: Missing players.")
+        return Response(
+            {"error": "Both players must be present to start the game."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Validate that the game hasn't already started
+    if game.board_state != "_________":  # Ensure the board is in the initial state
+        logger.error("Cannot start game: Game has already started.")
+        return Response(
+            {"error": "Game has already started."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Log the transition to the started state
+    logger.info(f"Game {game.id} is now starting. Players: {game.player_x} (X) and {game.player_o} (O).")
+    
+        # Return the updated game data to indicate it's ready to start
+    return Response(
+        self.get_serializer(game).data,
+        status=status.HTTP_200_OK
+    )

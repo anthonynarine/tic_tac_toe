@@ -1,122 +1,77 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import useGameServices from "../hooks/useGameServices";
 import { useNavigate } from "react-router-dom";
-import { Board } from "../board/Board";
+import { showToast } from "../../utils/toast/Toast";
 import "./HomePage.css";
-import "../board/Board.css"
-import { useGameContext } from "../context/gameContext";
-
 
 const Home = () => {
-  const { fetchJoinableGames, joinableGames, createNewGame, loading, error } = useGameServices();
-  const [selectedGame, setSelectedGame] = useState(null);
-  const { dispatch } = useGameContext()
-
+  const { createNewGame } = useGameServices();
+  const [inviteLink, setInviteLink] = useState(null); // For multiplayer invite link
   const navigate = useNavigate();
 
-  // Clear state when Home mounts
-  useEffect(() => {
-    dispatch({ type: "RESET_GAME_STATE" });
-  }, [dispatch]);
-
-  // Fetch joinable games on component mount
-  useEffect(() => {
-    fetchJoinableGames();
-  }, []);
-
-  const handleCreateGame = async (isAIGame = false) => {
+  /**
+   * Handles creating a new game.
+   * 
+   * @param {boolean} isAIGame - Determines whether the new game is against AI or multiplayer.
+   */
+  const handleCreateGame = async (isAIGame) => {
     try {
-      // clear any stale state before starting a new game
-      dispatch({ type: "RESET_GAME_STATE" });
-      // Call createNewGame to initiate game creation with the specified type (AI or multiplayer)
-      // `null` is passed for `player_o` since it's determined by the backend
-       // Await the promise returned by createNewGame to ensure we wait for the game to be created
       const newGame = await createNewGame(null, isAIGame);
-    
-      // If the game creation is successful, the new game object will be returned
+
       if (newGame) {
-        // Log the game ID and player_o 
-        console.log("New game created:", newGame.id, newGame);
-  
-        // Dispatch to set the game state
-        dispatch({ type: "SET_GAME", payload: newGame });
-        
-        // If the created game is an AI game, automatically navigate to the game page
         if (isAIGame) {
-          // Navigate to the game page with the newly created game's ID
           navigate(`/games/${newGame.id}`);
         } else {
-          console.error("Failed to create a new game");
+          const newInviteLink = `${window.location.origin}/games/join/${newGame.id}`;
+          setInviteLink(newInviteLink);
+          // showToast("success", "Multiplayer game created! Share the link with a friend.");
         }
       }
     } catch (error) {
-      console.error("Error creating game", error);
+      console.error("Error creating game:", error);
     }
   };
-  
 
-  const handleJoinGame = async (game) => {
-    setSelectedGame(game);
-    // Call join game service (useGameServices) here to update the state
-    navigate(`/games/${game.id}`);
+  /**
+   * Handles copying the invite link to the clipboard.
+   */
+  const handleCopyLink = () => {
+    if (inviteLink) {
+      navigator.clipboard.writeText(inviteLink);
+      showToast("success", "Link copied to clipboard!");
+    }
   };
-
-  // Initial empty board state (9 cells, all empty)
-  const emptyBoardState = Array(9).fill("");
 
   return (
     <div className="homepage-container">
-      <h1> The tic-tac-anto</h1>
-      {loading && <p>Loading games...</p>}
-      {error && <p className="error">{error}</p>}
+      <h1 className="homepage-title">Tic Tac Anto</h1>
+      <p className="homepage-tagline">Play with friends or challenge AI. Anytime, anywhere.</p>
 
-      {!loading && (
-        <>
-          {joinableGames.length > 0 ? (
-            <div className="games-list">
-              <h3>Available Games to Join</h3>
-              <div className="game-cards">
-                {joinableGames.map((game) => (
-                  <div className="game-card" key={game.id}>
-                    <button className="join-btn" onClick={() => handleJoinGame(game)}>
-                      Join Game
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p className="no-games-msg">No games are currently available. You can create a new game!</p>
-              {/* Display empty board when no games are available */}
-              <Board
-                cellValues={emptyBoardState}
-                winningCombination={[]} // No winning combination for empty board
-                cellClicked={() => {}} // No interaction in the empty board
-              />
-            </div>
-          )}
+      <div className="game-modes">
+        <button className="game-mode-button" onClick={() => handleCreateGame(false)}>
+          Create Multiplayer Game
+        </button>
+        <button className="game-mode-button" onClick={() => handleCreateGame(true)}>
+          Play vs AI
+        </button>
+      </div>
 
-          <div className="game-options">
-            <button className="game-btn multiplayer-btn" onClick={() => handleCreateGame(false)}>
-              Multiplayer Game
-            </button>
-            <button className="game-btn ai-btn" onClick={() => handleCreateGame(true)}>
-              Play vs Ai
+      {inviteLink && (
+        <div className="invite-section">
+          <p className="invite-message">Invite your friend</p>
+          <div className="invite-actions">
+            <input
+              type="text"
+              value={inviteLink}
+              readOnly
+              className="invite-link"
+              onClick={(e) => e.target.select()}
+            />
+            <button className="copy-button" onClick={handleCopyLink}>
+              Copy Link
             </button>
           </div>
-
-          {selectedGame && (
-            <div className="selected-game">
-              <h2>Game ID: {selectedGame.id}</h2>
-              <Board
-                cellValues={selectedGame.board_state.split("")}
-                winningCombination={[]}
-                cellClicked={() => {}} // Replace with logic to handle moves
-              />
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   );

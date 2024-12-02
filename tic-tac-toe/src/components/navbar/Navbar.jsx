@@ -10,6 +10,7 @@ import useGameServices from "../hooks/useGameServices";
 import { RiUserHeartLine } from "react-icons/ri";
 import { PiUserCirclePlusThin } from "react-icons/pi";
 import { LiaUserNinjaSolid } from "react-icons/lia";
+import { CiHome } from "react-icons/ci";
 
 
 const Navbar = () => {
@@ -44,7 +45,8 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="navbar-content">
         <div className="navbar-brand">
-          <img src={logored} alt="Tic Tac Toe Logo" className="app-logo" />
+          <CiHome className="game-icon" />
+          {/* <img src={logored} alt="Tic Tac Toe Logo" className="app-logo" /> */}
         </div>
 
         <div className="game-icon-container" onClick={toggleDropdown}>
