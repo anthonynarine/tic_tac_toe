@@ -19,6 +19,7 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         """
         Handle WebSocket connection. Authenticate the user and join the game lobby group.
         """
+        logger.info(f"New connection: {self.scope}")
         self.user = self.scope["user"]
 
         # Debugging scope details
