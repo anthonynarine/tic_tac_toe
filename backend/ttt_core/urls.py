@@ -20,11 +20,6 @@ urlpatterns = [
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
 
-# WebSocket URL patterns
-# websocket_urlpatterns = [
-#     path(),
-# ]
-
 # Serves media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
