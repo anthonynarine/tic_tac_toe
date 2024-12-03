@@ -2,6 +2,7 @@ import os
 import logging
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
+from game.middleware import JWTWebSocketMiddleware
 
 logger = logging.getLogger(__name__)
 
