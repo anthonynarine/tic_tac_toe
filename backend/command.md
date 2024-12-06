@@ -1,6 +1,10 @@
 # Command starts a Uvicorn server for a Django ASGI application.
 uvicorn ttt_core.asgi:application --port 8000 --workers 4 --log-level debug --reload
 
+# Debug testing
+uvicorn ttt_core.asgi:application --host 127.0.0.1 --port 8000 --reload --log-level debug
+
+
 # Command to start the rabbitmq consumer in account app
 1. Navigate to the backend dir:
     cd D:\react-django\Speakez\backend
