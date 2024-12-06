@@ -1,9 +1,8 @@
-from django.urls import path
+from django.urls import re_path
 from .consumer import GameLobbyConsumer
 
-# Websocket URL patterns
+# WebSocket URL patterns
 websocket_urlpatterns = [
-    # Websocket endpoint for the game lobbies
-    path("lobby/<int:game_id>/", GameLobbyConsumer.as_asgi()),
-    
+    # WebSocket endpoint for the game lobbies
+    re_path(r"^ws/lobby/(?P<game_id>\d+)/$", GameLobbyConsumer.as_asgi()),
 ]

@@ -52,13 +52,12 @@ export const lobbyReducer = (state, action) => {
         }
 
         case "ADD_MESSAGE": {
-            // Adds a new message to the chat
-            if (!action.payload || typeof action.payload !== "string") {
+            if (!action.payload || typeof action.payload.sender !== "string" || typeof action.payload.content !== "string") {
                 console.error("Invalid message payload.");
                 return state;
             }
             return {
-                ...state, 
+                ...state,
                 messages: [...state.messages, action.payload],
             };
         }

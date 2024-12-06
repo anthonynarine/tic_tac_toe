@@ -1,66 +1,106 @@
 .lobby-container {
-    max-width: 600px;
-    margin: 5vh auto;
-    padding: 2rem;
-    background: black; /* Dark background */
-    color: white; /* White text */
-    border-radius: 15px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-    text-align: center;
-  }
-  
-  .player-list {
-    margin: 2rem 0;
-    font-size: 1.2rem;
-    text-align: left;
-  }
-  
-  .invite-link-container {
-    margin: 1rem 0;
-    text-align: center;
-  }
-  
-  .invite-link-container input {
-    width: 80%;
-    padding: 0.5rem;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    margin-bottom: 1rem;
-  }
-  
-  .invite-link-container button {
-    padding: 0.5rem 1rem;
-    background: #1d9bf0;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-  
-  .invite-link-container button:hover {
-    background: #007bb5;
-  }
-  
-  .start-game-button {
-    padding: 0.8rem 2rem;
-    background: #28a745; /* Green for starting */
-    color: white;
-    font-size: 1.2rem;
-    font-weight: bold;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-  }
-  
-  .start-game-button:hover {
-    background: #218838;
-  }
-  
-  .start-game-button:disabled {
-    background: #6c757d; /* Gray for disabled */
-    cursor: not-allowed;
-  }
-  
+  max-width: 600px;
+  margin: 2rem auto; /* Adjust margin to bring it closer to the top */
+  padding: 2rem;
+  background: #fff; /* White background for contrast */
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.lobby-title {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #000; /* Dark text for contrast */
+}
+
+.lobby-details {
+  margin-bottom: 1rem;
+  text-align: left;
+}
+
+.lobby-details ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lobby-details ul li {
+  padding: 0.5rem;
+  background: #f3f3f3;
+  border-radius: 5px;
+  margin-bottom: 0.5rem;
+}
+
+.chat-container {
+  margin-top: 1rem;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  padding: 1rem;
+}
+
+.chat-messages {
+  max-height: 150px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.chat-message {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  color: #000;
+}
+
+.chat-input {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+.chat-input button {
+  padding: 0.5rem 1rem;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.chat-input button:hover {
+  background: #0056b3;
+}
+
+.start-game-button {
+  margin-top: 1rem;
+  padding: 0.8rem 2rem;
+  font-size: 1.2rem;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.start-game-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.start-game-button:hover:not(:disabled) {
+  background: #218838;
+}
