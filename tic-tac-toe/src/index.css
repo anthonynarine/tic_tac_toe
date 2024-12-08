@@ -26,17 +26,18 @@ body {
 
 /* Main content area below the navbar */
 .main-content {
-  padding-top: 0px;
-  min-height: calc(100vh - 10px);
+  padding-top: 6rem; /* Matches the height of the fixed Navbar */
+  min-height: calc(100vh - 6rem); /* Ensure content fits within the remaining viewport */
   display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: black;
+  justify-content: center; /* Center horizontally */
+  align-items: flex-start; /* Align content to the top of .main-content */
+  background-color: black; /* Match the theme */
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
   padding: 0 1rem;
 }
+
 
 /* Headings with a Twitter-like feel */
 h1, h2, h3 {

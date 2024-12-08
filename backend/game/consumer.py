@@ -13,6 +13,9 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         - Temporary chat messages that only live in the lobby.
         - Game-related events, such as starting the game.
     """
+    # Maintain a dictionary to track players in each lobby
+    lobby_players = {}  # Format: {"game_lobby_<game_id>": [{"username": <name>, "id": <id>}, ...]}
+
     def connect(self) -> None:
         """Handle WebSocket connection. Authenticate the user and join the game lobby group."""
         logger.info(f"New connection: {self.scope}")
@@ -25,7 +28,7 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
 
         logger.info(f"WebSocket connection accepted for user: {self.user.first_name}")
         self.accept()
-        
+
         # Extract game ID and validate
         self.game_id = self.scope["url_route"]["kwargs"].get("game_id")
         if not self.game_id:
@@ -34,18 +37,43 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             return
 
         self.lobby_group_name = f"game_lobby_{self.game_id}"
-        
-        # Add player to the game lobby group
+
+        # Add the WebSocket connection to the group
         async_to_sync(self.channel_layer.group_add)(
             self.lobby_group_name,
             self.channel_name
         )
-        
+        logger.info(f"Added channel {self.channel_name} to group {self.lobby_group_name}")
+
+        # Initialize players list for the lobby if it doesn't exist
+        if self.lobby_group_name not in GameLobbyConsumer.lobby_players:
+            GameLobbyConsumer.lobby_players[self.lobby_group_name] = []
+
+        # Ensure no duplicate player entries
+        GameLobbyConsumer.lobby_players[self.lobby_group_name] = [
+            p for p in GameLobbyConsumer.lobby_players[self.lobby_group_name]
+            if p["id"] != self.user.id
+        ]
+
+        # Add player to the lobby
+        player = {"id": self.user.id, "username": self.user.first_name}
+        GameLobbyConsumer.lobby_players[self.lobby_group_name].append(player)
+
+        # Broadcast updated player list
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "update_player_list",
+                "players": GameLobbyConsumer.lobby_players[self.lobby_group_name],
+            }
+        )
+
         self.send_json({
             "type": "connection_success",
             "message": f"Welcome to the game lobby, {self.user.first_name}!"
         })
         logger.info(f"User {self.user.first_name} joined lobby: {self.lobby_group_name}")
+
 
     def receive_json(self, content: dict, **kwargs) -> None:
         """
@@ -55,38 +83,20 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             content (dict): The message payload sent by the client.
             **kwargs: Additional optional parameters.
         """
-        # Validate that the content is a dictionary
         if not isinstance(content, dict):
             self.send_json({"type": "error", "message": "Invalid message format. Expected a JSON object."})
-            self.close(code=4003)  # Close connection with an error code
+            self.close(code=4003)
             return
 
-        # Retrieve and normalize the message type
-        type_value = content.get("type")
-        if not isinstance(type_value, str):
-            self.send_json({"type": "error", "message": "Invalid or missing message type."})
-            return
+        message_type = content.get("type", "").lower()
 
-        # Normalize the type to lowercase for consistent handling
-        message_type = type_value.lower()
-
-        # Handle specific message types
         if message_type == "join_lobby":
-            # Handle lobby joining logic
             self.handle_join_lobby(content)
-
         elif message_type == "chat_message":
-            message = content.get("message", "")
-            if len(message) > 250:
-                self.send_json({"type": "error", "message": "Message is too long. Maximum length is 250 characters."})
-                return
-            self.handle_chat_message(message)
-
+            self.handle_chat_message(content)
         elif message_type == "start_game":
             self.handle_start_game()
-
         else:
-            # Log and respond to unknown or invalid message types
             logger.warning(f"Unknown or invalid message type received: {message_type}")
             self.send_json({"type": "error", "message": "Invalid message type."})
 
@@ -97,7 +107,6 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         Parameters:
             content (dict): The message payload sent by the client.
         """
-        # Validate that the gameId in the message matches the one from the connection
         game_id = content.get("gameId")
         if game_id != self.game_id:
             self.send_json({"type": "error", "message": "Invalid game ID."})
@@ -111,22 +120,27 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             "message": f"Successfully joined lobby {self.lobby_group_name}",
         })
 
-        # Broadcast to the group that a player has joined
-        async_to_sync(self.channel_layer.group_send)(
-            self.lobby_group_name,
-            {
-                "type": "player_joined",
-                "player": {
-                    "username": self.user.first_name,
-                }
-            }
-        )
+    def handle_chat_message(self, content: dict) -> None:
+        """
+        Handle a chat message sent by the client to the server and broadcast it to all players in the lobby.
 
-    def handle_chat_message(self, message: str) -> None:
-        """Handle a chat message and broadcast it to all the players in the lobby."""
+        Parameters:
+            content (dict): The message payload sent by the client.
+        """
+        message = content.get("message", "")
+        if not message:
+            self.send_json({"type": "error", "message": "Message cannot be empty."})
+            return
+
+        if len(message) > 250:
+            self.send_json({"type": "error", "message": "Message is too long. Maximum length is 250 characters."})
+            return
+
         sender_name = self.user.first_name
         logger.info(f"Chat message from {sender_name}: {message}")
         
+        # Broadcast chat message to the lobby
+        logger.info(f"Broadcasting message to group {self.lobby_group_name}: {message}")
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
@@ -139,34 +153,41 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         )
 
     def handle_start_game(self) -> None:
-        """Handle the game start event and notify all players in the lobby."""
-        logger.info(f"Game started in lobby {self.lobby_group_name} (game_id={self.game_id})")
-        
+        """Handle the game start event and notify both players in the lobby."""
+        # Ensure the lobby exists and has exactly two players
+        if self.lobby_group_name not in GameLobbyConsumer.lobby_players:
+            self.send_json({"type": "error", "message": "Lobby does not exist."})
+            logger.error(f"Attempt to start a game in a non-existent lobby: {self.lobby_group_name}")
+            return
+
+        players = GameLobbyConsumer.lobby_players[self.lobby_group_name]
+        if len(players) != 2:
+            self.send_json({"type": "error", "message": "The game requires exactly two players to start."})
+            logger.warning(f"Game start attempt with invalid number of players: {len(players)} in {self.lobby_group_name}")
+            return
+
+        # Broadcast game start message
+        logger.info(f"Game started by {self.user.first_name} in lobby {self.lobby_group_name}")
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
-                "type": "game_start_message",
+                "type": "game_start",
                 "message": f"{self.user.first_name} has started the game!",
             }
         )
 
-    def player_joined(self, event: dict) -> None:
-        """
-        Notify the WebSocket client that a player has joined the lobby.
 
-        Parameters:
-            event (dict): The broadcast event data.
-        """
-        player = event.get("player")
-        if player:
-            logger.info(f"Broadcasting player joined message in lobby {self.lobby_group_name}: {player['username']}")
-            self.send_json({
-                "type": "PLAYER_JOINED",
-                "player": player,
-            })
+    def update_player_list(self, event: dict) -> None:
+        """Send the updated player list to the WebSocket client."""
+        players = event.get("players", [])
+        self.send_json({
+            "type": "player_list",
+            "players": players,
+        })
 
     def chat_message(self, event: dict) -> None:
         """Send a chat message event to the WebSocket client."""
+        logger.info(f"chat_message handler called with event: {event}")
         message = event.get("message")
         if message:
             logger.info(f"Broadcasting chat message in lobby {self.lobby_group_name}: {message['content']}")
@@ -186,10 +207,34 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
     def disconnect(self, code: int) -> None:
         """Handle WebSocket disconnection and remove the player from the lobby group."""
         user_name = self.user.first_name if not isinstance(self.user, AnonymousUser) else "Anonymous"
-        logger.info(f"User {user_name} disconnected from lobby {getattr(self, 'lobby_group_name', 'unknown')} with code {code}")
 
-        if hasattr(self, "lobby_group_name"):
-            async_to_sync(self.channel_layer.group_discard)(
+        # Check if lobby_group_name is set
+        if not hasattr(self, "lobby_group_name"):
+            logger.warning(f"User {user_name} disconnected before joining a lobby. Code: {code}")
+            return
+
+        logger.info(f"User {user_name} disconnected from lobby {self.lobby_group_name} with code {code}")
+
+        # Remove the player from the lobby's players list
+        if self.lobby_group_name in GameLobbyConsumer.lobby_players:
+            GameLobbyConsumer.lobby_players[self.lobby_group_name] = [
+                p for p in GameLobbyConsumer.lobby_players[self.lobby_group_name]
+                if p["id"] != self.user.id
+            ]
+
+            # Notify the lobby about the updated player list
+            async_to_sync(self.channel_layer.group_send)(
                 self.lobby_group_name,
-                self.channel_name
+                {
+                    "type": "update_player_list",
+                    "players": GameLobbyConsumer.lobby_players[self.lobby_group_name],
+                }
             )
+
+        # Remove the channel from the group
+        async_to_sync(self.channel_layer.group_discard)(
+            self.lobby_group_name,
+            self.channel_name
+        )
+
+        logger.info(f"Updated player list after disconnection: {GameLobbyConsumer.lobby_players[self.lobby_group_name]}")

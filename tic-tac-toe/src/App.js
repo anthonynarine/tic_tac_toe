@@ -28,7 +28,7 @@ function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/games/:id" element={<Game />} />
                 <Route path="/lobby/:id" element={<Lobby />} />
-                {/* <Route path="/toast-test-page" element={<ToastTestPage />} /> */}
+                <Route path="/toast-test-page" element={<ToastTestPage />} />
               </Routes>
             </div>
           </LobbyProvider>

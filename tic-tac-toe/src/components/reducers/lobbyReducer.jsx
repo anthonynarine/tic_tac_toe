@@ -13,7 +13,7 @@ export const INITIAL_LOBBY_STATE = {
     players: [], // List of players in the lobby
     messages: [], // Chat messages
     isGameStarted: false, // Indicates if the game has started
-    isHost: false, // Whether the current user is the host
+    // isHost: false, // Whether the current user is the host
 };
 
 /**
@@ -24,36 +24,78 @@ export const INITIAL_LOBBY_STATE = {
  * @returns {Object} - The updated state.
  */
 export const lobbyReducer = (state, action) => {
-    console.log(`Reducer action received: ${action.type}`, action.payload);
+    // Log the received action (for development use only)
+    if (process.env.NODE_ENV !== "production") {
+        console.log(`Reducer action received: ${action.type}`, action.payload);
+    }
 
     switch (action.type) {
         case "SET_PLAYERS": {
-            // Updates the list of players in the lobby
+            /**
+             * Updates the list of players in the lobby.
+             * 
+             * @payload {Array} action.payload - The new list of players.
+             */
+            if (!Array.isArray(action.payload)) {
+                console.error("Invalid SET_PLAYERS payload:", action.payload);
+                return state;
+            }
             return {
                 ...state,
-                players: action.payload, // Replace the current players list
+                players: action.payload,
             };
         }
 
         case "ADD_PLAYER": {
-            // Adds a player to the lobby
+            /**
+             * Adds a player to the lobby.
+             * 
+             * @payload {Object} action.payload - The player object to add (must contain an `id` field).
+             */
+            if (!action.payload || typeof action.payload.id === "undefined") {
+                console.error("Invalid ADD_PLAYER payload:", action.payload);
+                return state;
+            }
             return {
                 ...state,
                 players: [...state.players, action.payload],
             };
         }
 
-        case "SET_IS_HOST": {
-            // Marks the current user as the host
+        // case "SET_IS_HOST": {
+        //     /**
+        //      * Marks the current user as the host.
+        //      */
+        //     return {
+        //         ...state,
+        //         isHost: true,
+        //     };
+        // }
+
+        case "PLAYER_LIST": {
+            // Replaces the players list with the new list from the WebSocket
+            if (!Array.isArray(action.payload)) {
+                console.error("Invalid PLAYER_LIST payload:", action.payload);
+                return state;
+            }
             return {
                 ...state,
-                isHost: true,
+                players: action.payload,
             };
         }
 
         case "ADD_MESSAGE": {
-            if (!action.payload || typeof action.payload.sender !== "string" || typeof action.payload.content !== "string") {
-                console.error("Invalid message payload.");
+            /**
+             * Adds a chat message to the lobby.
+             * 
+             * @payload {Object} action.payload - The message object to add (must have `sender` and `content` properties).
+             */
+            if (
+                !action.payload ||
+                typeof action.payload.sender !== "string" ||
+                typeof action.payload.content !== "string"
+            ) {
+                console.error("Invalid ADD_MESSAGE payload:", action.payload);
                 return state;
             }
             return {
@@ -63,7 +105,9 @@ export const lobbyReducer = (state, action) => {
         }
 
         case "START_GAME": {
-            // Updates the state when the game starts
+            /**
+             * Updates the state to indicate the game has started.
+             */
             return {
                 ...state,
                 isGameStarted: true,
@@ -71,7 +115,15 @@ export const lobbyReducer = (state, action) => {
         }
 
         case "REMOVE_PLAYER": {
-            // Removes a player from the lobby
+            /**
+             * Removes a player from the lobby.
+             * 
+             * @payload {Object} action.payload - The player object to remove (must contain an `id` field).
+             */
+            if (!action.payload?.id) {
+                console.error("Invalid REMOVE_PLAYER payload:", action.payload);
+                return state;
+            }
             return {
                 ...state,
                 players: state.players.filter(player => player.id !== action.payload.id),
@@ -79,16 +131,22 @@ export const lobbyReducer = (state, action) => {
         }
 
         case "RESET_LOBBY": {
-            // Resets the lobby state to initial values
-            return { ...INITIAL_LOBBY_STATE };
+            /**
+             * Resets the lobby state to its initial values.
+             * Ensures the lobby returns to a clean slate.
+             */
+            return { ...INITIAL_LOBBY_STATE }; // For shallow state
         }
 
         default: {
-            // Warn for unknown actions (disable in production)
+            /**
+             * Handles unknown action types.
+             * Warns in development mode and returns the current state unchanged.
+             */
             if (process.env.NODE_ENV !== "production") {
                 console.warn(`Unknown action type: ${action.type}`);
             }
-            return state; // Return the current state for unknown actions
+            return state;
         }
     }
 };
