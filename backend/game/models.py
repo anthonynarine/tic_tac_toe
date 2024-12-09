@@ -182,6 +182,12 @@ class TicTacToeGame(models.Model):
         Format:
             "Game between <Player X> and <Player O>"
 
-        Handles cases where usernames may not be set by falling back to email addresses.
+        Handles cases where player_x or player_o may not be set.
         """
-        return f"Game between {self.player_x.username or self.player_x.email} and {self.player_o.username or self.player_o.email}"
+        player_x_name = (
+            self.player_x.first_name if self.player_x and self.player_x.first_name else self.player_x.email if self.player_x else "Unassigned"
+        )
+        player_o_name = (
+            self.player_o.first_name if self.player_o and self.player_o.first_name else self.player_o.email if self.player_o else "Unassigned"
+        )
+        return f"Game between {player_x_name} and {player_o_name}"

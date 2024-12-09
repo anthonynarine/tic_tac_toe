@@ -1,8 +1,12 @@
 import code
 import logging
+from os import error
+from xml.dom import ValidationErr
 from channels.generic.websocket import JsonWebsocketConsumer
 from asgiref.sync import async_to_sync
 from django.contrib.auth.models import AnonymousUser
+from django.forms import ValidationError
+from game.models import TicTacToeGame
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +79,6 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         })
         logger.info(f"User {self.user.first_name} joined lobby: {self.lobby_group_name}")
 
-
     def receive_json(self, content: dict, **kwargs) -> None:
         """
         Handle incoming messages from the WebSocket client.
@@ -85,23 +88,78 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             **kwargs: Additional optional parameters.
         """
         if not isinstance(content, dict):
-            self.send_json({"type": "error", "message": "Invalid message format. Expected a JSON object."})
+            logger.warning("Invalid message format received: Expected a JSON object.")
+            self.send_json({
+                "type": "error", 
+                "message": "Invalid message format. Expected a JSON object."
+            })
             self.close(code=4003)
             return
 
-        message_type = content.get("type", "").lower()
+        # Extract and validate the message type
+        message_type = content.get("type")
+        if not isinstance(message_type, str):
+            logger.warning("Missing or invalid 'type' field in message.")
+            self.send_json({
+                "type": "error",
+                "message": "Invalid message format. Missing 'type' field.",
+            })
+            return
 
-        if message_type == "join_lobby":
-            self.handle_join_lobby(content)
-        elif message_type == "chat_message":
-            self.handle_chat_message(content)
-        elif message_type == "start_game":
-            self.handle_start_game()
-        elif message_type == "leave_lobby":
-            self.handle_leave_lobby();
-        else:
-            logger.warning(f"Unknown or invalid message type received: {message_type}")
-            self.send_json({"type": "error", "message": "Invalid message type."})
+        message_type = message_type.lower()
+
+        try:
+            # Handle specific message types
+            if message_type == "join_lobby":
+                self.handle_join_lobby(content)
+            elif message_type == "chat_message":
+                self.handle_chat_message(content)
+            elif message_type == "start_game":
+                logger.info("Start game request received.")
+                if self.lobby_group_name not in GameLobbyConsumer.lobby_players:
+                    logger.warning(f"Lobby {self.lobby_group_name} does not exist.")
+                    self.send_json({
+                        "type": "error",
+                        "message": "Cannot start game: Lobby does not exist.",
+                    })
+                    return
+
+                if len(GameLobbyConsumer.lobby_players[self.lobby_group_name]) == 2:
+                    self.handle_start_game()
+                else:
+                    logger.warning(
+                        f"Start game request denied: Lobby {self.lobby_group_name} has "
+                        f"{len(GameLobbyConsumer.lobby_players[self.lobby_group_name])} players (expected 2)."
+                    )
+                    self.send_json({
+                        "type": "error",
+                        "message": "Cannot start game: Exactly two players are required in the lobby.",
+                    })
+            elif message_type == "move":
+                logger.info("Move request received.")
+                self.handle_move(content)
+            elif message_type == "leave_lobby":
+                self.handle_leave_lobby()
+            else:
+                logger.warning(f"Unknown or invalid message type received: {message_type}")
+                self.send_json({
+                    "type": "error",
+                    "message": "Invalid message type.",
+                })
+
+        except KeyError as e:
+            logger.error(f"KeyError while processing {message_type}: {e}")
+            self.send_json({
+                "type": "error",
+                "message": f"Missing required field: {str(e)}",
+            })
+        except Exception as e:
+            logger.error(f"Unexpected error while handling message of type {message_type}: {e}")
+            logger.debug(f"Full message content: {content}")
+            self.send_json({
+                "type": "error",
+                "message": f"An unexpected error occurred: {str(e)}",
+            })
 
     def handle_join_lobby(self, content: dict) -> None:
         """
@@ -141,7 +199,6 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         # Close the WebSocket connection
         self.close(code=1000)
 
-
     def _remove_player_from_lobby(self) -> None:
         """
         Shared logic to remove a player from the lobby and notify others.
@@ -180,7 +237,6 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         )
         logger.info(f"Channel {self.channel_name} has been removed from group {self.lobby_group_name}.")
 
-
     def handle_chat_message(self, content: dict) -> None:
         """
         Handle a chat message sent by the client to the server and broadcast it to all players in the lobby.
@@ -213,8 +269,21 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             }
         )
 
+    def chat_message(self, event: dict) -> None:
+        """Send a chat message event to the WebSocket client."""
+        logger.info(f"chat_message handler called with event: {event}")
+        message = event.get("message")
+        if message:
+            logger.info(f"Broadcasting chat message in lobby {self.lobby_group_name}: {message['content']}")
+            self.send_json({
+                "type": "chat_message",
+                "message": message,
+            })
+            
     def handle_start_game(self) -> None:
-        """Handle the game start event and notify both players in the lobby."""
+        """
+        Handle the game start event and notify both players in the lobby.
+        """
         # Ensure the lobby exists and has exactly two players
         if self.lobby_group_name not in GameLobbyConsumer.lobby_players:
             self.send_json({"type": "error", "message": "Lobby does not exist."})
@@ -222,20 +291,53 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             return
 
         players = GameLobbyConsumer.lobby_players[self.lobby_group_name]
+
+        # Ensure the lobby has exactly two players
         if len(players) != 2:
-            self.send_json({"type": "error", "message": "The game requires exactly two players to start."})
-            logger.warning(f"Game start attempt with invalid number of players: {len(players)} in {self.lobby_group_name}")
+            self.send_json({
+                "type": "error",
+                "message": "The game requires exactly two players to start."
+            })
+            logger.warning(
+                f"Game start attempt with invalid number of players: {len(players)} "
+                f"in {self.lobby_group_name}."
+            )
             return
 
-        # Broadcast game start message
-        logger.info(f"Game started by {self.user.first_name} in lobby {self.lobby_group_name}")
-        async_to_sync(self.channel_layer.group_send)(
-            self.lobby_group_name,
-            {
-                "type": "game_start",
-                "message": f"{self.user.first_name} has started the game!",
-            }
+        # Log the players who are starting the game
+        logger.info(
+            f"Game started by {self.user.first_name} in lobby {self.lobby_group_name}. "
+            f"Players: {[player['username'] for player in players]}"
         )
+
+        # Broadcast game start message
+        try:
+            async_to_sync(self.channel_layer.group_send)(
+                self.lobby_group_name,
+                {
+                    "type": "game_start",  # Ensure this matches the event handler name
+                    "message": f"{self.user.first_name} has started the game!",
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to broadcast game start message: {e}")
+            self.send_json({
+                "type": "error",
+                "message": "Failed to start the game due to a server error.",
+            })
+
+    def game_start(self, event: dict) -> None:
+        """
+        Handle the game start event broadcast to the WebSocket group.
+
+        Parameters:
+            event (dict): The event data sent by the group.
+        """
+        logger.info(f"Broadcasting game start message in lobby {self.lobby_group_name}")
+        self.send_json({
+            "type": "game_start",
+            "message": event["message"],
+        })
 
     def update_player_list(self, event: dict) -> None:
         """
@@ -252,25 +354,80 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
                 logger.warning(
                     f"Attempted to send a message to a closed WebSocket connection: {e}"
                 )
+    
+    def handle_move(self, content: dict) -> None:
+        """
+        Handle a move made by a player.
 
+        Parameters:
+            content (dict): The message payload containing the move details.
+        """
+        position = content.get("position")
+        user = self.scope["user"]
 
-    def chat_message(self, event: dict) -> None:
-        """Send a chat message event to the WebSocket client."""
-        logger.info(f"chat_message handler called with event: {event}")
-        message = event.get("message")
-        if message:
-            logger.info(f"Broadcasting chat message in lobby {self.lobby_group_name}: {message['content']}")
+        # Check if position is provided and valid
+        if position is None:
             self.send_json({
-                "type": "chat_message",
-                "message": message,
+                "type": "error",
+                "message": "Invalid move: Position is missing."
+            })
+            return
+
+        if not isinstance(position, int) or not (0 <= position < 9):
+            self.send_json({
+                "type": "error",
+                "message": "Invalid move: Position must be an integer between 0 and 8."
+            })
+            return
+
+        try:
+            # Retrieve the game
+            game = TicTacToeGame.objects.get(id=self.game_id)
+            logger.info(f"Game object retrieved: {game}")
+
+            # Determine the player's marker ("X" or "O")
+            player_marker = "X" if user == game.player_x else "O"
+            logger.info(f"Player {user.first_name} ({player_marker}) made a move at position {position}")
+
+            # Make the move
+            game.make_move(position=position, player=player_marker)
+
+            # Broadcast updated game state
+            async_to_sync(self.channel_layer.group_send)(
+                self.lobby_group_name,
+                {
+                    "type": "game_update",
+                    "board_state": game.board_state,
+                    "current_turn": game.current_turn,
+                    "winner": game.winner,
+                }
+            )
+
+        except TicTacToeGame.DoesNotExist:
+            logger.error("Game does not exist.")
+            self.send_json({
+                "type": "error",
+                "message": "Game does not exist."
+            })
+        except ValidationError as e:
+            logger.error(f"Invalid move: {e}")
+            self.send_json({
+                "type": "error",
+                "message": str(e) if str(e) else "Invalid move due to a validation error."
             })
 
-    def game_start_message(self, event: dict) -> None:
-        """Send a game start event to the WebSocket client."""
-        logger.info(f"Broadcasting game start message in lobby {self.lobby_group_name}")
+    def game_update(self, event: dict) -> None:
+        """
+        Broadcast the updated game state to all connected clients.
+
+        Parameters:
+            event (dict): The message payload containing the game state.
+        """
         self.send_json({
-            "type": "game_start",
-            "message": event["message"],
+            "type": "game_update",
+            "board_state": event.get("board_state", "_________"),  # Default empty board
+            "current_turn": event.get("current_turn", "X"),       # Default turn to X
+            "winner": event.get("winner", None),                 # Default no winner
         })
 
     def disconnect(self, code: int) -> None:

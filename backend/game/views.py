@@ -51,14 +51,14 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
                 logger.error("AI user with email 'ai@tictactoe.com' not found in the database.")
                 raise ValidationError("AI user (Player O) is missing.")
             logger.debug(f"AI player_o set: {player_o}")
-
-        # Randomize the starting player
-        ai_starts = is_ai_game and random.choice([True, False])  # AI starts if random choice is True
-        if ai_starts:
-            player_x, player_o = player_o, player_x  # Swap roles if AI starts
-            logger.debug("Randomized Player X to AI and Player O to human.")
-        else:
-            logger.debug("Player X remains the human player.")
+            
+        # Initialize player_o for multiplayer games
+        if not is_ai_game:
+            logger.debug("Waiting for a second player to join the game.")
+            
+        # Randomize the starting turn between "X" and "O"
+        randomized_turn = random.choice(["X", "O"])
+        logger.debug(f"Randomized starting turn: {randomized_turn}")
 
         # Initialize default game state
         logger.debug("Initializing default game state for new game")
@@ -67,21 +67,19 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
             player_o=player_o,
             is_ai_game=is_ai_game,
             board_state="_________",  # Ensure a fresh board
-            current_turn="X",         # Ensure Player X starts
+            current_turn=randomized_turn,  # Randomized turn
             winner=None               # Clear any winner
         )
-        logger.debug(f"Game created successfully with ID: {game.id}")
+        logger.debug(f"Game created successfully with ID: {game.id}, starting turn: {game.current_turn}")
 
         # Trigger AI's first move if AI is Player X
-        if ai_starts:
+        if is_ai_game and randomized_turn == "X" and player_o == User.objects.filter(email="ai@tictactoe.com").first():
             logger.debug("AI is Player X. Making the first move.")
             game.handle_ai_move()  # Call the AI logic to make the first move
             logger.debug(f"AI made its move. Updated board state: {game.board_state}")
 
         # Return the serialized game data
         return Response(self.get_serializer(game).data, status=status.HTTP_201_CREATED)
-
-
 
     @action(detail=True, methods=["post"], url_path="join")
     def join_game(self, request, pk=None):
@@ -241,38 +239,38 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         # Step 6: Return the updated game data in the response
         return Response(self.get_serializer(game).data, status=status.HTTP_200_OK)
 
-@action(detail=True, methods=["post"], url_path="start")
-def start_game(self, request, pk=None):
-    """
-    Marks the game as ready to start and validates the lobby state.
-    The URL for this action is /api/games/<game_id>/start/.
-    """
-    logger.debug("start_game called")
-    
-    # Retrieve the game instance
-    game = self.get_object()
-    
-    # Validate that the game has both players
-    if not game.player_x or not game.player_o:
-        logger.error("Cannot start game: Missing players.")
+    @action(detail=True, methods=["post"], url_path="start")
+    def start_game(self, request, pk=None):
+        """
+        Marks the game as ready to start and validates the lobby state.
+        The URL for this action is /api/games/<game_id>/start/.
+        """
+        logger.debug("start_game called")
+        
+        # Retrieve the game instance
+        game = self.get_object()
+        
+        # Validate that the game has both players
+        if not game.player_x or not game.player_o:
+            logger.error("Cannot start game: Missing players.")
+            return Response(
+                {"error": "Both players must be present to start the game."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validate that the game hasn't already started
+        if game.board_state != "_________":  # Ensure the board is in the initial state
+            logger.error("Cannot start game: Game has already started.")
+            return Response(
+                {"error": "Game has already started."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Log the transition to the started state
+        logger.info(f"Game {game.id} is now starting. Players: {game.player_x} (X) and {game.player_o} (O).")
+        
+            # Return the updated game data to indicate it's ready to start
         return Response(
-            {"error": "Both players must be present to start the game."},
-            status=status.HTTP_400_BAD_REQUEST
+            self.get_serializer(game).data,
+            status=status.HTTP_200_OK
         )
-    
-    # Validate that the game hasn't already started
-    if game.board_state != "_________":  # Ensure the board is in the initial state
-        logger.error("Cannot start game: Game has already started.")
-        return Response(
-            {"error": "Game has already started."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    # Log the transition to the started state
-    logger.info(f"Game {game.id} is now starting. Players: {game.player_x} (X) and {game.player_o} (O).")
-    
-        # Return the updated game data to indicate it's ready to start
-    return Response(
-        self.get_serializer(game).data,
-        status=status.HTTP_200_OK
-    )
