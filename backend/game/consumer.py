@@ -1,3 +1,4 @@
+import code
 import logging
 from channels.generic.websocket import JsonWebsocketConsumer
 from asgiref.sync import async_to_sync
@@ -96,6 +97,8 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             self.handle_chat_message(content)
         elif message_type == "start_game":
             self.handle_start_game()
+        elif message_type == "leave_lobby":
+            self.handle_leave_lobby();
         else:
             logger.warning(f"Unknown or invalid message type received: {message_type}")
             self.send_json({"type": "error", "message": "Invalid message type."})
@@ -119,6 +122,57 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             "type": "join_lobby_success",
             "message": f"Successfully joined lobby {self.lobby_group_name}",
         })
+        
+    def handle_leave_lobby(self) -> None:
+        """
+        Handle explicit leave lobby request from the client.
+        """
+        logger.info(f"User {self.user.first_name} is leaving the lobby {self.lobby_group_name}")
+
+        # Remove the player from the lobby
+        self._remove_player_from_lobby()
+
+        # Notify the user that they left successfully
+        self.send_json({
+            "type": "leave_lobby_success",
+            "message": "You have successfully left the lobby.",
+        })
+
+        # Close the WebSocket connection
+        self.close(code=1000)
+
+
+    def _remove_player_from_lobby(self) -> None:
+        """
+        Shared logic to remove a player from the lobby and notify others.
+        """
+        if self.lobby_group_name in GameLobbyConsumer.lobby_players:
+            # Log the player removal
+            logger.info(f"Removing player {self.user.first_name} (ID: {self.user.id}) from lobby {self.lobby_group_name}")
+
+            # Remove the player from the lobby's player list
+            GameLobbyConsumer.lobby_players[self.lobby_group_name] = [
+                p for p in GameLobbyConsumer.lobby_players[self.lobby_group_name]
+                if p["id"] != self.user.id
+            ]
+
+            # Notify the lobby about the updated player list
+            async_to_sync(self.channel_layer.group_send)(
+                self.lobby_group_name,
+                {
+                    "type": "update_player_list",
+                    "players": GameLobbyConsumer.lobby_players[self.lobby_group_name],
+                }
+            )
+
+        # Remove the channel from the group
+        async_to_sync(self.channel_layer.group_discard)(
+            self.lobby_group_name,
+            self.channel_name
+        )
+
+        logger.info(f"Updated player list after removal: {GameLobbyConsumer.lobby_players[self.lobby_group_name]}")
+
 
     def handle_chat_message(self, content: dict) -> None:
         """

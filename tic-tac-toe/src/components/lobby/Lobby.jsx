@@ -16,7 +16,15 @@ const Lobby = () => {
     const [message, setMessage] = useState(""); // Chat input
     const [socket, setSocket] = useState(null); // WebSocket instance
 
-    // WebSocket Connection
+    // Define a maximum number of players (e.g., 2)
+    const MAX_PLAYERS = 2;
+
+    // Check if the lobby is full
+    const isLobbyFull = state.players.length === MAX_PLAYERS;
+
+    /**
+     * Establish WebSocket connection to the backend.
+     */
     useEffect(() => {
         const token = localStorage.getItem("access_token");
         if (!token) {
@@ -40,7 +48,9 @@ const Lobby = () => {
         };
     }, [gameId, navigate, dispatch]);
 
-    // Handle WebSocket Messages
+    /**
+     * Handle incoming WebSocket messages.
+     */
     const handleWebSocketMessage = (event) => {
         const data = JSON.parse(event.data);
         console.log("WebSocket message received:", data);
@@ -60,7 +70,9 @@ const Lobby = () => {
         action ? action() : console.warn(`Unknown WebSocket message type: ${data.type}`);
     };
 
-    // Send Chat Message
+    /**
+     * Send a chat message.
+     */
     const handleSendMessage = () => {
         if (message.trim() && socket) {
             socket.send(
@@ -73,7 +85,9 @@ const Lobby = () => {
         }
     };
 
-    // Start Game
+    /**
+     * Start the game.
+     */
     const handleStartGame = () => {
         if (state.players.length < 2) {
             showToast("error", "You need at least 2 players to start the game.");
@@ -88,51 +102,63 @@ const Lobby = () => {
             );
     };
 
-    // Copy invite link
+    /**
+     * Leave the lobby.
+     */
+    const handleLeaveLobby = () => {
+        console.log("Leaving the lobby!");
+        // Add logic to leave the lobby (e.g., notify backend or navigate away)
+    };
+
+    /**
+     * Copy invite link.
+     */
     const handleCopyLink = () => {
         navigator.clipboard.writeText(`${window.location.origin}/lobby/${gameId}`);
         showToast("success", "Invite link copied to clipboard!");
     };
 
-    // Auto-scroll Chat
+    
+    // Handle "Enter" Key for Chat
+    const handleKeyPress = (e) => {
+        if (e.key === "Enter") handleSendMessage();
+    };
+
+    /**
+     * Auto-scroll chat container when new messages arrive.
+     */
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [state.messages]);
 
-    // Handle "Enter" Key for Chat
-    const handleKeyPress = (e) => {
-        if (e.key === "Enter") handleSendMessage();
-    };
-
-    // Define a maximum number of players (e.g., 2 for now)
-    const MAX_PLAYERS = 2;
-
-    // Render Players List
+    /**
+     * Render player slots.
+     */
     const renderPlayersList = () => (
         <div className="players-list">
-        {Array.from({ length: MAX_PLAYERS }).map((_, index) => {
-            const player = state.players[index]; // Check if a player exists in the slot
-            return (
-            <div key={index} className="player-slot">
-                {player ? (
-                // If the player is present, show their avatar and name
-                <>
-                    <div className="player-avatar">
-                    {player.username.charAt(0).toUpperCase()} {/* First letter as avatar */}
+            {Array.from({ length: MAX_PLAYERS }).map((_, index) => {
+                const player = state.players[index]; // Check if a player exists in the slot
+                return (
+                    <div key={index} className="player-slot">
+                        {player ? (
+                            // Show player avatar and name if the player exists
+                            <>
+                                <div className="player-avatar">
+                                    {player.username.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="player-info">
+                                    <span className="player-name">{player.username}</span>
+                                </div>
+                            </>
+                        ) : (
+                            // Show the invite icon if no player is present
+                            <CiCirclePlus className="icon-invite" onClick={handleCopyLink} />
+                        )}
                     </div>
-                    <div className="player-info">
-                    <span className="player-name">{player.username}</span>
-                    </div>
-                </>
-                ) : (
-                // If no player, show the invite icon as the button
-                <CiCirclePlus className="icon-invite" onClick={handleCopyLink} />
-                )}
-            </div>
-            );
-        })}
+                );
+            })}
         </div>
     );
 
@@ -143,6 +169,20 @@ const Lobby = () => {
 
             {/* Players in Lobby */}
             <div className="lobby-details">{renderPlayersList()}</div>
+
+            {/* Buttons Section */}
+            <div className="lobby-buttons">
+                <button
+                    onClick={handleStartGame}
+                    className="lobby-button start-game-button"
+                    disabled={!isLobbyFull}
+                >
+                    Start
+                </button>
+                <button onClick={handleLeaveLobby} className="lobby-button leave-lobby-button">
+                    Leave
+                </button>
+            </div>
 
             {/* Chat Section */}
             <div className="chat-container">
@@ -167,20 +207,10 @@ const Lobby = () => {
                     </button>
                 </div>
             </div>
-
-            {/* Start Game Button */}
-            {state.isHost && (
-                <button
-                    className="start-game-button"
-                    onClick={handleStartGame}
-                    disabled={state.players.length < 2}
-                    aria-label="Start game"
-                >
-                    Start Game
-                </button>
-            )}
         </div>
     );
 };
 
 export default Lobby;
+
+

@@ -1,6 +1,6 @@
 /* General Container */
 .lobby-container {
-  max-width: 600px;
+  max-width: 350px;
   margin: 0 auto;
   padding: 2rem;
   background: #000000; /* Match the black background of the homepage */
@@ -116,12 +116,16 @@
 .chat-messages {
   max-height: 200px;
   min-height: 100px;
-  overflow-y: auto;
+  overflow-y: auto; /* Allow vertical scrolling */
   margin-bottom: 1rem;
   padding: 1rem;
   border: 1px solid #333333;
   border-radius: 10px;
   background: #000000;
+  word-wrap: break-word; /* Break long words */
+  word-break: break-word; /* Ensure proper line breaking */
+  white-space: pre-wrap; /* Preserve whitespace and wrap text to the next line */
+  overflow-x: hidden; /* Disable horizontal scrolling */
 }
 
 .chat-message {
@@ -204,28 +208,68 @@
   transform: scale(1.05);
 }
 
-/* Start Game Button */
-.start-game-button {
-  margin-top: 1.5rem;
-  padding: 1rem 2.5rem;
-  font-size: 1.2rem;
-  font-weight: 600;
-  background: #00aaff;
-  color: white;
+/* Buttons Section */
+.lobby-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem; /* Space between buttons */
+  margin-top: rem;
+}
+
+/* Base Button Styles */
+.lobby-button {
+  padding: 0.4rem 1.25rem; /* Uniform padding */
+  font-size: 1rem; /* Uniform font size */
+  font-weight: 600; /* Consistent font weight */
+  width: 100px; /* Fixed width for all buttons */
+  text-align: center; /* Center-align text */
   border: none;
-  border-radius: 12px;
+  border-radius: 3px;
+  border: 1px solid white;
   cursor: pointer;
   transition: background 0.3s ease, transform 0.2s ease;
 }
 
-.start-game-button:disabled {
-  background: #555555;
-  cursor: not-allowed;
+/* Active Start Game Button */
+.start-game-button {
+  background: black; /* Active background color */
+  color: white; /* Text color */
+  border: 1px solid white;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease, color 0.2s ease;
 }
 
+/* Hover for Active Start Game Button */
 .start-game-button:hover:not(:disabled) {
-  background: #007acc;
-  transform: scale(1.05);
+  background: white; /* Change background to white on hover */
+  color: black; /* Change text color to black */
+  transform: scale(1.05); /* Slight zoom effect */
+}
+
+/* Disabled Start Game Button */
+.start-game-button:disabled {
+  background: #555555; /* Gray background for disabled state */
+  color: #bbbbbb; /* Faded text color */
+  cursor: not-allowed; /* Indicate button is not clickable */
+  transform: none; /* Remove hover/active effects */
+}
+
+/* Leave Lobby Button */
+.leave-lobby-button {
+  background: black;
+  color: white;
+}
+
+.leave-lobby-button:hover {
+  background: white;
+  border: 1px solid #0d0d0d;
+  color:#000000;
+  transform: scale(1.05); /* Subtle zoom effect on hover */
+}
+
+.leave-lobby-button:active {
+  transform: scale(1); /* Reset scale on click */
+  background: #cc0000;
 }
 
 /* Responsive Design */
