@@ -49,7 +49,7 @@ export const Game = () => {
     };
 
     loadGame(); // Invoke loadGame to fetch data when the component mounts
-  }, [id, dispatch]); // Dependencies: run the effect when 'id' changes or if fetchGame or dispatch functions change
+  }, [id,dispatch]); // Dependencies: run the effect when 'id' changes or if fetchGame or dispatch functions change
 
   /**
    * Handle click on a cell in the Tic Tac Toe board.
@@ -69,7 +69,7 @@ export const Game = () => {
 
     if (state.isGameOver || state.cellValues[cellIndex] !== "") return;
 
-    initializeRequest(); // Start the loading state while making the API request
+
     try {
       const updatedGame = await makeMove(id, cellIndex); // Call backend service to make a move
       if (updatedGame) {
