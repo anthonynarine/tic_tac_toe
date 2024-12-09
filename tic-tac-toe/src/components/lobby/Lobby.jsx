@@ -107,7 +107,14 @@ const Lobby = () => {
      */
     const handleLeaveLobby = () => {
         console.log("Leaving the lobby!");
-        // Add logic to leave the lobby (e.g., notify backend or navigate away)
+        if(socket) {
+            socket.send(
+                JSON.stringify({
+                    type: "leave_lobby",
+                })
+            );
+        }
+        navigate("/");
     };
 
     /**

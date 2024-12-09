@@ -157,21 +157,28 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             ]
 
             # Notify the lobby about the updated player list
-            async_to_sync(self.channel_layer.group_send)(
-                self.lobby_group_name,
-                {
-                    "type": "update_player_list",
-                    "players": GameLobbyConsumer.lobby_players[self.lobby_group_name],
-                }
-            )
+            if GameLobbyConsumer.lobby_players[self.lobby_group_name]:  # Only broadcast if there are remaining players
+                async_to_sync(self.channel_layer.group_send)(
+                    self.lobby_group_name,
+                    {
+                        "type": "update_player_list",
+                        "players": GameLobbyConsumer.lobby_players[self.lobby_group_name],
+                    }
+                )
+                logger.info(f"Updated player list after removal: {GameLobbyConsumer.lobby_players[self.lobby_group_name]}")
+            else:
+                # If lobby is empty, clean up the lobby
+                del GameLobbyConsumer.lobby_players[self.lobby_group_name]
+                logger.info(f"Lobby {self.lobby_group_name} has been deleted after becoming empty.")
+        else:
+            logger.warning(f"Attempted to remove player from non-existent lobby {self.lobby_group_name}")
 
         # Remove the channel from the group
         async_to_sync(self.channel_layer.group_discard)(
             self.lobby_group_name,
             self.channel_name
         )
-
-        logger.info(f"Updated player list after removal: {GameLobbyConsumer.lobby_players[self.lobby_group_name]}")
+        logger.info(f"Channel {self.channel_name} has been removed from group {self.lobby_group_name}.")
 
 
     def handle_chat_message(self, content: dict) -> None:
@@ -230,14 +237,22 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             }
         )
 
-
     def update_player_list(self, event: dict) -> None:
-        """Send the updated player list to the WebSocket client."""
-        players = event.get("players", [])
-        self.send_json({
-            "type": "player_list",
-            "players": players,
-        })
+        """
+        Send the updated player list to the WebSocket client.
+        """
+        if self.scope["type"] == "websocket" and self.channel_name:
+            try:
+                players = event.get("players", [])
+                self.send_json({
+                    "type": "player_list",
+                    "players": players,
+                })
+            except RuntimeError as e:
+                logger.warning(
+                    f"Attempted to send a message to a closed WebSocket connection: {e}"
+                )
+
 
     def chat_message(self, event: dict) -> None:
         """Send a chat message event to the WebSocket client."""
