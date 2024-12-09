@@ -1,63 +1,124 @@
 import "./Game.css";
 import { ResultModal } from "../reslutModal/ResultModal";
 import { Board } from "../board/Board";
-import { useState } from "react";
-import { calculateWinner } from "../../utils/WinnerCalculator";
-
-const INITIAL_CELL_VALUES = ["", "", "", "", "", "", "", "", ""];
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import useGameServices from "../hooks/useGameServices";
+import { useGameContext } from "../context/gameContext";
+// import ToastTester from "../../utils/toast/ToastInComponentTester";
 
 export const Game = () => {
-  // State variables to maintain the game's status, moves, and results.
-  const [cellValues, setCellValues] = useState(INITIAL_CELL_VALUES);
-  const [xIsNext, setXisNext] = useState(true);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [numOfTurnsLeft, setNumOfTurnsLeft] = useState(9);
-  const [winner, setWinner] = useState();
-  const [winningCombination, setWinningCombination] = useState([]);
+  const { id } = useParams(); // Extract the game ID from the URL (React Router)
+  const { state, dispatch } = useGameContext(); // Get current game state and dispatch function from context
+  const { fetchGame, makeMove, resetGame, playAgainAI, completeGame } = useGameServices(); // Destructure backend service calls from custom hook
 
-  // Checks if a specific cell is empty.
-  const isCellEmpty = (cellIndex) => cellValues[cellIndex] === "";
 
-  // Rstart game
-  const restartGame = () => {
-    setCellValues(INITIAL_CELL_VALUES);
-    setXisNext(true);
-    setIsGameOver(false);
-    setNumOfTurnsLeft(9);
-    setWinner(undefined);
-    setWinningCombination([]);
+  useEffect(() => {
+    console.log("Game state updated:", state);
+  }, [state]);
+
+  // Component loading and error state
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Helper function to start loading (used to set loading state)
+  const initializeRequest = () => {
+    setLoading(true);
+    setError(null);
   };
 
-  // Handle a cell click event, update game state and check for winner.
-  const handleCellClick = (cellIndex) => {
-    if (!isCellEmpty(cellIndex)) return;
+  // Helper function to stop loading (used when API calls are completed)
+  const stopLoading = () => setLoading(false);
 
-    const updatedCellValues = [...cellValues];
-    updatedCellValues[cellIndex] = xIsNext ? "X" : "O";
+  // Fetch game data when the component mounts or when the game ID changes
+  useEffect(() => {
+    const loadGame = async () => {
+      initializeRequest();
+      try {
+        const fetchedGame = await fetchGame(id); // Call the fetchGame service to get game data
+        if (fetchedGame) {
+          console.log("fetched game Data:", fetchedGame)
+          dispatch({ type: "SET_GAME", payload: fetchedGame }); // Dispatch action to set game state
+        }
+      } catch (error) {
+        setError("Failed to load game"); // Set error message if fetching fails
+        console.error("Error fetching game", error);
+      } finally {
+        stopLoading(); // Stop loading state
+      }
+    };
 
-    const newNumberOfTurnsLeft = numOfTurnsLeft - 1;
+    loadGame(); // Invoke loadGame to fetch data when the component mounts
+  }, [id, dispatch]); // Dependencies: run the effect when 'id' changes or if fetchGame or dispatch functions change
 
-    const gameResults = calculateWinner(updatedCellValues, newNumberOfTurnsLeft, cellIndex);
+  /**
+   * Handle click on a cell in the Tic Tac Toe board.
+   * 
+   * @param {number} cellIndex - The index of the cell that was clicked (0 to 8 in a 3x3 grid).
+   * 
+   * This function ensures that only valid moves are processed. A move is considered valid if:
+   * - The game is not over (`state.isGameOver` is false).
+   * - The clicked cell is empty (i.e., the value of `state.cellValues[cellIndex]` is an empty string).
+   * 
+   * If the move is valid, it calls the `makeMove` function (which communicates with the backend),
+   * updates the game state using the updated game data, and stops the loading state when the operation is complete.
+   */
+  const handleCellClick = async (cellIndex) => {
+    // Prevent invalid moves: if the game is over or the cell is already filled, do nothing
+    console.log("cell clicked:", cellIndex);
 
-    setCellValues(updatedCellValues);
-    setXisNext(!xIsNext);
-    setIsGameOver(gameResults.hasResult);
-    setNumOfTurnsLeft(newNumberOfTurnsLeft);
-    setWinner(gameResults.winner);
-    setWinningCombination(gameResults.winningCombination);
+    if (state.isGameOver || state.cellValues[cellIndex] !== "") return;
+
+    initializeRequest(); // Start the loading state while making the API request
+    try {
+      const updatedGame = await makeMove(id, cellIndex); // Call backend service to make a move
+      if (updatedGame) {
+        dispatch({ type: "MAKE_MOVE", payload: updatedGame }); // Dispatch action to update the state with the new game data
+      }
+    } catch (error) {
+      console.error("Error making move:", error); // Log any errors that occur during the move
+    } finally {
+      stopLoading(); // Stop loading state after the request finishes
+    }
   };
+
+  /**
+   * Automatically trigger the completeGame function when the game ends navigate to the homepage
+   */
+  useEffect(() => {
+    const finalizeGame = async () => {
+      if (state.isGameOver && state.winner) {
+        await completeGame(id, state.winner); // Complete the game
+      }
+    };
+
+    finalizeGame(); 
+  }, [state.isGameOver, state.winner, id,])
 
   return (
-    <>
-      <div id="game">
-        <h1>Tic Tac Toe</h1>
-        <Board
-          cellValues={cellValues}
-          winningCombination={winningCombination}
-          cellClicked={handleCellClick} 
-        />
-      </div>
-      <ResultModal isGameOver={isGameOver} winner={winner} onNewGameClicked={restartGame}/>
-    </>
+    <div id="game">
+      {loading ? (
+        <p>Loading...</p> // Display loading state
+      ) : (
+        <>
+          <h1>Tic Tac Toe</h1>
+          {/* Render the Board component, passing necessary props */}
+          <Board
+            cellValues={state.cellValues}
+            winningCombination={state.winningCombination}
+            cellClicked={handleCellClick} // Pass the handleCellClick function to handle user interactions
+          />
+          {/* Render ResultModal to show game result */}
+          {console.log("Modal Props:", { isGameOver: state.isGameOver, winner: state.winner })}
+          <ResultModal 
+            isGameOver={state.isGameOver} 
+            winner={state.winner} 
+            onNewGameClicked={playAgainAI} // Pass the restartGame function to handle new game action
+            onCompleteGame={() => completeGame(id, state.winner)}
+          />
+        </>
+      )}
+      {/* <ToastTester/> */}
+    </div>
   );
 };

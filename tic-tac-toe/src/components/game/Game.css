@@ -1,8 +1,10 @@
 #game {
-  background: var(--content-background-color);
+  background: black;
   border-radius: var(--default-border-radius);
   padding: 3vmin;
   box-shadow: var(--box-shadow);
+  border: 1px solid white;
+  margin-top: 11rem;
 }
 
 h1 {

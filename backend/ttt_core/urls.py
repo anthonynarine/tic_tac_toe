@@ -10,10 +10,10 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     
     # Users app URLs
-    path("api/users/", include("users.urls")),  # Added trailing slash
+    path("api/users/", include("users.urls")),  # No need to add a trailing slash here
 
     # Game app URLs
-    path("api/games/", include("game.urls")),  # Added trailing slash
+    path("api/games/", include("game.urls")),  # No need to add a trailing slash here
 
     # SIMPLE_JWT for authentication
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),

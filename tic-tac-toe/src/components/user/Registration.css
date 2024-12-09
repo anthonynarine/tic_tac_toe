@@ -1,0 +1,122 @@
+/* Global Reset and Flexbox Centering */
+html, body {
+  height: 100%;
+  margin: 0;
+  background-color: var(--background-dark-color); /* Global background */
+  font-family: Arial, Helvetica, sans-serif;
+  box-sizing: border-box;
+}
+
+/* Responsive Registration Container */
+#registration-container {
+  width: 100%; /* Take full width */
+  max-width: 500px; /* Maximum width for larger screens */
+  min-width: 280px; /* Minimum width for smaller screens */
+  padding: 2rem;
+  background-color: balck; /* Form background - dark green */
+  border-radius: var(--default-border-radius);
+  box-shadow: var(--box-shadow);
+  border: 1px solid white; /* Primary border from global settings */
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  margin-top: 12rem;
+}
+
+/* Form Layout */
+#registration-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Form Heading */
+#registration-form h2 {
+  text-align: center;
+  color: white; /* Use accent color for contrast */
+  font-size: var(--main-title-font-size);
+}
+
+/* Form Input Fields */
+#registration-form input {
+  padding: 1rem;
+  border-radius: var(--default-border-radius);
+  border: 1px solid var(--primary-color); /* Use primary color for input border */
+  font-size: 1rem;
+  background-color: white; /* Ensure input field is clear and readable */
+  color: black; /* Keep input text black for readability */
+}
+
+/* Form Button */
+#registration-form button {
+  padding: 1rem;
+  background: #0D0D0D; /* Light green button background */
+  color: white; /* White text on the button */
+  border: none;
+  border-radius: var(--default-border-radius);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  border: 1px solid white;
+}
+
+#registration-form button:hover {
+  background: black;; /* Hover color matches other primary accents */
+}
+
+/* Responsive Design Adjustments */
+
+/* Small Screens (Phones 414px and below) */
+@media (max-width: 414px) {
+  #registration-container {
+    width: 90%; /* Take most of the width */
+    margin: 0 auto; /* Center container horizontally */
+    padding: 1.5rem;
+  }
+
+  #registration-form h2 {
+    font-size: 4vmin;
+  }
+
+  #registration-form input, 
+  #registration-form button {
+    font-size: 1.2rem;
+    padding: 0.8rem;
+  }
+}
+
+/* Tablets (768px and below) */
+@media (max-width: 768px) {
+  #registration-container {
+    width: 90%;
+    min-width: 350px;
+    padding: 1.5rem;
+    margin: 0 auto;
+  }
+
+  #registration-form input, 
+  #registration-form button {
+    font-size: 1.5rem;
+    padding: 1rem;
+  }
+
+  #registration-form h2 {
+    font-size: 3.5vmin;
+  }
+}
+
+/* Medium to Large Screens (768px and up) */
+@media (min-width: 768px) and (max-width: 992px) {
+  #registration-container {
+    min-width: 500px;
+    max-width: 500px;
+  }
+}
+
+/* Extra Large Screens (992px and up) */
+@media (min-width: 992px) {
+  #registration-container {
+    min-width: 500px;
+    max-width: 500px;
+  }
+}

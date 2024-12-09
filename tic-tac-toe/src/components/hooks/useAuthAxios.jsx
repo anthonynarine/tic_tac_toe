@@ -7,48 +7,75 @@ const useAuthAxios = () => {
     const navigate = useNavigate();
     const isProduction = process.env.NODE_ENV === "production";
 
+    // Log the current environment to make sure it is correct
+    console.log("Current environment (isProduction):", isProduction);
+
     // Create the Axios instance
     const authAxios = axios.create({
-        baseURL: process.env.REACT_APP_GAME_API_URL,
-        withCredentials: true // Ensure cookies are sent with the request
+        baseURL: isProduction ? process.env.REACT_APP_PROD_URL : process.env.REACT_APP_DEV_URL,
+        withCredentials: true, // Always true, for both environments
     });
+
+    /**
+     * Set token in cookies (production) or localStorage (development)
+     */
+    const setToken = (name, value, options = {}) => {
+        if (isProduction) {
+            console.log(`Setting token ${name} in Cookies:`, value);
+            Cookies.set(name, value, {
+                secure: true,
+                sameSite: "None",
+                expires: name === "refresh_token" ? 7 : undefined, // 7 days for refresh token
+                ...options,
+            });
+        } else {
+            console.log(`Setting token ${name} in localStorage:`, value);
+            localStorage.setItem(name, value);
+        }
+    };
+
+    /**
+     * Get token from cookies (production) or localStorage (development)
+     */
+    const getToken = (name) => {
+        return isProduction ? Cookies.get(name) : localStorage.getItem(name);
+    };
+
+    /**
+     * Remove token from cookies (production) or localStorage (development)
+     */
+    const removeToken = (name) => {
+        console.log(`Removing token ${name}`);
+        if (isProduction) {
+            Cookies.remove(name);
+        } else {
+            localStorage.removeItem(name);
+        }
+    };
 
     /**
      * Handle authentication errors by clearing tokens and redirecting to the login page.
      */
     const handleAuthError = () => {
-        Cookies.remove("access_token");
-        Cookies.remove("refresh_token");
+        console.log("Handling auth error, clearing tokens.");
+        removeToken("access_token");
+        removeToken("refresh_token");
         Cookies.remove("csrftoken");
         Cookies.remove("sessionid");
-        navigate("/login"); // Redirect to the login page
-    };
-
-    /**
-     * Helper function to set cookies with secure and sameSite options.
-     */
-    const setCookie = (name, value, options = {}) => {
-        Cookies.set(name, value, {
-            ...options,
-            secure: isProduction,
-            sameSite: isProduction ? "None" : "Lax"
-        });
+        navigate("/login");
     };
 
     /**
      * Request interceptor to attach access token and CSRF token to request headers.
      */
     const requestInterceptor = (config) => {
-        const accessToken = Cookies.get("access_token");
+        const accessToken = getToken("access_token");
         if (accessToken) {
             config.headers["Authorization"] = `Bearer ${accessToken}`;
+            console.log("Added Authorization header:", config.headers["Authorization"]);
+        } else {
+            console.warn("No access token found.");
         }
-
-        const csrfToken = Cookies.get("csrftoken");  // Fixed typo
-        if (csrfToken) {
-            config.headers["X-CSRFToken"] = csrfToken;
-        }
-
         return config;
     };
 
@@ -56,24 +83,23 @@ const useAuthAxios = () => {
      * Response interceptor to handle token updates and other response modifications.
      */
     const responseInterceptor = (response) => {
-        const newCsrfToken = response.headers["x-csrftoken"];
-        if (newCsrfToken) {
-            setCookie("csrftoken", newCsrfToken);
-        }
+        const accessToken = response.data.access;
+        const refreshToken = response.data.refresh;
 
-        const accessToken = response.data.access_token;
         if (accessToken) {
-            setCookie("access_token", accessToken, { expires: new Date(Date.now() + 15 * 60 * 1000) });
+            setToken("access_token", accessToken);
+            console.log("Access token set:", accessToken);
         }
 
-        const refreshToken = response.data.refresh_token;
         if (refreshToken) {
-            setCookie("refresh_token", refreshToken, { expires: 7 });
+            setToken("refresh_token", refreshToken, { expires: 7 });
+            console.log("Refresh token set:", refreshToken);
         }
 
+        // Handle logout scenario
         if (response.config.url.includes("/logout/")) {
-            Cookies.remove("access_token");
-            Cookies.remove("refresh_token");
+            removeToken("access_token");
+            removeToken("refresh_token");
             Cookies.remove("csrftoken");
             Cookies.remove("sessionid");
         }
@@ -90,18 +116,25 @@ const useAuthAxios = () => {
         // Handle expired access tokens and attempt to refresh them ONCE
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
+            console.log("Attempting token refresh.");
+
+            const refreshToken = getToken("refresh_token");
+            if (!refreshToken) {
+                console.log("No refresh token available. Logging out.");
+                handleAuthError();
+                return Promise.reject(error);
+            }
+
             try {
                 const response = await authAxios.post("/token/refresh/", {}, { withCredentials: true });
-
                 if (response.status === 200) {
-                    const newAccessToken = response.data.access_token;
-                    setCookie("access_token", newAccessToken, { expires: new Date(Date.now() + 15 * 60 * 1000) });
-
+                    const newAccessToken = response.data.access;
+                    setToken("access_token", newAccessToken);
                     originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
                     return authAxios(originalRequest); // Retry original request with new token
                 }
             } catch (refreshError) {
-                console.log("Failed to refresh access token", refreshError);
+                console.error("Failed to refresh access token:", refreshError);
                 handleAuthError();
             }
         }
@@ -114,17 +147,18 @@ const useAuthAxios = () => {
      * useEffect to set up Axios interceptors and clean up on component unmount.
      */
     useEffect(() => {
+        console.log("Setting up Axios interceptors.");
         const reqInterceptor = authAxios.interceptors.request.use(requestInterceptor, (error) => Promise.reject(error));
         const resInterceptor = authAxios.interceptors.response.use(responseInterceptor, responseErrorInterceptor);
 
         return () => {
-            // Eject the interceptors when the component unmounts
+            console.log("Cleaning up Axios interceptors.");
             authAxios.interceptors.request.eject(reqInterceptor);
             authAxios.interceptors.response.eject(resInterceptor);
         };
-    }, [navigate]);
+    }, [authAxios, navigate]);
 
-    return { authAxios, setCookie };
+    return { authAxios, setToken, getToken, removeToken };
 };
 
 export default useAuthAxios;

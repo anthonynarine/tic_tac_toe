@@ -1,0 +1,104 @@
+/* General Container */
+.homepage-container {
+  background-color: black;
+  border-radius: 15px;
+  padding: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  margin: 5rem auto;
+  text-align: center;
+  color: white;
+  margin-top: 12rem;
+}
+
+/* Title */
+.homepage-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: #1DA1F2; /* Twitter blue for modern look */
+}
+
+/* Tagline */
+.homepage-tagline {
+  font-size: 1.2rem;
+  font-weight: 300;
+  margin-bottom: 2rem;
+  color: #e1e8ed; /* Subtle gray for contrast */
+}
+
+/* Game Modes Buttons */
+.game-modes {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.game-mode-button {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: white;
+  background: black; /* Button background color */
+  border: 1px solid white; /* White border */
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+}
+
+
+.game-mode-button:hover {
+  background: white; /* Change background on hover */
+  color: black; /* Optional: Change text color on hover */
+  transform: translateY(-3px); /* Slight hover effect */
+}
+
+/* Invite Section */
+.invite-section {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.invite-message {
+  font-size: 1rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.invite-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.invite-link {
+  padding: 1.2rem;
+  font-size: 1rem;
+  border: 1px solid white;
+  border-radius: 8px;
+  background: black;
+  color: #333;
+  width: 80%;
+  text-align: center;
+  cursor: pointer;
+}
+
+.copy-button {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  font-weight: bold;
+  color: white;
+  background: black; /* Green for copy action */
+  border: 1px solid white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.copy-button:hover {
+  background: white;
+  color: black; /* Optional: Change text color on hover */
+  transform: translateY(-3px); /* Slight hover effect */
+}

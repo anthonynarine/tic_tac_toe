@@ -1,67 +1,137 @@
+/* Modal Overlay */
 #modal-overlay {
-  display: none;
-  justify-content: center;
-  position: absolute;
+  display: none; /* Default hidden state */
+  justify-content: center; /* Center modal horizontally */
+  align-items: center; /* Center modal vertically */
+  position: fixed; /* Ensure it stays in place even when scrolling */
   left: 0;
   right: 0;
   top: 0;
   bottom: 0;
-  background: var(--modal-overlay-color);
+  background: rgba(0, 0, 0, 0.7); /* Slightly darker overlay for better focus */
+  z-index: 1000; /* Bring overlay to the front */
+  pointer-events: none; /* Prevent interaction with hidden overlay */
 }
 
 #modal-overlay.modal-open {
-  display: grid;
+  display: grid; /* Show overlay when modal-open class is applied */
+  pointer-events: all; /* Allow interactions inside the overlay */
 }
 
+/* Modal Container */
 #game-result-modal {
-  display: grid;
-  grid-row-gap: 76vmin;
-
-  --modal-items-border-radius: 1vmin;
+  margin: auto; /* Center modal within the overlay */
+  padding: 30px; /* Add consistent padding */
+  background: #f3f0f0; /* Light background for better contrast */
+  color: white; /* White text color */
+  border-radius: 15px; /* Rounded corners for a cleaner look */
+  max-width: 400px; /* Set a consistent width */
+  min-width: 250px; /* Minimum width for responsiveness */
+  text-align: center; /* Center align text */
+  box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.4); /* Add depth with shadow */
+  position: relative; /* For animation and positioning */
+  border: 1px solid white; /* White border */
+  animation: dripIn 2.0s ease-out; /* Tetris-like drip animation */
 }
 
-#result-container {
-  display: flex;
-  align-items: flex-end;
-}
-
+/* Winner Container */
 #winner-container {
-  margin-bottom: 4vmin;
-  width: 30vmin;
-  height: 8vmin;
-  font-size: var(--main-title-font-size);
-  font-weight: bold;
-  color: var(--primary-color);
-  background: var(--accent-color);
-  border: var(--default-accent-border);
-  box-shadow: var(--box-shadow);
-  border-radius: var(--modal-items-border-radius);
+  margin-bottom: 20px;
+  font-size: 1.5rem; /* Increase font size for emphasis */
+  font-weight: bold; /* Make text bold */
+  color: #333; /* Neutral dark text color */
+}
+
+/* New Game Button Container */
+#new-game-container {
+  margin-top: 10px;
   display: flex;
-  justify-content: center;
+  justify-content: center; /* Center buttons */
+  gap: 10px; /* Add space between buttons */
   align-items: center;
 }
 
-#new-game-container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 2.5vmin;
+/* General Button Styles */
+#new-game-container > .modal-button {
+  font-size: 1rem;
+  padding: 10px 20px;
+  color: white;
+  border: none; /* Remove default border */
+  border-radius: 5px; /* Rounded corners */
+  cursor: pointer; /* Pointer cursor on hover */
+  box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2); /* Subtle button shadow */
+  transition: background-color 0.3s ease; /* Smooth hover effect */
 }
 
-#new-game-container > button {
-  font-size: 3vmin;
-  padding: 1.5vmin;
-  color: var(--accent-color);
-  background: var(--primary-gradient);
-  border: var(--default-primary-border);
-  border-radius: var(--modal-items-border-radius);
-  outline: none;
-  box-shadow: var(--box-shadow);
+/* Play Again Button Styles */
+#new-game-container > .modal-button.play-again-button {
+  background: #1D9BF0; /* Blue button */
 }
 
-#new-game-container > button:hover,
-#new-game-container > button:active {
-  color: var(--content-background-color);
+#new-game-container > .modal-button.play-again-button:hover {
+  background: #015ec1; /* Darker blue on hover */
+}
+
+/* Home Button Styles */
+#new-game-container > .modal-button.home-button {
+  background-color: #1D9BF0; 
+  color: white; /* White text */
+  display: flex; /* Flex layout for icon + text */
+  align-items: center; /* Center-align icon and text */
+}
+
+#new-game-container > .modal-button.home-button:hover {
+  background-color: #015ec1; 
+}
+
+/* Home Icon Styles */
+.home-icon {
+  margin-right: 8px; /* Add spacing between the icon and text */
+  font-size: 1.2rem; /* Adjust the size of the icon */
+  vertical-align: middle; /* Align the icon with the text */
+}
+
+/* Optional Close Button */
+#close-modal {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
   cursor: pointer;
-  background: var(--primary-highlight-gradient);
+  color: #333; /* Dark text for close button */
+}
+
+#close-modal:hover {
+  color: red; /* Highlight close button on hover */
+}
+
+/* Animations */
+@keyframes dripIn {
+  0% {
+    transform: translateY(-200%); /* Start off-screen above */
+    opacity: 1; /* Fully transparent */
+  }
+  50% {
+    transform: translateY(10%); /* Slight bounce effect */
+    opacity: 0.7; /* Slightly visible */
+  }
+  100% {
+    transform: translateY(0); /* Settle in place */
+    opacity: 1; /* Fully visible */
+  }
+}
+
+#modal-overlay.modal-open {
+  animation: fadeIn 0.5s ease-out; /* Fade in for the overlay */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
