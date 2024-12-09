@@ -2,9 +2,11 @@ import "./ResultModal.css";
 import classNames from "classnames";
 import { useNavigate } from "react-router-dom";
 import { AiFillHome } from "react-icons/ai"; // Import the home icon
+import { useGameContext } from "../context/gameContext";
 
 export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
   const navigate = useNavigate(); // Hook for navigation
+  const { dispatch } = useGameContext();
 
   const resultModalClasses = classNames({
     "modal-open": isGameOver,
@@ -32,7 +34,10 @@ export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
           {/* Home Button */}
           <button
             className="modal-button home-button"
-            onClick={() => navigate("/")} // Navigate to the homepage
+            onClick={() => {
+              dispatch({ type: "RESET_GAME_STATE" }); // Reset the game state
+              navigate("/"); // Navigate to the homepage
+            }}
           >
             <AiFillHome className="home-icon" /> {/* Add the home icon */}
             Home

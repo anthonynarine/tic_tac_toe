@@ -27,6 +27,37 @@ const useGameServices = () => {
     // Helper function to stop loading
     const stopLoading = () => setLoading(false);
 
+
+        /**
+     * Fetches the game state from the backend for a given game ID.
+     *
+     * This function sends a GET request to the backend to retrieve the full game object,
+     * including the current board state, turn, winner, and other game details.
+     *
+     * @param {string} gameId - The ID of the game to fetch.
+     * @returns {Object|null} - The fetched game data or null if an error occurs.
+     */
+    const fetchGame = useCallback(async (gameId) => {
+        if (!authAxios) {
+            setError("Authorization service unavailable");
+            return null;
+        }
+
+        initializeRequest();
+
+        try {
+            const response = await authAxios.get(`/games/${gameId}/`);
+            console.log("Fetched Game:", response.data);
+            return response.data;
+        } catch (error) {
+            setError(extractErrorMessage(error));
+            console.error("Error fetching game:", extractErrorMessage(error));
+            return null;
+        } finally {
+            stopLoading();
+        }
+    }, [authAxios]);
+
     // Fetch joinable games
     const fetchJoinableGames = useCallback(async () => {
         if (!authAxios) {
@@ -194,6 +225,9 @@ const useGameServices = () => {
 
     // Function to create a new AI game
     const playAgainAI = async () => {
+        // Dispatch reset action to clear the game state before starting a new game
+        dispatch({ type: "RESET_GAME_STATE" });
+
         initializeRequest(); // Start the loading state
     
         try {
@@ -254,6 +288,7 @@ const useGameServices = () => {
         fetchJoinableGames,
         fetchUserGames,
         joinableGames,
+        fetchGame,
         gameData,
         loading,
         error,

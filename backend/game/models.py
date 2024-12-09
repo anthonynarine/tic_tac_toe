@@ -93,15 +93,19 @@ class TicTacToeGame(models.Model):
         board = list(self.board_state)
         board[position] = player
         self.board_state = "".join(board)
+        logger.debug(f"Updated board state: {self.board_state}")
 
         # Check for a winner or draw
         self.check_winner()
 
         if not self.winner:  # If the game is not over, switch turns
             self.current_turn = "O" if player == "X" else "X"
+            logger.debug(f"Turn switched to: {self.current_turn}")
 
         # Save the updated game state
         self.save()
+        logger.debug(f"Game state saved: Board State={self.board_state}, Current Turn={self.current_turn}, Winner={self.winner}")
+
 
         # Trigger AI move if applicable
         if self.is_ai_game and self.current_turn == "O":

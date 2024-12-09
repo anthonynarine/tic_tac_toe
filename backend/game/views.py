@@ -45,11 +45,13 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
 
         # If it's an AI game, assign the AI as one of the players
         player_o = None
+        ai_user = None
         if is_ai_game:
-            player_o = User.objects.filter(email="ai@tictactoe.com").first()
-            if not player_o:
+            ai_user = User.objects.filter(email="ai@tictactoe.com").first()
+            if not ai_user:
                 logger.error("AI user with email 'ai@tictactoe.com' not found in the database.")
                 raise ValidationError("AI user (Player O) is missing.")
+            player_o = ai_user
             logger.debug(f"AI player_o set: {player_o}")
             
         # Initialize player_o for multiplayer games
@@ -72,11 +74,18 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         )
         logger.debug(f"Game created successfully with ID: {game.id}, starting turn: {game.current_turn}")
 
-        # Trigger AI's first move if AI is Player X
-        if is_ai_game and randomized_turn == "X" and player_o == User.objects.filter(email="ai@tictactoe.com").first():
+        # *** Trigger AI's first move if AI is assigned the current turn ***
+        if is_ai_game and game.current_turn == "X" and game.player_x == ai_user:
             logger.debug("AI is Player X. Making the first move.")
             game.handle_ai_move()  # Call the AI logic to make the first move
             logger.debug(f"AI made its move. Updated board state: {game.board_state}")
+        elif is_ai_game and game.current_turn == "O" and game.player_o == ai_user:
+            logger.debug("AI is Player O. Making the first move.")
+            game.handle_ai_move()  # Call the AI logic to make the first move
+            logger.debug(f"AI made its move. Updated board state: {game.board_state}")
+            
+        # *** Refresh the game instance to include updated board state ***
+        game.refresh_from_db()
 
         # Return the serialized game data
         return Response(self.get_serializer(game).data, status=status.HTTP_201_CREATED)

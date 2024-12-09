@@ -37,7 +37,7 @@ export const Game = () => {
       try {
         const fetchedGame = await fetchGame(id); // Call the fetchGame service to get game data
         if (fetchedGame) {
-          console.log("fetched game:", fetchedGame)
+          console.log("fetched game Data:", fetchedGame)
           dispatch({ type: "SET_GAME", payload: fetchedGame }); // Dispatch action to set game state
         }
       } catch (error) {
@@ -49,7 +49,7 @@ export const Game = () => {
     };
 
     loadGame(); // Invoke loadGame to fetch data when the component mounts
-  }, [id, fetchGame, dispatch]); // Dependencies: run the effect when 'id' changes or if fetchGame or dispatch functions change
+  }, [id, dispatch]); // Dependencies: run the effect when 'id' changes or if fetchGame or dispatch functions change
 
   /**
    * Handle click on a cell in the Tic Tac Toe board.
@@ -77,25 +77,6 @@ export const Game = () => {
       }
     } catch (error) {
       console.error("Error making move:", error); // Log any errors that occur during the move
-    } finally {
-      stopLoading(); // Stop loading state after the request finishes
-    }
-  };
-
-  /**
-   * Restart the current game by resetting the game state.
-   * This function interacts with the backend to reset the game data.
-   */
-  const restartGame = async () => {
-    initializeRequest(); // Start the loading state
-    try {
-      const resetGameState = await resetGame(id); // Call backend service to reset the game
-      if (resetGameState) {
-        dispatch({ type: "RESET_GAME", payload: resetGameState }); // Dispatch action to update state with reset game data
-      }
-    } catch (error) {
-      console.error("Error resetting game", error); // Log any errors during the reset
-      setError("Failed to reset game"); // Set an error message
     } finally {
       stopLoading(); // Stop loading state after the request finishes
     }
