@@ -402,6 +402,7 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
                     "winner": game.winner,
                 }
             )
+            logger.info(f"Broadcasting game state: {game.board_state}, Current Turn: {game.current_turn}")
 
         except TicTacToeGame.DoesNotExist:
             logger.error("Game does not exist.")
@@ -423,11 +424,12 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         Parameters:
             event (dict): The message payload containing the game state.
         """
+        logger.info(f"Received game update event: {event}")
         self.send_json({
             "type": "game_update",
-            "board_state": event.get("board_state", "_________"),  # Default empty board
-            "current_turn": event.get("current_turn", "X"),       # Default turn to X
-            "winner": event.get("winner", None),                 # Default no winner
+            "board_state": event["board_state"],  # Default empty board
+            "current_turn": event["current_turn"],       # Default turn to X
+            "winner": event["winner"],                 # Default no winner
         })
 
     def disconnect(self, code: int) -> None:

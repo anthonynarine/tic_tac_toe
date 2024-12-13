@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import useGameServices from "../hooks/useGameServices";
 import { useGameContext } from "../context/gameContext";
+import { WebSocketProvider } from "../websocket/WebSocketProvider";
 // import ToastTester from "../../utils/toast/ToastInComponentTester";
 
 export const Game = () => {
-  const { id } = useParams(); // Extract the game ID from the URL (React Router)
+  const { id: gameId } = useParams(); // Extract the game ID from the URL (React Router)
   const { state, dispatch } = useGameContext(); // Get current game state and dispatch function from context
   const { fetchGame, makeMove, resetGame, playAgainAI, completeGame } = useGameServices(); // Destructure backend service calls from custom hook
 
@@ -35,7 +36,7 @@ export const Game = () => {
     const loadGame = async () => {
       initializeRequest();
       try {
-        const fetchedGame = await fetchGame(id); // Call the fetchGame service to get game data
+        const fetchedGame = await fetchGame(gameId); // Call the fetchGame service to get game data
         if (fetchedGame) {
           console.log("fetched game Data:", fetchedGame)
           dispatch({ type: "SET_GAME", payload: fetchedGame }); // Dispatch action to set game state
@@ -49,7 +50,7 @@ export const Game = () => {
     };
 
     loadGame(); // Invoke loadGame to fetch data when the component mounts
-  }, [id, dispatch]); // Dependencies: run the effect when 'id' changes or if fetchGame or dispatch functions change
+  }, [gameId, dispatch]); // Dependencies: run the effect when 'id' changes or if fetchGame or dispatch functions change
 
   /**
    * Handle click on a cell in the Tic Tac Toe board.
@@ -71,7 +72,7 @@ export const Game = () => {
 
     initializeRequest(); // Start the loading state while making the API request
     try {
-      const updatedGame = await makeMove(id, cellIndex); // Call backend service to make a move
+      const updatedGame = await makeMove(gameId, cellIndex); // Call backend service to make a move
       if (updatedGame) {
         dispatch({ type: "MAKE_MOVE", payload: updatedGame }); // Dispatch action to update the state with the new game data
       }
@@ -88,37 +89,39 @@ export const Game = () => {
   useEffect(() => {
     const finalizeGame = async () => {
       if (state.isGameOver && state.winner) {
-        await completeGame(id, state.winner); // Complete the game
+        await completeGame(gameId, state.winner); // Complete the game
       }
     };
 
     finalizeGame(); 
-  }, [state.isGameOver, state.winner, id,])
+  }, [state.isGameOver, state.winner, gameId,])
 
   return (
-    <div id="game">
-      {loading ? (
-        <p>Loading...</p> // Display loading state
-      ) : (
-        <>
-          <h1>Tic Tac Toe</h1>
-          {/* Render the Board component, passing necessary props */}
-          <Board
-            cellValues={state.cellValues}
-            winningCombination={state.winningCombination}
-            cellClicked={handleCellClick} // Pass the handleCellClick function to handle user interactions
-          />
-          {/* Render ResultModal to show game result */}
-          {console.log("Modal Props:", { isGameOver: state.isGameOver, winner: state.winner })}
-          <ResultModal 
-            isGameOver={state.isGameOver} 
-            winner={state.winner} 
-            onNewGameClicked={playAgainAI} // Pass the restartGame function to handle new game action
-            onCompleteGame={() => completeGame(id, state.winner)}
-          />
-        </>
-      )}
-      {/* <ToastTester/> */}
-    </div>
+    <WebSocketProvider gameId={gameId}>
+      <div id="game">
+        {loading ? (
+          <p>Loading...</p> // Display loading state
+        ) : (
+          <>
+            <h1>Tic Tac Toe</h1>
+            {/* Render the Board component, passing necessary props */}
+            <Board
+              cellValues={state.cellValues}
+              winningCombination={state.winningCombination}
+              cellClicked={handleCellClick} // Pass the handleCellClick function to handle user interactions
+            />
+            {/* Render ResultModal to show game result */}
+            {console.log("Modal Props:", { isGameOver: state.isGameOver, winner: state.winner })}
+            <ResultModal 
+              isGameOver={state.isGameOver} 
+              winner={state.winner} 
+              onNewGameClicked={playAgainAI} // Pass the restartGame function to handle new game action
+              onCompleteGame={() => completeGame(gameId, state.winner)}
+            />
+          </>
+        )}
+        {/* <ToastTester/> */}
+      </div>
+    </WebSocketProvider>
   );
 };
