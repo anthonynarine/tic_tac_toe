@@ -70,6 +70,26 @@ export const gameReducer = (state, action) => {
             };
         }
 
+        case "UPDATE_GAME_STATE": {
+            // Update the gmae state usig the payload from Websocket
+            const {
+                board_state,
+                current_turn,
+                winner,
+                winning_combination = [],
+            } = action.payload;
+
+            return {
+                ...state,
+                cellValues: board_state.split("").map((cell) => (cell === "_" ? "" : cell)),
+                xIsNext: current_turn === "X", // Update turn
+                isGameOver: !!winner, // Check if the game is over
+                winner, // Update the winner
+                winningCombination: winning_combination, // Update the winning combination
+                numOfTurnsLeft: board_state.split("").filter((cell) => cell === "_").length, // Update remaining 
+            };
+        }
+
         case "RESET_GAME": {
             // Handles resetting the game to its initial state
             const { board_state } = action.payload;
