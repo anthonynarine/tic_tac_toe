@@ -11,7 +11,7 @@ import { WebSocketProvider } from "../websocket/WebSocketProvider";
 export const Game = () => {
   const { id: gameId } = useParams(); // Extract the game ID from the URL (React Router)
   const { state, dispatch } = useGameContext(); // Get current game state and dispatch function from context
-  const { fetchGame, makeMove, resetGame, playAgainAI, completeGame } = useGameServices(); // Destructure backend service calls from custom hook
+  const { fetchGame, makeMove, playAgainAI, completeGame } = useGameServices(); // Destructure backend service calls from custom hook
 
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export const Game = () => {
     };
 
     loadGame(); // Invoke loadGame to fetch data when the component mounts
-  }, [id, dispatch]); // Dependencies: run the effect when 'id' changes or if fetchGame or dispatch functions change
+  }, [gameId, dispatch]); // Dependencies: run the effect when 'id' changes or if fetchGame or dispatch functions change
 
   /**
    * Handle click on a cell in the Tic Tac Toe board.
