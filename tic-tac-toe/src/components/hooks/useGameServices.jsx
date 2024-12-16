@@ -27,7 +27,6 @@ const useGameServices = () => {
     // Helper function to stop loading
     const stopLoading = () => setLoading(false);
 
-
         /**
      * Fetches the game state from the backend for a given game ID.
      *
@@ -223,6 +222,60 @@ const useGameServices = () => {
         }
     }, [authAxios]); // Include state.winner as a dependency
 
+    /**
+     * Finalizes the game by checking if it's completed and updating the state.
+     * 
+     * @param {String} gameId - The ID of the game to finalize.
+     * @param {String} winner - The winner of the game ("X", "O", or draw).
+     * @param {Boolean} isCompleted - Indicates whether the game is already completed.
+     * @returns {Object|null} - The updated game data or null if the game is already completed.
+     */
+    const finalizeGame = useCallback(async (gameId, winner, isCompleted = false) => {
+        if (!authAxios) {
+            setError("Authorization service unavailable");
+            return null; // Return early if authAxios is unavailable
+        }
+
+        console.log("FinalizeGame called:");
+        console.log("Game ID:", gameId);
+        console.log("Winner:", winner);
+        console.log("IsCompleted:", isCompleted);
+
+        // Prevent duplicate requests if the game is already completed
+        if (isCompleted) {
+            console.log("Game is already completed. Skipping finalizeGame request.");
+            return null;
+        }
+
+        // Check for missing parameters
+        if (!gameId || !winner) {
+            console.error("Missing required parameters: gameId or winner");
+            return null;
+        }
+
+        try {
+            console.log(`Finalizing game with ID: ${gameId} and winner: ${winner}`);
+
+            // Call the completeGame function to send the request to the backend
+            const updatedGame = await completeGame(gameId, winner);
+
+            if (updatedGame) {
+                console.log("Game finalized successfully:", updatedGame);
+
+                // Dispatch updated game state with isCompleted set to true
+                dispatch({ type: "SET_GAME", payload: updatedGame });
+
+                return updatedGame; // Return the updated game for further use
+            }
+        } catch (error) {
+            console.error("Error finalizing the game:", error);
+            setError(extractErrorMessage(error));
+            return null; // Return null if there's an error
+        }
+    }, [authAxios, completeGame, dispatch]);
+
+
+
     // Function to create a new AI game
     const playAgainAI = async () => {
         // Dispatch reset action to clear the game state before starting a new game
@@ -283,10 +336,10 @@ const useGameServices = () => {
     };
     
 
-
     return {
         fetchJoinableGames,
         fetchUserGames,
+        finalizeGame,
         joinableGames,
         fetchGame,
         gameData,

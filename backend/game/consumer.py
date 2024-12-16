@@ -425,11 +425,16 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             event (dict): The message payload containing the game state.
         """
         logger.info(f"Received game update event: {event}")
+        
+        # User's role added to the response 
+        player_role = "X" if self.user == TicTacToeGame.objects.get(id=self.game_id).player_x else ""
+        
         self.send_json({
             "type": "game_update",
             "board_state": event["board_state"],  # Default empty board
             "current_turn": event["current_turn"],       # Default turn to X
             "winner": event["winner"],                 # Default no winner
+            "player_role": player_role,
         })
 
     def disconnect(self, code: int) -> None:

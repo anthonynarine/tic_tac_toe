@@ -8,7 +8,7 @@ const useAuthAxios = () => {
     const isProduction = process.env.NODE_ENV === "production";
 
     // Log the current environment to make sure it is correct
-    console.log("Current environment (isProduction):", isProduction);
+    // console.log("Current environment (isProduction):", isProduction);
 
     // Create the Axios instance
     const authAxios = axios.create({
@@ -29,7 +29,7 @@ const useAuthAxios = () => {
                 ...options,
             });
         } else {
-            console.log(`Setting token ${name} in localStorage:`, value);
+            // console.log(`Setting token ${name} in localStorage:`, value);
             localStorage.setItem(name, value);
         }
     };
@@ -72,7 +72,7 @@ const useAuthAxios = () => {
         const accessToken = getToken("access_token");
         if (accessToken) {
             config.headers["Authorization"] = `Bearer ${accessToken}`;
-            console.log("Added Authorization header:", config.headers["Authorization"]);
+            // console.log("Added Authorization header:", config.headers["Authorization"]);
         } else {
             console.warn("No access token found.");
         }

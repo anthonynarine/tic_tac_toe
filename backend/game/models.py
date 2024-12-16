@@ -6,6 +6,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# In models.py
+DEFAULT_BOARD_STATE = "_________"
+
 class TicTacToeGame(models.Model):
     """
     Represents a Tic-Tac-Toe game between two players.
@@ -43,7 +46,7 @@ class TicTacToeGame(models.Model):
     )
     board_state = models.CharField(
         max_length=9,
-        default="_________",
+        default=DEFAULT_BOARD_STATE,
         help_text="Represents the current state of the 3x3 grid using '_' for empty spots."
     )   
     current_turn = models.CharField(
@@ -56,6 +59,10 @@ class TicTacToeGame(models.Model):
         null=True, 
         blank=True,
         help_text="Stores the winner of the game: 'X', 'O', or 'D' for draw."
+    )
+    is_completed = models.BooleanField(
+        default=False,
+        help_text="Indicates wheather the game has been completed."
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -138,11 +145,15 @@ class TicTacToeGame(models.Model):
             if self.board_state[combo[0]] == self.board_state[combo[1]] == self.board_state[combo[2]] != '_':
                 logger.debug(f"Winner found: {self.board_state[combo[0]]} for combination {combo}")
                 self.winner = self.board_state[combo[0]]
+                self.is_completed = True
+                self.save()
                 return
         
         if "_" not in self.board_state:
             logger.debug("All spaces are filled. Declaring a draw.")
             self.winner = "D"
+            self.is_completed = True
+            self.save()
 
     def handle_ai_move(self):
         """
@@ -169,6 +180,10 @@ class TicTacToeGame(models.Model):
         # Only proceed if tis' the AI's turn
         if self.current_turn != ai_marker:
             logger.debug(f"It's not the AI's turn ({self.current_turn}). Skipping AI move.")
+            return
+        
+        if self.winner or self.is_completed:
+            logger.debug("Game already has a winner or is completed. Skipping AI move.")
             return
         
         # Use the AI logic to calculate the best move

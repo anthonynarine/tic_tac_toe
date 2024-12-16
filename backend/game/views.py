@@ -5,12 +5,14 @@ from rest_framework.decorators import action
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import AccessToken
+from django.db import transaction
 import logging
 import random
 
 from .models import TicTacToeGame
 from .serializers import TicTacToeGameSerializer
 from .ai_logic.ai_logic import get_best_move
+from .models import DEFAULT_BOARD_STATE
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -26,69 +28,67 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """
         Handle the creation of a new TicTacToe game.
-        Randomly assign Player X to either the human or the AI (if it's an AI game).
-        If the AI starts as Player X, make its first move automatically.
         """
         logger.debug("perform_create called")
         logger.debug(f"Request data received: {self.request.data}")
 
-        # Use the authenticated user from the request as one of the players
+        # Ensure the authenticated user is set as Player X
         player_x = self.request.user
-        logger.debug(f"Creating game for Player X: {player_x}")
-
         if not player_x:
             logger.error("Authenticated user not found.")
             raise ValidationError("Player X (authenticated user) is missing.")
 
-        # Check if it's an AI game and cast to boolean
+        # Determine if the game is an AI game
         is_ai_game = bool(self.request.data.get("is_ai_game", False))
 
-        # If it's an AI game, assign the AI as one of the players
-        player_o = None
-        ai_user = None
-        if is_ai_game:
-            ai_user = User.objects.filter(email="ai@tictactoe.com").first()
-            if not ai_user:
-                logger.error("AI user with email 'ai@tictactoe.com' not found in the database.")
-                raise ValidationError("AI user (Player O) is missing.")
-            player_o = ai_user
-            logger.debug(f"AI player_o set: {player_o}")
-            
-        # Initialize player_o for multiplayer games
+        # Assign AI user if it's an AI game
+        ai_user = User.objects.filter(email="ai@tictactoe.com").first() if is_ai_game else None
+        if is_ai_game and not ai_user:
+            error_message = "AI user (ai@tictactoe.com) is missing. Add this user to the database."
+            logger.error(error_message)
+            raise ValidationError(error_message)
+
+        # Assign Player O
+        player_o = ai_user if is_ai_game else None
         if not is_ai_game:
-            logger.debug("Waiting for a second player to join the game.")
-            
-        # Randomize the starting turn between "X" and "O"
+            logger.info("Game created without Player O. Waiting for a second player to join.")
+
+        # Randomly assign the starting turn
         randomized_turn = random.choice(["X", "O"])
         logger.debug(f"Randomized starting turn: {randomized_turn}")
 
-        # Initialize default game state
-        logger.debug("Initializing default game state for new game")
+        # Save the game with all required fields
         game = serializer.save(
             player_x=player_x,
             player_o=player_o,
             is_ai_game=is_ai_game,
-            board_state="_________",  # Ensure a fresh board
-            current_turn=randomized_turn,  # Randomized turn
-            winner=None               # Clear any winner
+            board_state=DEFAULT_BOARD_STATE,  # Use the imported constant for board initialization
+            current_turn=randomized_turn,
+            winner=None,
+            is_completed=False  # Explicit, but technically unnecessary due to model default
         )
         logger.debug(f"Game created successfully with ID: {game.id}, starting turn: {game.current_turn}")
 
-        # *** Trigger AI's first move if AI is assigned the current turn ***
-        if is_ai_game and game.current_turn == "X" and game.player_x == ai_user:
-            logger.debug("AI is Player X. Making the first move.")
-            game.handle_ai_move()  # Call the AI logic to make the first move
-            logger.debug(f"AI made its move. Updated board state: {game.board_state}")
-        elif is_ai_game and game.current_turn == "O" and game.player_o == ai_user:
-            logger.debug("AI is Player O. Making the first move.")
-            game.handle_ai_move()  # Call the AI logic to make the first move
-            logger.debug(f"AI made its move. Updated board state: {game.board_state}")
-            
-        # *** Refresh the game instance to include updated board state ***
+        # Handle AI's first move if applicable
+        if is_ai_game and game.current_turn in ["X", "O"]:
+            ai_player = game.player_x if game.current_turn == "X" else game.player_o
+            if ai_player == ai_user:
+                logger.debug(f"AI ({game.current_turn}) is making its first move.")
+                game.handle_ai_move()
+                logger.debug(f"AI made its move. Updated board state: {game.board_state}")
+
+        # Refresh the game instance to reflect any changes (like AI move updates)
         game.refresh_from_db()
 
-        # Return the serialized game data
-        return Response(self.get_serializer(game).data, status=status.HTTP_201_CREATED)
+        # Determine the requesting user's role in the game
+        player_role = "X" if game.player_x == self.request.user else "O" if game.player_o == self.request.user else "Spectator"
+
+        # Prepare the response
+        response_data = self.get_serializer(game).data
+        response_data["player_role"] = player_role  # Add the player role to the response
+        return Response(response_data, status=status.HTTP_201_CREATED)
+
+
 
     @action(detail=True, methods=["post"], url_path="join")
     def join_game(self, request, pk=None):
@@ -198,55 +198,73 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         The URL for this action is /api/games/<game_id>/complete/.
         """
         logger.debug("complete_game called")
-        
-        # Step 1: Retrieve the game instance using the primary key from the URL
+
         game = self.get_object()
-        
-        # Step 2: Extract the winner's marker ('X' or 'O') from the request data
+
+        # Step 2: Prevent duplicate completion
+        if game.is_completed:
+            logger.info(f"Game {game.id} is already completed. Skipping update.")
+            return Response({"detail": "Game is already completed."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Step 3: Validate the winner marker
         winner_marker = request.data.get("winner")
-        if not winner_marker:
-            logger.error("Winner marker not provided")
+        VALID_WINNER_MARKERS = ["X", "O", "D"]
+
+        if winner_marker not in VALID_WINNER_MARKERS:
+            logger.error(f"Invalid winner marker received: {winner_marker}")
             return Response(
-                {"error": "Winner marker must be provided"},
+                {"error": "Winner marker must be 'X', 'O', or 'D' (Draw)."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         logger.debug(f"Winner marker received: {winner_marker}")
-        
-        # Step 3: Update stats for Player X (if they exist)
-        if game.player_x:
-            game.player_x.total_games_played += 1  # Increment total games played for Player X
-            
-            # Increment Player X's wins or losses based on the winner
-            if winner_marker == "X":
-                game.player_x.wins += 1
-            elif winner_marker == "O":
-                game.player_x.losses += 1
-            
-            # Save the updated Player X stats to the database
-            game.player_x.save()
-        
-        # Step 4: Update stats for Player O (if they exist and are not AI)
-        if game.player_o and game.player_o.email != "ai@tictactoe.com":  # Ignore AI stats
-            game.player_o.total_games_played += 1  # Increment total games played for Player O
-            
-            # Increment Player O's wins or losses based on the winner
-            if winner_marker == "O":
-                game.player_o.wins += 1
-            elif winner_marker == "X":
-                game.player_o.losses += 1
-            
-            # Save the updated Player O stats to the database
-            game.player_o.save()
-        
-        # Step 5: Mark the game as completed by setting the winner field
-        game.winner = winner_marker
-        game.save()
-        
-        logger.debug(f"Game {game.id} marked as completed with winner: {winner_marker}")
-        
-        # Step 6: Return the updated game data in the response
-        return Response(self.get_serializer(game).data, status=status.HTTP_200_OK)
+
+        # Ensure atomic updates
+        try:
+            with transaction.atomic():
+                # Update stats for Player X
+                if game.player_x:
+                    game.player_x.total_games_played += 1
+
+                    if winner_marker == "X":
+                        game.player_x.wins += 1
+                    elif winner_marker == "O":
+                        game.player_x.losses += 1
+
+                    game.player_x.save()
+                    logger.debug(f"Player X stats updated: {game.player_x}")
+
+                # Update stats for Player O
+                if game.player_o and game.player_o.email != "ai@tictactoe.com":
+                    game.player_o.total_games_played += 1
+
+                    if winner_marker == "O":
+                        game.player_o.wins += 1
+                    elif winner_marker == "X":
+                        game.player_o.losses += 1
+
+                    game.player_o.save()
+                    logger.debug(f"Player O stats updated: {game.player_o}")
+
+                # Mark the game as completed
+                game.winner = winner_marker
+                game.is_completed = True
+                game.save()
+                logger.debug(f"Game {game.id} marked as completed with winner: {winner_marker}")
+
+        except Exception as e:
+            logger.error(f"Failed to complete game transaction: {e}")
+            return Response({"error": "Failed to complete the game."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Return success response
+        return Response(
+            {
+                "message": "Game marked as completed successfully.",
+                "game": self.get_serializer(game).data
+            },
+            status=status.HTTP_200_OK
+        )
+
 
     @action(detail=True, methods=["post"], url_path="start")
     def start_game(self, request, pk=None):

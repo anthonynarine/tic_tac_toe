@@ -1,0 +1,29 @@
+.game-loader {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%; /* Ensures the loader takes up the available space */
+  }
+  
+  .spinner {
+    font-size: 3rem; /* Adjust the size of the spinner */
+    color: #00aaff; /* Set the color of the spinner */
+    animation: spin 1s linear infinite; /* Add spinning animation */
+  }
+  
+  @keyframes spin {
+    from {
+      transform: rotate(0deg); /* Initial state */
+    }
+    to {
+      transform: rotate(360deg); /* Rotate fully */
+    }
+  }
+  
+  .error-message {
+    text-align: center;
+    color: red;
+    font-weight: bold;
+    font-size: 1.2rem;
+  }
+  

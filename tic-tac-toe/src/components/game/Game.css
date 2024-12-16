@@ -4,7 +4,7 @@
   padding: 3vmin;
   box-shadow: var(--box-shadow);
   border: 1px solid white;
-  margin-top: 11rem;
+  margin-top: 12rem;
 }
 
 h1 {
@@ -13,3 +13,11 @@ h1 {
   margin-bottom: 2vmin;
   font-size: var(--main-title-font-size);
 }
+
+.turn-notification {
+  font-size: 1.5rem;
+  text-align: center;
+  margin-bottom: 1rem;
+  color: #333;
+}
+

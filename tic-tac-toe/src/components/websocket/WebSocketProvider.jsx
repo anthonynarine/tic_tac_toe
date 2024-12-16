@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { WebSocketContext } from "./WebsocketContext";
 import { useGameContext } from "../context/gameContext";
+import { useNavigate } from "react-router-dom";
+
 
 /**
  * WebsocketProvider
@@ -20,6 +22,8 @@ export const WebSocketProvider = ({ children, gameId }) => {
     // State to track if the Websocket is connected
     const [isConnected, setIsConnected] = useState(false);
 
+    const navigate = useNavigate()
+
     // Access the game context to update the state
     const { state, dispatch } = useGameContext(); 
 
@@ -29,7 +33,13 @@ export const WebSocketProvider = ({ children, gameId }) => {
         if(!gameId)  return;
 
         // Construct websocket URL with the game ID and user token for auth
-        const token = localStorage.getItem("acces_token");
+        const token = localStorage.getItem("access_token");
+
+        // Check if token exists before initializing the WebSocket
+        if (!token) {
+            console.error("Access token not found. Cannot initialize WebSocket.");
+        }
+
         const webSocketUrl = `ws://localhost:8000/ws/lobby/${gameId}/?token=${token}`;
 
         const webSocket = new WebSocket(webSocketUrl);
@@ -50,7 +60,7 @@ export const WebSocketProvider = ({ children, gameId }) => {
             if (data.type === "game_update") {
                 dispatch({
                     type: "UPDATE_GAME_STATE",
-                    pyaload: data, // Dispatch the updated game state to  the reducer
+                    payload: data, // Dispatch the updated game state to  the reducer
                 })
             }
         };
