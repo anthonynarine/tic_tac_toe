@@ -54,21 +54,44 @@ const Lobby = () => {
     const handleWebSocketMessage = (event) => {
         const data = JSON.parse(event.data);
         console.log("WebSocket message received:", data);
-
+    
         const actions = {
             connection_success: () => showToast("success", data.message),
             chat_message: () => dispatch({ type: "ADD_MESSAGE", payload: data.message }),
-            game_start: () => {
-                showToast("info", "The game is starting!");
-                navigate(`/games/${gameId}`);
+            player_list: () => dispatch({ type: "PLAYER_LIST", payload: data.players }),
+            game_update: () => {
+                console.log("Game update received:", data);
+    
+                // Dispatch the game update to the reducer
+                dispatch({
+                    type: "SET_GAME",
+                    payload: {
+                        board_state: data.board_state,
+                        current_turn: data.current_turn,
+                        winner: data.winner,
+                        player_x: data.player_x,
+                        player_o: data.player_o,
+                    },
+                });
+    
+                // Navigate to the game page if the game has started
+                if (data.board_state && data.current_turn) {
+                    navigate(`/games/${gameId}`);
+                }
+            },
+            game_start_acknowledgment: () => {
+                console.log("Game start acknowledgment received:", data.message);
+    
+                // Show toast notification
+                showToast("success", data.message);
             },
             error: () => showToast("error", data.message || "An error occurred."),
-            player_list: () => dispatch({ type: "PLAYER_LIST", payload: data.players }),
         };
-
+    
         const action = actions[data.type];
         action ? action() : console.warn(`Unknown WebSocket message type: ${data.type}`);
     };
+    
 
     /**
      * Send a chat message.

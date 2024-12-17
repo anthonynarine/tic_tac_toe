@@ -1,5 +1,6 @@
 import code
 import logging
+import random
 from os import error
 from xml.dom import ValidationErr
 from channels.generic.websocket import JsonWebsocketConsumer
@@ -7,6 +8,7 @@ from asgiref.sync import async_to_sync
 from django.contrib.auth.models import AnonymousUser
 from django.forms import ValidationError
 from game.models import TicTacToeGame
+from game.models import DEFAULT_BOARD_STATE
 
 logger = logging.getLogger(__name__)
 
@@ -279,12 +281,11 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
                 "type": "chat_message",
                 "message": message,
             })
-            
+    
     def handle_start_game(self) -> None:
         """
         Handle the game start event and notify both players in the lobby.
         """
-        # Ensure the lobby exists and has exactly two players
         if self.lobby_group_name not in GameLobbyConsumer.lobby_players:
             self.send_json({"type": "error", "message": "Lobby does not exist."})
             logger.error(f"Attempt to start a game in a non-existent lobby: {self.lobby_group_name}")
@@ -292,7 +293,6 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
 
         players = GameLobbyConsumer.lobby_players[self.lobby_group_name]
 
-        # Ensure the lobby has exactly two players
         if len(players) != 2:
             self.send_json({
                 "type": "error",
@@ -304,21 +304,70 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             )
             return
 
-        # Log the players who are starting the game
+        # Randomize who starts first and determine player roles
+        starting_turn = random.choice(["X", "O"])
+        if starting_turn == "X":
+            player_x, player_o = players[0], players[1]
+        else:
+            player_x, player_o = players[1], players[0]
+
         logger.info(
             f"Game started by {self.user.first_name} in lobby {self.lobby_group_name}. "
-            f"Players: {[player['username'] for player in players]}"
+            f"Players: Player X = {player_x['username']}, Player O = {player_o['username']}, Starting turn = {starting_turn}"
         )
 
-        # Broadcast game start message
         try:
+            # Fetch CustomUser instances
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+
+            player_x_instance = User.objects.get(pk=player_x["id"])
+            player_o_instance = User.objects.get(pk=player_o["id"])
+
+            # Create game in the database
+            game = TicTacToeGame.objects.create(
+                player_x=player_x_instance,
+                player_o=player_o_instance,
+                current_turn=starting_turn,
+                board_state=DEFAULT_BOARD_STATE,  # Use the imported constant
+            )
+            
+            # Determine player_role for the connected user
+            player_role = ""
+            if self.user == player_x_instance:
+                player_role = "X"
+            elif self.user == player_o_instance:
+                player_role = "O"
+
+            # Broadcast game state to all players
             async_to_sync(self.channel_layer.group_send)(
                 self.lobby_group_name,
                 {
-                    "type": "game_start",  # Ensure this matches the event handler name
-                    "message": f"{self.user.first_name} has started the game!",
+                    "type": "game_update",
+                    "message": f"Game has started! Player X: {player_x['username']}, Player O: {player_o['username']}",
+                    "game_id": game.id,
+                    "board_state": game.board_state,
+                    "current_turn": game.current_turn,
+                    "player_x": {"id": player_x_instance.id, "username": player_x_instance.username},
+                    "player_o": {"id": player_o_instance.id, "username": player_o_instance.username},
+                    "winner": game.winner,
                 }
             )
+
+            # Send acknowledgment to the player who started the game
+            self.send_json({
+                "type": "game_start_acknowledgment",
+                "message": "Game has started successfully!",
+                "game_id": game.id,
+                "current_turn": starting_turn,
+            })
+
+        except User.DoesNotExist as e:
+            logger.error(f"Failed to fetch user: {e}")
+            self.send_json({
+                "type": "error",
+                "message": "Failed to start the game due to missing user data.",
+            })
         except Exception as e:
             logger.error(f"Failed to broadcast game start message: {e}")
             self.send_json({
@@ -326,6 +375,7 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
                 "message": "Failed to start the game due to a server error.",
             })
 
+    
     def game_start(self, event: dict) -> None:
         """
         Handle the game start event broadcast to the WebSocket group.

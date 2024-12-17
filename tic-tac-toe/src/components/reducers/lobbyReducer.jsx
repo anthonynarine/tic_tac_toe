@@ -8,12 +8,12 @@
  * It is primarily used with React's `useReducer` hook in the lobby component.
  */
 
-// Initial State for the lobby
+/// Initial State for the lobby
 export const INITIAL_LOBBY_STATE = {
     players: [], // List of players in the lobby
     messages: [], // Chat messages
     isGameStarted: false, // Indicates if the game has started
-    // isHost: false, // Whether the current user is the host
+    game: null, // Stores game-related details (e.g., board state, current turn)
 };
 
 /**
@@ -62,18 +62,12 @@ export const lobbyReducer = (state, action) => {
             };
         }
 
-        // case "SET_IS_HOST": {
-        //     /**
-        //      * Marks the current user as the host.
-        //      */
-        //     return {
-        //         ...state,
-        //         isHost: true,
-        //     };
-        // }
-
         case "PLAYER_LIST": {
-            // Replaces the players list with the new list from the WebSocket
+            /**
+             * Replaces the players list with the new list from the WebSocket.
+             * 
+             * @payload {Array} action.payload - List of players in the lobby.
+             */
             if (!Array.isArray(action.payload)) {
                 console.error("Invalid PLAYER_LIST payload:", action.payload);
                 return state;
@@ -101,6 +95,27 @@ export const lobbyReducer = (state, action) => {
             return {
                 ...state,
                 messages: [...state.messages, action.payload],
+            };
+        }
+
+        case "SET_GAME": {
+            /**
+             * Updates the state with game details (received from WebSocket `game_update` message).
+             * 
+             * @payload {Object} action.payload - Game-related details (e.g., board state, current turn, winner).
+             */
+            const { board_state, current_turn, winner, player_x, player_o } = action.payload;
+
+            return {
+                ...state,
+                game: {
+                    board_state,
+                    current_turn,
+                    winner,
+                    player_x,
+                    player_o,
+                },
+                isGameStarted: true, // Mark the game as started
             };
         }
 
@@ -135,7 +150,7 @@ export const lobbyReducer = (state, action) => {
              * Resets the lobby state to its initial values.
              * Ensures the lobby returns to a clean slate.
              */
-            return { ...INITIAL_LOBBY_STATE }; // For shallow state
+            return { ...INITIAL_LOBBY_STATE };
         }
 
         default: {

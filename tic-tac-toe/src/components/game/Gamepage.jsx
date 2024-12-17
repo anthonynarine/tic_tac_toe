@@ -5,7 +5,7 @@ import GameResult from "./GameResult";
 import GameManager from "./GameManager";
 import { WebSocketProvider } from "../websocket/WebSocketProvider";
 import { useParams } from "react-router-dom";
-import { useEffect } from "react";
+
 
 /**
  * GamePage Component
@@ -19,8 +19,10 @@ export const GamePage = () => {
 
     return (
         <GameManager gameId={gameId}>
-            {({ state, loading, error, handleCellClick, playAgainAI, completeGame, finalizeGame }) => {
+            {({ state, loading, error, handleCellClick, playAgainAI, finalizeGame }) => {
                 console.log("Updated state in GamePage:", state);
+
+                const { game, playerRole, isGameOver, winner, winningCombination, cellValues } = state;
 
                 return (
                     <div id="game">
@@ -28,37 +30,37 @@ export const GamePage = () => {
                         <GameLoader loading={loading} error={error} />
 
                         {/* Render the main gameplay UI once loading is complete and there are no errors */}
-                        {!loading && !error && (
+                        {!loading && !error && game && (
                             <>
                                 <h1>Tic Tac Toe</h1>
 
                                 {/* Display the notification */}
                                 <div className="turn-notification">
-                                    {state.game.current_turn === state.playerRole
+                                    {isGameOver
+                                        ? winner
+                                            ? `Game Over! Winner: ${winner}`
+                                            : "Game Over! It's a draw."
+                                        : game.current_turn === playerRole
                                         ? "It's your turn"
-                                        : "Waiting for opponent's turn"
-                                    }
+                                        : "Waiting for opponent's turn"}
                                 </div>
 
                                 {/* Render the game board */}
                                 <GameBoard
-                                    cellValues={state.cellValues || []}
-                                    winningCombination={state.winningCombination || []}
+                                    cellValues={cellValues || []}
+                                    winningCombination={winningCombination || []}
                                     handleCellClick={handleCellClick}
                                     isDisabled={
-                                        state.isGameOver || 
-                                        !state.game || 
-                                        (!(state.xIsNext && state.game.current_turn === "X") &&
-                                        !(state.game.current_turn === "O" && !state.xIsNext))
+                                        isGameOver || game.current_turn !== playerRole
                                     }
                                 />
 
                                 {/* Render the result modal if the game is over */}
                                 <GameResult
-                                    isGameOver={state.isGameOver}
-                                    winner={state.winner}
+                                    isGameOver={isGameOver}
+                                    winner={winner}
                                     onNewGameClicked={playAgainAI}
-                                    onCompleteGame={() => finalizeGame(gameId, state.winner, state.isCompleted)}
+                                    onCompleteGame={() => finalizeGame(gameId, winner, state.isCompleted)}
                                 />
                             </>
                         )}
@@ -81,3 +83,4 @@ export const Game = () => (
         <GamePage />
     </WebSocketProvider>
 );
+

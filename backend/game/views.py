@@ -88,8 +88,6 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         response_data["player_role"] = player_role  # Add the player role to the response
         return Response(response_data, status=status.HTTP_201_CREATED)
 
-
-
     @action(detail=True, methods=["post"], url_path="join")
     def join_game(self, request, pk=None):
         """
@@ -264,7 +262,6 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK
         )
-
 
     @action(detail=True, methods=["post"], url_path="start")
     def start_game(self, request, pk=None):
