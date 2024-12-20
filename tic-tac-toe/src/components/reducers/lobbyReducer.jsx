@@ -104,7 +104,14 @@ export const lobbyReducer = (state, action) => {
              * 
              * @payload {Object} action.payload - Game-related details (e.g., board state, current turn, winner).
              */
-            const { board_state, current_turn, winner, player_x, player_o } = action.payload;
+            const { 
+                board_state,
+                current_turn,
+                winner,
+                player_x,
+                player_o,
+                player_role,
+            } = action.payload;
 
             return {
                 ...state,
@@ -115,6 +122,7 @@ export const lobbyReducer = (state, action) => {
                     player_x,
                     player_o,
                 },
+                playerRole: player_role || state.playerRole, // Update player role if provided
                 isGameStarted: true, // Mark the game as started
             };
         }

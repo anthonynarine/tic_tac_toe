@@ -3,10 +3,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useLobbyContext } from "../context/lobbyContext";
 import { showToast } from "../../utils/toast/Toast";
 import { CiCirclePlus } from "react-icons/ci";
+import { useUserContext } from "../context/userContext";
 import "./lobby.css";
 
 const Lobby = () => {
     // Hooks
+    const { user } = useUserContext();
     const { state, dispatch } = useLobbyContext(); // Lobby state and dispatch
     const { id: gameId } = useParams(); // Extract game ID from URL
     const navigate = useNavigate(); // Navigation
@@ -53,7 +55,7 @@ const Lobby = () => {
      */
     const handleWebSocketMessage = (event) => {
         const data = JSON.parse(event.data);
-        console.log("WebSocket message received:", data);
+        console.log("WebSocket message received for type:", data.type, "Payload:", data);
     
         const actions = {
             connection_success: () => showToast("success", data.message),
@@ -61,6 +63,13 @@ const Lobby = () => {
             player_list: () => dispatch({ type: "PLAYER_LIST", payload: data.players }),
             game_update: () => {
                 console.log("Game update received:", data);
+    
+                // Determine the player's role dynamically
+                const playerRole =
+                    user?.id === data.player_x?.id ? "X" :
+                    user?.id === data.player_o?.id ? "O" : null;
+    
+                console.log("Player role determined:", playerRole);
     
                 // Dispatch the game update to the reducer
                 dispatch({
@@ -71,28 +80,34 @@ const Lobby = () => {
                         winner: data.winner,
                         player_x: data.player_x,
                         player_o: data.player_o,
+                        player_role: playerRole, 
                     },
                 });
     
                 // Navigate to the game page if the game has started
-                if (data.board_state && data.current_turn) {
-                    navigate(`/games/${gameId}`);
+                if (data.board_state && data.current_turn && data.game_id) {
+                    navigate(`/games/${data.game_id}`);
+                } else {
+                    console.error("Invalid game update data:", data);
+                    showToast("error", "Failed to start the game. Invalid data received.");
                 }
             },
             game_start_acknowledgment: () => {
                 console.log("Game start acknowledgment received:", data.message);
-    
-                // Show toast notification
                 showToast("success", data.message);
             },
             error: () => showToast("error", data.message || "An error occurred."),
         };
     
         const action = actions[data.type];
-        action ? action() : console.warn(`Unknown WebSocket message type: ${data.type}`);
+        if (action) {
+            action();
+        } else {
+            console.warn(`Unknown WebSocket message type: ${data.type}`);
+        }
     };
     
-
+    
     /**
      * Send a chat message.
      */
