@@ -6,26 +6,32 @@ import { CiCirclePlus } from "react-icons/ci";
 import { useUserContext } from "../context/userContext";
 import "./lobby.css";
 
+/**
+ * Lobby Component
+ *
+ * Handles the game lobby functionality, including WebSocket connection,
+ * displaying players, managing chat messages, and initiating the game.
+ */
 const Lobby = () => {
+    // Contexts
+    const { user } = useUserContext(); // Current user info
+    const { state, dispatch } = useLobbyContext(); // Lobby state and dispatcher
+
     // Hooks
-    const { user } = useUserContext();
-    const { state, dispatch } = useLobbyContext(); // Lobby state and dispatch
-    const { id: gameId } = useParams(); // Extract game ID from URL
+    const { id: gameId } = useParams(); // Extract the game ID from the URL
     const navigate = useNavigate(); // Navigation
-    const chatContainerRef = useRef(null); // For auto-scrolling chat
+    const chatContainerRef = useRef(null); // For auto-scrolling the chat container
 
     // State
-    const [message, setMessage] = useState(""); // Chat input
+    const [message, setMessage] = useState(""); // Chat message input
     const [socket, setSocket] = useState(null); // WebSocket instance
 
-    // Define a maximum number of players (e.g., 2)
-    const MAX_PLAYERS = 2;
-
-    // Check if the lobby is full
-    const isLobbyFull = state.players.length === MAX_PLAYERS;
+    // Constants
+    const MAX_PLAYERS = 2; // Maximum number of players allowed in the lobby
+    const isLobbyFull = state.players.length === MAX_PLAYERS; // Check if the lobby is full
 
     /**
-     * Establish WebSocket connection to the backend.
+     * Establishes a WebSocket connection when the component mounts.
      */
     useEffect(() => {
         const token = localStorage.getItem("access_token");
@@ -51,27 +57,31 @@ const Lobby = () => {
     }, [gameId, navigate, dispatch]);
 
     /**
-     * Handle incoming WebSocket messages.
+     * Handles incoming WebSocket messages and updates the state accordingly.
+     *
+     * @param {Object} event - The WebSocket event containing the message data.
      */
     const handleWebSocketMessage = (event) => {
         const data = JSON.parse(event.data);
         console.log("WebSocket message received for type:", data.type, "Payload:", data);
-    
+
         const actions = {
             connection_success: () => showToast("success", data.message),
             chat_message: () => dispatch({ type: "ADD_MESSAGE", payload: data.message }),
             player_list: () => dispatch({ type: "PLAYER_LIST", payload: data.players }),
             game_update: () => {
                 console.log("Game update received:", data);
-    
-                // Determine the player's role dynamically
+
+                if (!data.board_state || !data.current_turn || !data.game_id) {
+                    console.error("Invalid game update data:", data);
+                    showToast("error", "Failed to update the game. Invalid data received.");
+                    return;
+                }
+
                 const playerRole =
                     user?.id === data.player_x?.id ? "X" :
                     user?.id === data.player_o?.id ? "O" : null;
-    
-                console.log("Player role determined:", playerRole);
-    
-                // Dispatch the game update to the reducer
+
                 dispatch({
                     type: "SET_GAME",
                     payload: {
@@ -80,25 +90,22 @@ const Lobby = () => {
                         winner: data.winner,
                         player_x: data.player_x,
                         player_o: data.player_o,
-                        player_role: playerRole, 
+                        player_role: playerRole,
                     },
                 });
-    
-                // Navigate to the game page if the game has started
+
                 if (data.board_state && data.current_turn && data.game_id) {
                     navigate(`/games/${data.game_id}`);
                 } else {
-                    console.error("Invalid game update data:", data);
                     showToast("error", "Failed to start the game. Invalid data received.");
                 }
             },
             game_start_acknowledgment: () => {
-                console.log("Game start acknowledgment received:", data.message);
                 showToast("success", data.message);
             },
             error: () => showToast("error", data.message || "An error occurred."),
         };
-    
+
         const action = actions[data.type];
         if (action) {
             action();
@@ -106,10 +113,9 @@ const Lobby = () => {
             console.warn(`Unknown WebSocket message type: ${data.type}`);
         }
     };
-    
-    
+
     /**
-     * Send a chat message.
+     * Sends a chat message through the WebSocket connection.
      */
     const handleSendMessage = () => {
         if (message.trim() && socket) {
@@ -119,15 +125,15 @@ const Lobby = () => {
                     message,
                 })
             );
-            setMessage(""); // Clear input
+            setMessage(""); // Clear the input field
         }
     };
 
     /**
-     * Start the game.
+     * Initiates the game by sending a `start_game` message through the WebSocket.
      */
     const handleStartGame = () => {
-        if (state.players.length < 2) {
+        if (!isLobbyFull) {
             showToast("error", "You need at least 2 players to start the game.");
             return;
         }
@@ -141,11 +147,10 @@ const Lobby = () => {
     };
 
     /**
-     * Leave the lobby.
+     * Leaves the current lobby and navigates back to the homepage.
      */
     const handleLeaveLobby = () => {
-        console.log("Leaving the lobby!");
-        if(socket) {
+        if (socket) {
             socket.send(
                 JSON.stringify({
                     type: "leave_lobby",
@@ -156,21 +161,15 @@ const Lobby = () => {
     };
 
     /**
-     * Copy invite link.
+     * Copies the lobby's invite link to the clipboard.
      */
     const handleCopyLink = () => {
         navigator.clipboard.writeText(`${window.location.origin}/lobby/${gameId}`);
         showToast("success", "Invite link copied to clipboard!");
     };
 
-    
-    // Handle "Enter" Key for Chat
-    const handleKeyPress = (e) => {
-        if (e.key === "Enter") handleSendMessage();
-    };
-
     /**
-     * Auto-scroll chat container when new messages arrive.
+     * Automatically scrolls the chat container when new messages are added.
      */
     useEffect(() => {
         if (chatContainerRef.current) {
@@ -179,7 +178,7 @@ const Lobby = () => {
     }, [state.messages]);
 
     /**
-     * Render player slots.
+     * Renders the list of players in the lobby, showing avatars and names.
      */
     const renderPlayersList = () => (
         <div className="players-list">
@@ -188,18 +187,16 @@ const Lobby = () => {
                 return (
                     <div key={index} className="player-slot">
                         {player ? (
-                            // Show player avatar and name if the player exists
-                            <>
+                            <div className="player-details">
                                 <div className="player-avatar">
-                                    {player.username.charAt(0).toUpperCase()}
+                                    {player.first_name?.charAt(0).toUpperCase()}
                                 </div>
-                                <div className="player-info">
-                                    <span className="player-name">{player.username}</span>
-                                </div>
-                            </>
+                                <div className="player-name">{player.first_name}</div>
+                            </div>
                         ) : (
-                            // Show the invite icon if no player is present
-                            <CiCirclePlus className="icon-invite" onClick={handleCopyLink} />
+                            <div className="empty-slot">
+                                <CiCirclePlus className="icon-invite" onClick={handleCopyLink} />
+                            </div>
                         )}
                     </div>
                 );
@@ -209,13 +206,10 @@ const Lobby = () => {
 
     return (
         <div className="lobby-container">
-            {/* Lobby Header */}
             <h1 className="lobby-title">Game Lobby</h1>
 
-            {/* Players in Lobby */}
             <div className="lobby-details">{renderPlayersList()}</div>
 
-            {/* Buttons Section */}
             <div className="lobby-buttons">
                 <button
                     onClick={handleStartGame}
@@ -229,7 +223,6 @@ const Lobby = () => {
                 </button>
             </div>
 
-            {/* Chat Section */}
             <div className="chat-container">
                 <h3>Game Chat</h3>
                 <div className="chat-messages" ref={chatContainerRef}>
@@ -245,7 +238,7 @@ const Lobby = () => {
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         placeholder="Type a message"
-                        onKeyPress={handleKeyPress}
+                        onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                     />
                     <button onClick={handleSendMessage} aria-label="Send message">
                         Send
@@ -257,5 +250,3 @@ const Lobby = () => {
 };
 
 export default Lobby;
-
-

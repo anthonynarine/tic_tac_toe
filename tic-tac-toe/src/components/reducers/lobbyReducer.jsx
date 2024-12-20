@@ -65,6 +65,7 @@ export const lobbyReducer = (state, action) => {
         case "PLAYER_LIST": {
             /**
              * Replaces the players list with the new list from the WebSocket.
+             * Normalizes the structure to use `first_name` for frontend display.
              * 
              * @payload {Array} action.payload - List of players in the lobby.
              */
@@ -72,11 +73,18 @@ export const lobbyReducer = (state, action) => {
                 console.error("Invalid PLAYER_LIST payload:", action.payload);
                 return state;
             }
+        
+            const normalizedPlayers = action.payload.map((player) => ({
+                id: player.id,
+                first_name: player.username || "Unknown", // Map `username` to `first_name` for compatibility
+            }));
+        
             return {
                 ...state,
-                players: action.payload,
+                players: normalizedPlayers,
             };
         }
+        
 
         case "ADD_MESSAGE": {
             /**
@@ -119,8 +127,14 @@ export const lobbyReducer = (state, action) => {
                     board_state,
                     current_turn,
                     winner,
-                    player_x,
-                    player_o,
+                    player_x: {
+                        id: player_x?.id || null,               // Ensure we use the `id` field
+                        first_name: player_x?.first_name || "", // Ensure we use `first_name` for display
+                    },
+                    player_o: {
+                        id: player_o?.id || null,               // Ensure we use the `id` field
+                        first_name: player_o?.first_name || "", // Ensure we use `first_name` for display
+                    },
                 },
                 playerRole: player_role || state.playerRole, // Update player role if provided
                 isGameStarted: true, // Mark the game as started

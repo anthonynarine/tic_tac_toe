@@ -375,7 +375,6 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
                 "message": "Failed to start the game due to a server error.",
             })
 
-    
     def game_start(self, event: dict) -> None:
         """
         Handle the game start event broadcast to the WebSocket group.
@@ -475,17 +474,52 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             event (dict): The message payload containing the game state.
         """
         logger.info(f"Received game update event: {event}")
-        
-        # User's role added to the response 
-        player_role = "X" if self.user == TicTacToeGame.objects.get(id=self.game_id).player_x else ""
-        
-        self.send_json({
-            "type": "game_update",
-            "board_state": event["board_state"],  # Default empty board
-            "current_turn": event["current_turn"],       # Default turn to X
-            "winner": event["winner"],                 # Default no winner
-            "player_role": player_role,
-        })
+
+        try:
+            # Retrieve the game instance
+            game = TicTacToeGame.objects.get(id=self.game_id)  
+
+            # Determine the user's role dynamically
+            player_role = ""
+            if self.user == game.player_x:
+                player_role = "X"
+            elif self.user == game.player_o:  
+                player_role = "O"
+
+            # Prepare detailed player information for the frontend using `first_name`
+            player_x_info = {
+                "id": game.player_x.id,
+                "first_name": game.player_x.first_name if game.player_x else None,
+            } if game.player_x else None  
+
+            player_o_info = {
+                "id": game.player_o.id,
+                "first_name": game.player_o.first_name if game.player_o else None,
+            } if game.player_o else None  
+
+            # Broadcast the game update including all necessary information
+            self.send_json({
+                "type": "game_update",
+                "board_state": event["board_state"],  # Current board state
+                "current_turn": event["current_turn"],  # Whose turn it is
+                "winner": event["winner"],  # Winner of the game, if any
+                "player_role": player_role,  # Player role for the current user
+                "player_x": player_x_info,  # *** Added detailed player_x data
+                "player_o": player_o_info,  # *** Added detailed player_o data
+            })
+            logger.info("Game update broadcasted successfully.")
+        except TicTacToeGame.DoesNotExist:
+            logger.error("Game does not exist.")
+            self.send_json({
+                "type": "error",
+                "message": "Game does not exist."
+            })
+        except Exception as e:
+            logger.error(f"Error during game update: {e}")
+            self.send_json({
+                "type": "error",
+                "message": "An error occurred during the game update."
+            })
 
     def disconnect(self, code: int) -> None:
         """Handle WebSocket disconnection and remove the player from the lobby group."""
