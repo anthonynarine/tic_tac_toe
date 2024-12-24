@@ -29,8 +29,12 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         """
         Handle the creation of a new TicTacToe game.
         """
-        logger.debug("perform_create called")
         logger.debug(f"Request data received: {self.request.data}")
+
+        #  Validate that self.request.data is a dictionary
+        if not isinstance(self.request.data, dict):  
+            logger.error("Request data is not valid.")  
+            raise ValidationError("Invalid request data.")  
 
         # Ensure the authenticated user is set as Player X
         player_x = self.request.user
@@ -41,12 +45,12 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         # Determine if the game is an AI game
         is_ai_game = bool(self.request.data.get("is_ai_game", False))
 
-        # Assign AI user if it's an AI game
-        ai_user = User.objects.filter(email="ai@tictactoe.com").first() if is_ai_game else None
-        if is_ai_game and not ai_user:
-            error_message = "AI user (ai@tictactoe.com) is missing. Add this user to the database."
-            logger.error(error_message)
-            raise ValidationError(error_message)
+        # Fetch the AI user if the game is against AI
+        ai_user = User.objects.filter(email="ai@tictactoe.com").first() if is_ai_game else None  
+        if is_ai_game and not ai_user:  
+            error_message = "AI user (ai@tictactoe.com) is missing. Ensure this user exists in the database."  # $$$$
+            logger.error(error_message) 
+            raise ValidationError(error_message)  
 
         # Assign Player O
         player_o = ai_user if is_ai_game else None
@@ -65,7 +69,7 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
             board_state=DEFAULT_BOARD_STATE,  # Use the imported constant for board initialization
             current_turn=randomized_turn,
             winner=None,
-            is_completed=False  # Explicit, but technically unnecessary due to model default
+            is_completed=False,  # Explicit, but technically unnecessary due to model default
         )
         logger.debug(f"Game created successfully with ID: {game.id}, starting turn: {game.current_turn}")
 
@@ -75,17 +79,18 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
             if ai_player == ai_user:
                 logger.debug(f"AI ({game.current_turn}) is making its first move.")
                 game.handle_ai_move()
-                logger.debug(f"AI made its move. Updated board state: {game.board_state}")
-
-        # Refresh the game instance to reflect any changes (like AI move updates)
-        game.refresh_from_db()
+                game.refresh_from_db()
+                logger.debug(f"AI move completed. Updated board state: {game.board_state}")
 
         # Determine the requesting user's role in the game
         player_role = "X" if game.player_x == self.request.user else "O" if game.player_o == self.request.user else "Spectator"
+        logger.debug(f"Determined player role: {player_role} for user: {self.request.user.email}")
 
         # Prepare the response
         response_data = self.get_serializer(game).data
-        response_data["player_role"] = player_role  # Add the player role to the response
+        response_data["player_role"] = player_role
+        logger.debug(f"Response data prepared: {response_data}")
+
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="join")

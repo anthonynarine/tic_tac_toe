@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { AiFillHome } from "react-icons/ai"; // Import the home icon
 import { useGameContext } from "../context/gameContext";
 
-export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
+export const ResultModal = ({ isGameOver, winner, onNewGameClicked, game }) => {
   const navigate = useNavigate(); // Hook for navigation
   const { dispatch } = useGameContext();
 
@@ -12,7 +12,9 @@ export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
     "modal-open": isGameOver,
   });
 
-  console.log("Modal Props:", { isGameOver, winner });
+  console.log("Modal Props:", { isGameOver, winner, game });
+  console.log("onNewGameClicked in ResultModal:", onNewGameClicked);
+
 
   // Determine the result message
   const resultMessage =
@@ -28,7 +30,17 @@ export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
         </div>
         <div id="new-game-container">
           {/* Play Again Button */}
-          <button className="modal-button play-again-button" onClick={onNewGameClicked}>
+          <button
+            className="modal-button play-again-button"
+            onClick={() => {
+              console.log("Play Again button clicked");
+              if (onNewGameClicked) {
+                onNewGameClicked(); // Ensure the function is called if it's defined
+              } else {
+                console.warn("onNewGameClicked is not defined");
+              }
+            }}
+          >
             Play Again
           </button>
           {/* Home Button */}

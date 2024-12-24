@@ -72,7 +72,7 @@ const Lobby = () => {
             game_update: () => {
                 console.log("Game update received:", data);
 
-                if (!data.board_state || !data.current_turn || !data.game_id) {
+                if (!data.board_state || !data.current_turn) {
                     console.error("Invalid game update data:", data);
                     showToast("error", "Failed to update the game. Invalid data received.");
                     return;
@@ -81,6 +81,14 @@ const Lobby = () => {
                 const playerRole =
                     user?.id === data.player_x?.id ? "X" :
                     user?.id === data.player_o?.id ? "O" : null;
+                
+                if(!playerRole) {
+                    console.error("Unable to determine player role:", data);
+                    showToast("Failed to determine plaeyr role")
+                    return;
+                }
+                    // Handle missing or incomplete player_o data
+                const playerO = data.player_o || { id: null, first_name: "Waiting..." };
 
                 dispatch({
                     type: "SET_GAME",
@@ -89,7 +97,7 @@ const Lobby = () => {
                         current_turn: data.current_turn,
                         winner: data.winner,
                         player_x: data.player_x,
-                        player_o: data.player_o,
+                        player_o: playerO || { id: null, first_name: "Waiting..." }, // Handle null player_o
                         player_role: playerRole,
                     },
                 });

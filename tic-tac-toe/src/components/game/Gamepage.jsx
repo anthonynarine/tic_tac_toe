@@ -21,8 +21,27 @@ export const GamePage = () => {
         <GameManager gameId={gameId}>
             {({ state, loading, error, handleCellClick, playAgainAI, finalizeGame }) => {
                 console.log("Updated state in GamePage:", state);
+                
+                const { game, isGameOver, winner, winningCombination, cellValues } = state;
+                
+                console.log("GamePage game:", game);
 
-                const { game, playerRole, isGameOver, winner, winningCombination, cellValues } = state;
+                // Determine player role
+                const playerRole =
+                state.playerRole // Prefer the top-level state.playerRole if available
+                    ? state.playerRole
+                    : game.is_ai_game
+                        ? "X" // Default to "X" for single-player games
+                        : game.player_x === state.userEmail
+                            ? "X"
+                            : "O";
+            
+                console.log("Player Role test:", playerRole);
+
+                // Determine if the board is disabled
+                const isDisabled = isGameOver || game.current_turn !== playerRole;
+
+                console.log("Board Disabled:", isDisabled);
 
                 return (
                     <div id="game">
@@ -50,17 +69,20 @@ export const GamePage = () => {
                                     cellValues={cellValues || []}
                                     winningCombination={winningCombination || []}
                                     handleCellClick={handleCellClick}
-                                    isDisabled={
-                                        isGameOver || game.current_turn !== playerRole
-                                    }
+                                    isDisabled={isDisabled}
                                 />
 
                                 {/* Render the result modal if the game is over */}
                                 <GameResult
+                                    game={game}
                                     isGameOver={isGameOver}
                                     winner={winner}
-                                    onNewGameClicked={playAgainAI}
-                                    onCompleteGame={() => finalizeGame(gameId, winner, state.isCompleted)}
+                                    onNewGameClicked={
+                                        game && game.is_ai_game ? playAgainAI : null // AI or multiplayer logic
+                                    }
+                                    onCompleteGame={() =>
+                                        finalizeGame(gameId, winner, state.isCompleted)
+                                    }
                                 />
                             </>
                         )}
@@ -70,6 +92,7 @@ export const GamePage = () => {
         </GameManager>
     );
 };
+
 
 /**
  * Game Component

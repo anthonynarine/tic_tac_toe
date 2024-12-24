@@ -9,8 +9,10 @@ from django.contrib.auth.models import AnonymousUser
 from django.forms import ValidationError
 from game.models import TicTacToeGame
 from game.models import DEFAULT_BOARD_STATE
+from django.contrib.auth import get_user_model
 
 logger = logging.getLogger(__name__)
+User = get_user_model()
 
 class GameLobbyConsumer(JsonWebsocketConsumer):
     """
@@ -469,57 +471,61 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
     def game_update(self, event: dict) -> None:
         """
         Broadcast the updated game state to all connected clients.
-
-        Parameters:
-            event (dict): The message payload containing the game state.
         """
         logger.info(f"Received game update event: {event}")
 
         try:
+            # Validate required keys in the event payload
+            required_keys = ["board_state", "current_turn", "winner"]
+            if not all(key in event for key in required_keys):  
+                logger.error(f"Missing keys in event: {event}")  
+                self.send_json({"type": "error", "message": "Invalid game update payload."})  
+                return  # $$$$
+
             # Retrieve the game instance
-            game = TicTacToeGame.objects.get(id=self.game_id)  
+            game = TicTacToeGame.objects.get(id=self.game_id)
+
+            # Fetch the AI user dynamically (use caching or validation)
+            ai_user = self.get_ai_user() 
+            if not ai_user:  
+                logger.critical("AI user (ai@tictactoe.com) is missing. Please run migrations.")  
+                self.send_json({"type": "error", "message": "AI user missing."})  
+                return  
 
             # Determine the user's role dynamically
-            player_role = ""
-            if self.user == game.player_x:
-                player_role = "X"
-            elif self.user == game.player_o:  
-                player_role = "O"
+            player_role = "X" if self.user == game.player_x else "O" if self.user == game.player_o else "Spectator"
 
-            # Prepare detailed player information for the frontend using `first_name`
+            # Prepare detailed player information
             player_x_info = {
                 "id": game.player_x.id,
-                "first_name": game.player_x.first_name if game.player_x else None,
-            } if game.player_x else None  
+                "first_name": game.player_x.first_name,
+            } if game.player_x else None
 
+            #  Handle AI as Player O for single-player games
             player_o_info = {
-                "id": game.player_o.id,
-                "first_name": game.player_o.first_name if game.player_o else None,
-            } if game.player_o else None  
-
-            # Broadcast the game update including all necessary information
+                "id": game.player_o.id if game.player_o else None,
+                "first_name": "AI" if game.is_ai_game and game.player_o == ai_user else (  
+                    game.player_o.first_name if game.player_o else "Waiting..."
+                ),
+            }  
+            # Broadcast the game update
             self.send_json({
                 "type": "game_update",
-                "board_state": event["board_state"],  # Current board state
-                "current_turn": event["current_turn"],  # Whose turn it is
-                "winner": event["winner"],  # Winner of the game, if any
-                "player_role": player_role,  # Player role for the current user
-                "player_x": player_x_info,  # *** Added detailed player_x data
-                "player_o": player_o_info,  # *** Added detailed player_o data
+                "board_state": event["board_state"],
+                "current_turn": event["current_turn"],
+                "winner": event["winner"],
+                "player_role": player_role,
+                "player_x": player_x_info,
+                "player_o": player_o_info,
             })
             logger.info("Game update broadcasted successfully.")
         except TicTacToeGame.DoesNotExist:
             logger.error("Game does not exist.")
-            self.send_json({
-                "type": "error",
-                "message": "Game does not exist."
-            })
+            self.send_json({"type": "error", "message": "Game does not exist."})
         except Exception as e:
             logger.error(f"Error during game update: {e}")
-            self.send_json({
-                "type": "error",
-                "message": "An error occurred during the game update."
-            })
+            self.send_json({"type": "error", "message": "An error occurred during the game update."})
+
 
     def disconnect(self, code: int) -> None:
         """Handle WebSocket disconnection and remove the player from the lobby group."""

@@ -51,7 +51,7 @@ export const gameReducer = (state, action) => {
                 winningCombination: winning_combination,
                 numOfTurnsLeft: board_state.split("").filter((cell) => cell === "_").length,
                 isAI: is_ai_game,
-                playerRole: player_role,
+                playerRole: player_role || restGame.playerRole
             };
         }
 

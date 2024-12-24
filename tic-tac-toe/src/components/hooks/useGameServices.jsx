@@ -278,6 +278,7 @@ const useGameServices = () => {
 
     // Function to create a new AI game
     const playAgainAI = async () => {
+        console.log("Play Again AI triggered");
         // Dispatch reset action to clear the game state before starting a new game
         dispatch({ type: "RESET_GAME_STATE" });
 

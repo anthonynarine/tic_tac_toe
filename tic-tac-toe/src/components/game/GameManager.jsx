@@ -49,6 +49,7 @@ const GameManager = ({ gameId, children }) => {
         initializeRequest();
         try {
             const fetchedGame = await fetchGame(gameId);
+            console.log("Fetched Game", fetchedGame)
             if (fetchedGame) {
             dispatch({ type: "SET_GAME", payload: fetchedGame });
             }
@@ -109,6 +110,7 @@ const GameManager = ({ gameId, children }) => {
                 console.log("Sending move to backend for cell:", cellIndex);
 
                 const updatedGame = await makeMove(gameId, cellIndex);
+                console.log("makeMove result:", updatedGame);
 
                 if (updatedGame) {
                     console.log("Move successful, updating game state.");
@@ -123,8 +125,10 @@ const GameManager = ({ gameId, children }) => {
         [state, gameId, makeMove, dispatch]
     );
 
-     const derivedState = {...state, game: {...state.game} };
-     console.log("DERIVED STATE", state)
+    const derivedState = {...state, game: {...state.game} };
+    useEffect(() => {
+        console.log("DERIVED STATE in GameManager", state);
+    }, [state]);
 
 
     // Render prop pattern: pass state and handlers to children
