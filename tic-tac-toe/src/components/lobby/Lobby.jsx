@@ -69,51 +69,74 @@ const Lobby = () => {
             connection_success: () => showToast("success", data.message),
             chat_message: () => dispatch({ type: "ADD_MESSAGE", payload: data.message }),
             player_list: () => dispatch({ type: "PLAYER_LIST", payload: data.players }),
+            
             game_update: () => {
                 console.log("Game update received:", data);
-
+        
+                // Validate the incoming data
                 if (!data.board_state || !data.current_turn) {
                     console.error("Invalid game update data:", data);
                     showToast("error", "Failed to update the game. Invalid data received.");
                     return;
                 }
-
+        
+                // Determine the current user's role in the game
                 const playerRole =
                     user?.id === data.player_x?.id ? "X" :
-                    user?.id === data.player_o?.id ? "O" : null;
-                
-                if(!playerRole) {
-                    console.error("Unable to determine player role:", data);
-                    showToast("Failed to determine plaeyr role")
-                    return;
-                }
-                    // Handle missing or incomplete player_o data
+                    user?.id === data.player_o?.id ? "O" : "Spectator";
+        
+                // Debugging output to ensure roles are determined correctly
+                console.log("Determined player roles:", playerRole);
+        
+                // Handle missing or incomplete player data gracefully
+                const playerX = data.player_x || { id: null, first_name: "Waiting..." };
                 const playerO = data.player_o || { id: null, first_name: "Waiting..." };
-
+        
+                // Dispatch an action to update the game state in the context
                 dispatch({
                     type: "SET_GAME",
                     payload: {
                         board_state: data.board_state,
                         current_turn: data.current_turn,
                         winner: data.winner,
-                        player_x: data.player_x,
-                        player_o: playerO || { id: null, first_name: "Waiting..." }, // Handle null player_o
+                        player_x: playerX,
+                        player_o: playerO,
                         player_role: playerRole,
                     },
                 });
 
-                if (data.board_state && data.current_turn && data.game_id) {
-                    navigate(`/games/${data.game_id}`);
+                console.log("Debugging game update data:", {
+                    game_id: data.game_id,
+                    board_state: data.board_state,
+                    current_turn: data.current_turn,
+                });
+                
+                // Navigate to the game board if the required data is valid
+                if (data.board_state && data.current_turn) {
+                    if (data.game_id) {
+                        console.log("Navigating to game with ID:", data.game_id);
+                        navigate(`/games/${data.game_id}`);
+                    } else {
+                        console.error("Game ID is missing in game update:", data);
+                        showToast("error", "Failed to start the game. Game ID is missing.");
+                    }
                 } else {
+                    console.error("Invalid game update data:", data);
                     showToast("error", "Failed to start the game. Invalid data received.");
                 }
+                
             },
+        
+            // Action to handle game start acknowledgment messages
             game_start_acknowledgment: () => {
                 showToast("success", data.message);
             },
+        
+            // Action to handle error messages from the WebSocket
             error: () => showToast("error", data.message || "An error occurred."),
         };
-
+        
+        // Check if a corresponding action exists for the WebSocket message type and execute it
         const action = actions[data.type];
         if (action) {
             action();

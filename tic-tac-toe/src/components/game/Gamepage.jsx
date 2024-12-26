@@ -6,41 +6,54 @@ import GameManager from "./GameManager";
 import { WebSocketProvider } from "../websocket/WebSocketProvider";
 import { useParams } from "react-router-dom";
 
-
 /**
  * GamePage Component
- * 
- * The main component responsible for coordinating gameplay by combining game state
- * (retrieved and managed by GameManager) with UI components such as GameLoader, GameBoard,
- * and GameResult.
+ *
+ * This component is responsible for rendering the main game page. It uses `GameManager`
+ * to manage the game's state and logic, including handling moves, loading state,
+ * and game results. The component also determines the current player's role
+ * and whether the game board should be interactive.
+ *
+ * @returns {JSX.Element} The game page UI.
  */
 export const GamePage = () => {
-    const { id: gameId } = useParams(); // Extract the game ID from the URL.
+    // Extract the game ID from the URL
+    const { id: gameId } = useParams();
 
     return (
         <GameManager gameId={gameId}>
-            {({ state, loading, error, handleCellClick, playAgainAI, finalizeGame }) => {
+            {({
+                state,
+                loading,
+                error,
+                handleCellClick,
+                playAgainAI,
+                finalizeGame,
+            }) => {
                 console.log("Updated state in GamePage:", state);
-                
+
+                // Destructure the relevant state variables
                 const { game, isGameOver, winner, winningCombination, cellValues } = state;
-                
-                console.log("GamePage game:", game);
 
-                // Determine player role
+                /**
+                 * Determine the player's role in the game.
+                 * If `state.playerRole` is available, use it directly. Otherwise, fall back to
+                 * determining the role based on `game.player_x` and `state.userEmail`.
+                 */
                 const playerRole =
-                state.playerRole // Prefer the top-level state.playerRole if available
-                    ? state.playerRole
-                    : game.is_ai_game
-                        ? "X" // Default to "X" for single-player games
-                        : game.player_x === state.userEmail
-                            ? "X"
-                            : "O";
-            
-                console.log("Player Role test:", playerRole);
+                    state.playerRole || (game?.player_x === state.userEmail ? "X" : "O");
 
-                // Determine if the board is disabled
-                const isDisabled = isGameOver || game.current_turn !== playerRole;
+                console.log("Player Role:", playerRole);
 
+                /**
+                 * Determine if the game board should be disabled.
+                 * The board is disabled if the game is over or if it's not the player's turn.
+                 */
+                const isDisabled =
+                    isGameOver ||
+                    (game && game.current_turn && game.current_turn !== playerRole);
+
+                console.log("Game State:", game);
                 console.log("Board Disabled:", isDisabled);
 
                 return (
@@ -48,12 +61,12 @@ export const GamePage = () => {
                         {/* Display a loading spinner or error message */}
                         <GameLoader loading={loading} error={error} />
 
-                        {/* Render the main gameplay UI once loading is complete and there are no errors */}
+                        {/* Render the main gameplay UI once loading is complete and no errors exist */}
                         {!loading && !error && game && (
                             <>
                                 <h1>Tic Tac Toe</h1>
 
-                                {/* Display the notification */}
+                                {/* Display the turn notification */}
                                 <div className="turn-notification">
                                     {isGameOver
                                         ? winner
@@ -74,11 +87,10 @@ export const GamePage = () => {
 
                                 {/* Render the result modal if the game is over */}
                                 <GameResult
-                                    game={game}
                                     isGameOver={isGameOver}
                                     winner={winner}
                                     onNewGameClicked={
-                                        game && game.is_ai_game ? playAgainAI : null // AI or multiplayer logic
+                                        state.isAI ? playAgainAI : null // Handle AI or multiplayer logic
                                     }
                                     onCompleteGame={() =>
                                         finalizeGame(gameId, winner, state.isCompleted)
@@ -93,13 +105,13 @@ export const GamePage = () => {
     );
 };
 
-
 /**
  * Game Component
- * 
- * Wraps the GamePage component with WebSocketProvider to enable real-time updates
- * during multiplayer gameplay. Ensures the WebSocket connection is scoped to the
- * current game ID.
+ *
+ * This component wraps the `GamePage` with the `WebSocketProvider` to enable real-time updates.
+ * The WebSocket connection is scoped to the current game ID.
+ *
+ * @returns {JSX.Element} The game component with WebSocket support.
  */
 export const Game = () => (
     <WebSocketProvider gameId={useParams().id}>

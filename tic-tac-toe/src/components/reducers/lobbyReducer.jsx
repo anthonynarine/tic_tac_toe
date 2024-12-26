@@ -31,6 +31,7 @@ export const lobbyReducer = (state, action) => {
 
     switch (action.type) {
         case "SET_PLAYERS": {
+            console.log("Reducer action received: SET_GAME", action.payload);
             /**
              * Updates the list of players in the lobby.
              * 
@@ -76,7 +77,7 @@ export const lobbyReducer = (state, action) => {
         
             const normalizedPlayers = action.payload.map((player) => ({
                 id: player.id,
-                first_name: player.username || "Unknown", // Map `username` to `first_name` for compatibility
+                first_name: player.first_name || "Unknown", // Map `username` to `first_name` for compatibility
             }));
         
             return {
@@ -119,28 +120,47 @@ export const lobbyReducer = (state, action) => {
                 player_x,
                 player_o,
                 player_role,
+                game_id, // Included game_id to update state
             } = action.payload;
-
+        
+            // Debugging payload
+            console.log("SET_GAME payload:", {
+                board_state,
+                current_turn,
+                winner,
+                player_x,
+                player_o,
+                player_role,
+                game_id, // Log game_id for debugging
+            });
+        
+            // Ensure player_x and player_o normalization
+            const normalizedPlayerX = {
+                id: player_x?.id || null, // Fallback to null if id is missing
+                first_name: player_x?.first_name || "Unknown", // Fallback to "Unknown" if first_name is missing
+            };
+        
+            const normalizedPlayerO = {
+                id: player_o?.id || null, // Fallback to null if id is missing
+                first_name: player_o?.first_name || "Unknown", // Fallback to "Unknown" if first_name is missing
+            };
+        
             return {
                 ...state,
                 game: {
-                    board_state,
-                    current_turn,
-                    winner,
-                    player_x: {
-                        id: player_x?.id || null,               // Ensure we use the `id` field
-                        first_name: player_x?.first_name || "", // Ensure we use `first_name` for display
-                    },
-                    player_o: {
-                        id: player_o?.id || null,               // Ensure we use the `id` field
-                        first_name: player_o?.first_name || "", // Ensure we use `first_name` for display
-                    },
+                    board_state: board_state || "_________", // Fallback to default board state if missing
+                    current_turn: current_turn || "", // Fallback to an empty string if current_turn is missing
+                    winner: winner || null, // Ensure winner defaults to null
+                    player_x: normalizedPlayerX, // Ensure normalized player_x structure
+                    player_o: normalizedPlayerO, // Ensure normalized player_o structure
                 },
-                playerRole: player_role || state.playerRole, // Update player role if provided
+                game_id, // Save game_id in the state for navigation
+                playerRole: player_role || state.playerRole, // Update player role if provided, fallback to existing role
                 isGameStarted: true, // Mark the game as started
             };
         }
-
+        
+        
         case "START_GAME": {
             /**
              * Updates the state to indicate the game has started.

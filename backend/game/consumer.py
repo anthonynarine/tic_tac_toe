@@ -65,7 +65,7 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         ]
 
         # Add player to the lobby
-        player = {"id": self.user.id, "username": self.user.first_name}
+        player = {"id": self.user.id, "first_name": self.user.first_name}
         GameLobbyConsumer.lobby_players[self.lobby_group_name].append(player)
 
         # Broadcast updated player list
@@ -179,12 +179,67 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
 
         logger.info(f"User {self.user.first_name} joined lobby: {self.lobby_group_name}")
 
+        # Retrieve or create the game instance
+        try:
+            game = TicTacToeGame.objects.get(id=self.game_id)
+        except TicTacToeGame.DoesNotExist:
+            logger.error(f"Game with ID {self.game_id} does not exist.")
+            self.send_json({"type": "error", "message": "Game does not exist."})
+            return
+
+        # Assign roles if not already
+        if not game.player_x:
+            game.player_x = self.user
+            game.save()
+            game.refresh_from_db()  # Refresh instance
+            player_role = "X"
+            logger.info(f"Assigned {self.user.first_name} as Player X for game {self.game_id}.")
+        elif not game.player_o and self.user != game.player_x:
+            game.player_o = self.user
+            game.save()
+            game.refresh_from_db()  # Refresh instance
+            logger.debug(f"Player O after save: {game.player_o}")  # Add log
+            player_role = "O"
+            logger.info(f"Assigned {self.user.first_name} as Player O for game {self.game_id}.")
+        else:
+            game.refresh_from_db()  # Refresh instance
+            player_role = "Spectator"
+            logger.info(f"{self.user.first_name} joined the game as a Spectator.")
+
+        # Prepare player info
+        player_info = {
+            "id": self.user.id,
+            "first_name": self.user.first_name,
+            "role": player_role,
+        }
+
+        # Avoid duplicate entries in lobby_players
+        GameLobbyConsumer.lobby_players[self.lobby_group_name] = [
+            p for p in GameLobbyConsumer.lobby_players[self.lobby_group_name]
+            if p["id"] != self.user.id
+        ]
+        GameLobbyConsumer.lobby_players[self.lobby_group_name].append(player_info)
+        logger.debug(f"Current players in lobby {self.lobby_group_name}: {GameLobbyConsumer.lobby_players[self.lobby_group_name]}")
+
         # Respond to the client with success
         self.send_json({
             "type": "join_lobby_success",
-            "message": f"Successfully joined lobby {self.lobby_group_name}",
+            "message": f"Successfully joined lobby {self.lobby_group_name} as {player_role}.",
+            "player_role": player_role,
         })
-        
+
+        # Broadcast updated player list to all clients in the lobby
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "update_player_list",
+                "players": GameLobbyConsumer.lobby_players[self.lobby_group_name],
+            }
+        )
+
+        logger.info(f"User {self.user.first_name} joined lobby {self.lobby_group_name} as {player_role}.")
+
+
     def handle_leave_lobby(self) -> None:
         """
         Handle explicit leave lobby request from the client.
@@ -295,6 +350,13 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
 
         players = GameLobbyConsumer.lobby_players[self.lobby_group_name]
 
+        # Validate players
+        for player in players:
+            if "first_name" not in player or not player["first_name"]:
+                logger.error(f"Missing 'first_name' for player: {player}")
+                self.send_json({"type": "error", "message": "Invalid player data in the lobby."})
+                return
+
         if len(players) != 2:
             self.send_json({
                 "type": "error",
@@ -315,7 +377,7 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
 
         logger.info(
             f"Game started by {self.user.first_name} in lobby {self.lobby_group_name}. "
-            f"Players: Player X = {player_x['username']}, Player O = {player_o['username']}, Starting turn = {starting_turn}"
+            f"Players: Player X = {player_x['first_name']}, Player O = {player_o['first_name']}, Starting turn = {starting_turn}"
         )
 
         try:
@@ -326,14 +388,17 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             player_x_instance = User.objects.get(pk=player_x["id"])
             player_o_instance = User.objects.get(pk=player_o["id"])
 
+            # Retrieve the latest game instance
+            game = TicTacToeGame.objects.get(id=self.game_id)
+            game.refresh_from_db()  # Refresh the game instance to ensure it is up-to-date
+
             # Create game in the database
-            game = TicTacToeGame.objects.create(
-                player_x=player_x_instance,
-                player_o=player_o_instance,
-                current_turn=starting_turn,
-                board_state=DEFAULT_BOARD_STATE,  # Use the imported constant
-            )
-            
+            game.player_x = player_x_instance
+            game.player_o = player_o_instance
+            game.current_turn = starting_turn
+            game.board_state = DEFAULT_BOARD_STATE
+            game.save()  # Save updated game instance
+
             # Determine player_role for the connected user
             player_role = ""
             if self.user == player_x_instance:
@@ -346,12 +411,12 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
                 self.lobby_group_name,
                 {
                     "type": "game_update",
-                    "message": f"Game has started! Player X: {player_x['username']}, Player O: {player_o['username']}",
+                    "message": f"Game has started! Player X: {player_x['first_name']}, Player O: {player_o['first_name']}",
                     "game_id": game.id,
                     "board_state": game.board_state,
                     "current_turn": game.current_turn,
-                    "player_x": {"id": player_x_instance.id, "username": player_x_instance.username},
-                    "player_o": {"id": player_o_instance.id, "username": player_o_instance.username},
+                    "player_x": {"id": player_x_instance.id, "first_name": player_x_instance.first_name},
+                    "player_o": {"id": player_o_instance.id, "first_name": player_o_instance.first_name},
                     "winner": game.winner,
                 }
             )
@@ -477,23 +542,37 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         try:
             # Validate required keys in the event payload
             required_keys = ["board_state", "current_turn", "winner"]
-            if not all(key in event for key in required_keys):  
-                logger.error(f"Missing keys in event: {event}")  
-                self.send_json({"type": "error", "message": "Invalid game update payload."})  
-                return  # $$$$
+            if not all(key in event for key in required_keys):
+                logger.error(f"Missing keys in event: {event}")
+                self.send_json({"type": "error", "message": "Invalid game update payload."})
+                return
 
             # Retrieve the game instance
             game = TicTacToeGame.objects.get(id=self.game_id)
 
             # Fetch the AI user dynamically (use caching or validation)
-            ai_user = self.get_ai_user() 
-            if not ai_user:  
-                logger.critical("AI user (ai@tictactoe.com) is missing. Please run migrations.")  
-                self.send_json({"type": "error", "message": "AI user missing."})  
-                return  
+            ai_user = None
+            if game.is_ai_game:
+                ai_user = self.get_ai_user()
+                if not ai_user:
+                    logger.critical("AI user (ai@tictactoe.com) is missing. Please run migrations.")
+                    self.send_json({"type": "error", "message": "AI user missing."})
+                    return
 
             # Determine the user's role dynamically
-            player_role = "X" if self.user == game.player_x else "O" if self.user == game.player_o else "Spectator"
+            if not game.player_x or not game.player_o:
+                logger.warning("Game is incomplete; waiting for players to join.")
+                player_role = "Spectator"
+            else:
+                if self.user == game.player_x:
+                    player_role = "X"
+                elif self.user == game.player_o:
+                    player_role = "O"
+                else:
+                    player_role = "Spectator"
+
+            # Log player role determination
+            logger.debug(f"Player Role Determination: user={self.user}, player_x={game.player_x}, player_o={game.player_o}, role={player_role}")
 
             # Prepare detailed player information
             player_x_info = {
@@ -501,16 +580,20 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
                 "first_name": game.player_x.first_name,
             } if game.player_x else None
 
-            #  Handle AI as Player O for single-player games
             player_o_info = {
                 "id": game.player_o.id if game.player_o else None,
-                "first_name": "AI" if game.is_ai_game and game.player_o == ai_user else (  
+                "first_name": "AI" if game.is_ai_game and game.player_o == ai_user else (
                     game.player_o.first_name if game.player_o else "Waiting..."
                 ),
-            }  
+            }
+
+            logger.debug(f"Player X Info: {player_x_info}")
+            logger.debug(f"Player O Info: {player_o_info}")
+
             # Broadcast the game update
             self.send_json({
                 "type": "game_update",
+                "game_id": game.id,
                 "board_state": event["board_state"],
                 "current_turn": event["current_turn"],
                 "winner": event["winner"],
@@ -519,6 +602,8 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
                 "player_o": player_o_info,
             })
             logger.info("Game update broadcasted successfully.")
+            logger.info(f"Broadcasting game update: Board State={game.board_state}, Current Turn={game.current_turn}")
+
         except TicTacToeGame.DoesNotExist:
             logger.error("Game does not exist.")
             self.send_json({"type": "error", "message": "Game does not exist."})
@@ -526,6 +611,14 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             logger.error(f"Error during game update: {e}")
             self.send_json({"type": "error", "message": "An error occurred during the game update."})
 
+    def get_ai_user(self):
+        """
+        Fetch the AI user. Ensure that the AI user exists in the database.
+        """
+        ai_user = User.objects.filter(email="ai@tictactoe.com").first()
+        if not ai_user:
+            logger.warning("AI user with email ai@tictactoe.com does not exist.")
+        return ai_user
 
     def disconnect(self, code: int) -> None:
         """Handle WebSocket disconnection and remove the player from the lobby group."""
@@ -538,26 +631,33 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
 
         logger.info(f"User {user_name} disconnected from lobby {self.lobby_group_name} with code {code}")
 
-        # Remove the player from the lobby's players list
+        # Check if the lobby group still exists
         if self.lobby_group_name in GameLobbyConsumer.lobby_players:
+            # Remove the player from the lobby's player list
             GameLobbyConsumer.lobby_players[self.lobby_group_name] = [
                 p for p in GameLobbyConsumer.lobby_players[self.lobby_group_name]
                 if p["id"] != self.user.id
             ]
 
             # Notify the lobby about the updated player list
-            async_to_sync(self.channel_layer.group_send)(
-                self.lobby_group_name,
-                {
-                    "type": "update_player_list",
-                    "players": GameLobbyConsumer.lobby_players[self.lobby_group_name],
-                }
-            )
+            if GameLobbyConsumer.lobby_players[self.lobby_group_name]:  # Only broadcast if there are remaining players
+                async_to_sync(self.channel_layer.group_send)(
+                    self.lobby_group_name,
+                    {
+                        "type": "update_player_list",
+                        "players": GameLobbyConsumer.lobby_players[self.lobby_group_name],
+                    }
+                )
+                logger.info(f"Updated player list after disconnection: {GameLobbyConsumer.lobby_players[self.lobby_group_name]}")
+            else:
+                # If lobby is empty, clean up the lobby
+                del GameLobbyConsumer.lobby_players[self.lobby_group_name]
+                logger.info(f"Lobby {self.lobby_group_name} has been deleted after becoming empty.")
+        else:
+            logger.warning(f"Lobby {self.lobby_group_name} does not exist when disconnecting.")
 
         # Remove the channel from the group
         async_to_sync(self.channel_layer.group_discard)(
             self.lobby_group_name,
             self.channel_name
         )
-
-        logger.info(f"Updated player list after disconnection: {GameLobbyConsumer.lobby_players[self.lobby_group_name]}")

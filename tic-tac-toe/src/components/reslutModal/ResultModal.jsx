@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { AiFillHome } from "react-icons/ai"; // Import the home icon
 import { useGameContext } from "../context/gameContext";
 
-export const ResultModal = ({ isGameOver, winner, onNewGameClicked, game }) => {
+export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
   const navigate = useNavigate(); // Hook for navigation
   const { dispatch } = useGameContext();
 
@@ -12,8 +12,9 @@ export const ResultModal = ({ isGameOver, winner, onNewGameClicked, game }) => {
     "modal-open": isGameOver,
   });
 
-  console.log("Modal Props:", { isGameOver, winner, game });
-  console.log("onNewGameClicked in ResultModal:", onNewGameClicked);
+  // Debug logs
+  // console.log("Modal Props:", { isGameOver, winner, game });
+  // console.log("onNewGameClicked in ResultModal:", onNewGameClicked);
 
 
   // Determine the result message

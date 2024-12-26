@@ -67,10 +67,11 @@ const GameManager = ({ gameId, children }) => {
     useEffect(() => {
         const { isGameOver, winner, isCompleted } = state; // Destructure state values at the start
     
-        console.log("Checking if finalizeGame should be called...");
-        console.log("State.isGameOver:", isGameOver);
-        console.log("State.winner:", winner);
-        console.log("State.isCompleted:", isCompleted);
+        // Debug logs
+        // console.log("Checking if finalizeGame should be called...");
+        // console.log("State.isGameOver:", isGameOver);
+        // console.log("State.winner:", winner);
+        // console.log("State.isCompleted:", isCompleted);
     
         if (isGameOver && winner && !isCompleted) {
             console.log("Conditions met. Calling finalizeGame...");
