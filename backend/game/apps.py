@@ -6,4 +6,4 @@ class GameConfig(AppConfig):
     name = "game"
     
     def ready(self):
-        import game.signals
+        import game.create_ai_player_signal
