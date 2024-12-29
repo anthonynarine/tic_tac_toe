@@ -16,17 +16,37 @@ User = get_user_model()
 
 class GameLobbyConsumer(JsonWebsocketConsumer):
     """
-    WebSocket consumer for managing a game lobby with chat functionality.
+    WebSocket consumer for managing a game lobby with chat functionality and real-time game updates.
+
     Features:
         - Authenticated connection via middleware.
-        - Temporary chat messages that only live in the lobby.
-        - Game-related events, such as starting the game.
+        - Lobby management for real-time player interactions.
+        - Chat messaging within the lobby.
+        - Game-related events such as starting a game and making moves.
+        - Handles both single-player (AI) and multiplayer games.
     """
     # Maintain a dictionary to track players in each lobby
+    
     lobby_players = {}  # Format: {"game_lobby_<game_id>": [{"username": <name>, "id": <id>}, ...]}
 
     def connect(self) -> None:
-        """Handle WebSocket connection. Authenticate the user and join the game lobby group."""
+        """
+        Handle WebSocket connection.
+
+        - Authenticates the user.
+        - Adds the WebSocket channel to the appropriate game lobby group.
+        - Tracks players in the lobby and broadcasts updates to all connected clients.
+
+        Raises:
+            AnonymousUser: Closes the connection if the user is not authenticated.
+            KeyError: Closes the connection if the `game_id` is missing from the URL.
+
+        Side Effects:
+            - Adds the channel to the Django Channels group for the corresponding game lobby.
+            - Updates the `lobby_players` dictionary with the current user.
+            - Sends a success message to the connected client.
+            - Broadcasts the updated player list to all players in the lobby.
+        """
         logger.info(f"New connection: {self.scope}")
         self.user = self.scope["user"]
 
@@ -85,11 +105,25 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
 
     def receive_json(self, content: dict, **kwargs) -> None:
         """
-        Handle incoming messages from the WebSocket client.
-        
+        Handle incoming JSON messages from the WebSocket client.
+
         Parameters:
-            content (dict): The message payload sent by the client.
-            **kwargs: Additional optional parameters.
+            content (dict): The JSON message payload sent by the client.
+            **kwargs: Additional arguments passed to the method.
+
+        Valid `type` values in `content`:
+            - `join_lobby`: Adds the user to the game lobby.
+            - `chat_message`: Handles a chat message sent by the client.
+            - `start_game`: Starts the game if conditions are met.
+            - `move`: Handles a move made by the player.
+            - `leave_lobby`: Removes the user from the game lobby.
+
+        Raises:
+            KeyError: If a required key is missing from the payload.
+            Exception: If an unexpected error occurs during processing.
+
+        Side Effects:
+            - Calls the appropriate handler method based on the `type` field in the payload.
         """
         if not isinstance(content, dict):
             logger.warning("Invalid message format received: Expected a JSON object.")
@@ -239,7 +273,6 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
 
         logger.info(f"User {self.user.first_name} joined lobby {self.lobby_group_name} as {player_role}.")
 
-
     def handle_leave_lobby(self) -> None:
         """
         Handle explicit leave lobby request from the client.
@@ -384,42 +417,17 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             # Fetch CustomUser instances
             from django.contrib.auth import get_user_model
             User = get_user_model()
-
             player_x_instance = User.objects.get(pk=player_x["id"])
             player_o_instance = User.objects.get(pk=player_o["id"])
 
-            # Retrieve the latest game instance
+            # Retrieve and update the game instance 
             game = TicTacToeGame.objects.get(id=self.game_id)
             game.refresh_from_db()  # Refresh the game instance to ensure it is up-to-date
-
-            # Create game in the database
             game.player_x = player_x_instance
             game.player_o = player_o_instance
             game.current_turn = starting_turn
             game.board_state = DEFAULT_BOARD_STATE
             game.save()  # Save updated game instance
-
-            # Determine player_role for the connected user
-            player_role = ""
-            if self.user == player_x_instance:
-                player_role = "X"
-            elif self.user == player_o_instance:
-                player_role = "O"
-
-            # Broadcast game state to all players
-            async_to_sync(self.channel_layer.group_send)(
-                self.lobby_group_name,
-                {
-                    "type": "game_update",
-                    "message": f"Game has started! Player X: {player_x['first_name']}, Player O: {player_o['first_name']}",
-                    "game_id": game.id,
-                    "board_state": game.board_state,
-                    "current_turn": game.current_turn,
-                    "player_x": {"id": player_x_instance.id, "first_name": player_x_instance.first_name},
-                    "player_o": {"id": player_o_instance.id, "first_name": player_o_instance.first_name},
-                    "winner": game.winner,
-                }
-            )
 
             # Send acknowledgment to the player who started the game
             self.send_json({
@@ -481,7 +489,7 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
         position = content.get("position")
         user = self.scope["user"]
 
-        # Check if position is provided and valid
+        # Validate position
         if position is None:
             self.send_json({
                 "type": "error",
@@ -508,17 +516,8 @@ class GameLobbyConsumer(JsonWebsocketConsumer):
             # Make the move
             game.make_move(position=position, player=player_marker)
 
-            # Broadcast updated game state
-            async_to_sync(self.channel_layer.group_send)(
-                self.lobby_group_name,
-                {
-                    "type": "game_update",
-                    "board_state": game.board_state,
-                    "current_turn": game.current_turn,
-                    "winner": game.winner,
-                }
-            )
-            logger.info(f"Broadcasting game state: {game.board_state}, Current Turn: {game.current_turn}")
+            # AI Handling is triggered automatically if necessary
+            logger.info(f"Move made successfully: {game.board_state}")
 
         except TicTacToeGame.DoesNotExist:
             logger.error("Game does not exist.")

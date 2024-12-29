@@ -6,4 +6,6 @@ class GameConfig(AppConfig):
     name = "game"
     
     def ready(self):
+        # Import all signal modules
         import game.create_ai_player_signal
+        import game.game_update_signal
