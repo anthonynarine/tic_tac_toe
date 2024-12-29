@@ -2,6 +2,7 @@ import logging
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from .shared_utils_game_chat import SharedUtils
+from .game_utils import GameUtils
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class GameConsumer(JsonWebsocketConsumer):
         2. Validating the game ID.
         3. Authenticating the user using `SharedUtils.authenticate_user`.
         4. Adding the WebSocket channel to the specified game lobby group.
-        5. Updating the player list for the game lobby using `SharedUtils.add_player_to_lobby`.
+        5. Updating the player list for the game lobby using `GameUtils.add_player_to_lobby`.
         6. Accepting the WebSocket connection if all checks pass.
 
         Raises:
@@ -27,7 +28,7 @@ class GameConsumer(JsonWebsocketConsumer):
         """
         # Step 1: Extract the game ID from the URL route.
         self.game_id = self.scope["url_route"].get("kwargs", {}).get("game_id")
-        self.lobby_group_name = f"game_lobby_{self.game_id}"  # Derive lobby group name.
+        self.lobby_group_name = f"Julia's_game_lobby_{self.game_id}"  # Derive lobby group name.
 
         # Step 2: Validate the game ID.
         if not self.game_id:
@@ -52,11 +53,10 @@ class GameConsumer(JsonWebsocketConsumer):
         self.accept()
 
         # Step 6: Update the player list for the game lobby.
-        SharedUtils.add_player_to_lobby(
+        GameUtils.add_player_to_lobby(
             self.scope["user"], self.lobby_group_name, self.channel_layer
         )
         logger.info(f"Player added to game lobby {self.lobby_group_name}")
-
 
     def receive_json(self, content: dict, **kwargs) -> None:
         """
@@ -112,3 +112,43 @@ class GameConsumer(JsonWebsocketConsumer):
             logger.error(f"Unexpected error in GameConsumer: {e}")
             SharedUtils.send_error(self, f"An unexpected error occurred: {str(e)}")
 
+    def handle_join_lobby(self, content: dict) -> None:
+        """
+        Handle the join lobby message and confirm the user's addition to the lobby.
+        
+        Parameters:
+            content (dict): The message payload sent by the client.
+        """
+        game_id = content.get("gameId")
+        if game_id != self.game_id:
+            self.send_json({"type": "error", "message": "Invalid game ID."})
+            return
+        
+        logger.info(f"User {self.user.first_name} attempting to join lobby: {self.lobby_group_name}")
+        
+        # Retrieve or validate the game instance
+        try:
+            game = GameUtils.get_game_instance(game_id=self.game_id)
+        except ValueError as e:
+            logger.error(e)
+            self.send_json({"type": "error", "message": str(e)})
+            return
+        
+        # Determine player role and assign if needed
+        player_role = GameUtils.assign_player_role(game=game, user=self.user)
+        
+        # Update the lobby players and avoid duplicates
+        GameUtils.add_player_to_lobby(
+            user=self.user,
+            group_name=self.lobby_group_name,
+            player_role=player_role
+        )
+        
+        # Respond to the client with success
+        self.send_json({
+            "type": "join_lobby_success",
+            "message": f"Successfully joined lobby {self.lobby_group_name} as {player_role}.",
+            "player_role": player_role,
+        })
+        
+        logger.info(f"User {self.user.first_name} successfully joined lobby {self.lobby_group_name} as {player_role}.")

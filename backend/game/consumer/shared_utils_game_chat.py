@@ -38,38 +38,6 @@ class SharedUtils:
         return False
 
     @staticmethod
-    def add_player_to_lobby(user: 'AbstractBaseUser', group_name: str, channel_layer: BaseChannelLayer) -> None:
-        """
-        Add a player to the lobby and broadcast the updated player list.
-
-        Args:
-            user (AbstractBaseUser): The authenticated user.
-            group_name (str): The name of the lobby group.
-            channel_layer: The channel layer for broadcasting messages.
-        """
-        player = {"id": user.id, "first_name": user.first_name}
-
-        # Ensure a group (lobby) is initialized in the lobby_players dictionary.
-        if group_name not in SharedUtils.lobby_players:
-            SharedUtils.lobby_players[group_name] = []
-
-        # Add player to the lobby (avoiding duplicate entries).
-        SharedUtils.lobby_players[group_name] = [
-            p for p in SharedUtils.lobby_players[group_name] if p["id"] != user.id
-        ]
-        SharedUtils.lobby_players[group_name].append(player)
-
-        # Broadcast updated player list
-        async_to_sync(channel_layer.group_send)(
-            group_name,
-            {
-                "type": "update_player_list",
-                "players": SharedUtils.lobby_players[group_name],
-            },
-        )
-        logger.info(f"Player added to the lobby {group_name}: {player}")
-
-    @staticmethod
     def validate_message(content: dict) -> bool:
         """
         Validate the incoming message content.

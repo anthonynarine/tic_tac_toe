@@ -68,7 +68,7 @@ def receive_json(self, content: dict, **kwargs) -> None:
 
     Raises:
         Exception: Catches and logs any unexpected errors during message processing.
-                   Sends an error response to the client in case of such errors.
+                Sends an error response to the client in case of such errors.
     """
     # Step 1: Validate the incoming message structure.
     if not SharedUtils.validate_message(content):
