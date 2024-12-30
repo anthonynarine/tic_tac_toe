@@ -144,6 +144,11 @@ class GameConsumer(JsonWebsocketConsumer):
             player_role=player_role
         )
         
+        # Broadcast the updated player list to all clients in the lobby
+        self.update_player_list({
+            "players": GameUtils.lobby_players[self.lobby_group_name],
+        })
+        
         # Respond to the client with success
         self.send_json({
             "type": "join_lobby_success",
@@ -168,6 +173,11 @@ class GameConsumer(JsonWebsocketConsumer):
                 channel_name=self.channel_name
             )
             
+            # Broadcast the updated player list to all clients in the lobby
+            self.update_player_list({
+                "players": GameUtils.lobby_players.get(self.lobby_group_name, []),
+            })
+            
             # Notify the user that they left successfully
             self.send_json({
                 "type": "leave_lobby_success",
@@ -180,6 +190,32 @@ class GameConsumer(JsonWebsocketConsumer):
             
         # Close the Websocket connection
         self.close(code=1000)
+    
+    def update_player_list(self, event: dict) -> None:
+        """
+        Send the updated player list to the WebSocket client.
+
+        Parameters:
+            event (dict): The message payload containing the updated player list.
+                        Expected to have a "players" key with the list of players.
+        """
+        # Ensure the WebSocket connection is active before sending data
+        if self.scope["type"] == "websocket" and self.channel_name:
+            try:
+                # Extract the players list from the event payload
+                players = event.get("players", [])
+
+                # Send the player list to the WebSocket client
+                self.send_json({
+                    "type": "player_list",
+                    "players": players,
+                })
+
+            # Handle cases where the WebSocket connection is closed unexpectedly
+            except RuntimeError as e:
+                logger.warning(
+                    f"Attempted to send a message to a closed WebSocket connection: {e}"
+                )
         
     def handle_start_game(self) -> None:
         
@@ -239,5 +275,8 @@ class GameConsumer(JsonWebsocketConsumer):
             logger.error(f"Failed to start the game: {e}")
             self.send_json({"type": "error", "message": "Failed to start the game due to a server error."})
 
-            
+
+
+    
+                    
             
