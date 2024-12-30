@@ -1,7 +1,9 @@
 
+import random
+import re
 from asgiref.sync import async_to_sync
 from channels.layers import BaseChannelLayer
-from game.models import TicTacToeGame
+from game.models import TicTacToeGame, DEFAULT_BOARD_STATE
 from users.models import CustomUser
 import logging
 
@@ -153,8 +155,128 @@ class GameUtils:
         except Exception as e:
             logger.error(f"Failed to remove channel {channel_name} from group {group_name}: {e}")
 
+    @staticmethod
+    def validate_lobby(group_name: str) -> list:
+        """
+        Validates the existence of a lobby and ensures the player list is valid.
 
+        This method checks if a given lobby group exists and verifies that all players 
+        in the lobby have valid data, such as a non-empty "first_name" field.
+
+        Args:
+            group_name (str): The name of the lobby group to validate.
+
+        Returns:
+            list: A list of players in the lobby, each represented as a dictionary.
+
+        Raises:
+            ValueError: If the lobby does not exist in the GameUtils.lobby_players 
+                        or if the player data is invalid (e.g., missing "first_name").
+        """
+        # Step 1: Check if the specified lobby exists in the lobby_players dictionary.
+        if group_name not in GameUtils.lobby_players:
+            # Raise an error if the lobby group is not found.
+            raise ValueError(f"Lobby {group_name} does not exist.")
+
+        # Step 2: Retrieve the list of players in the specified lobby.
+        players = GameUtils.lobby_players[group_name]
+
+        # Step 3: Iterate through each player in the lobby to validate their data.
+        for player in players:
+            # Ensure the "first_name" key exists and is not empty.
+            if "first_name" not in player or not player["first_name"]:
+                # Raise an error if the player data is invalid.
+                raise ValueError(f"Invalid player data in the lobby: {player}")
+
+        # Step 4: Return the validated list of players.
+        return players
+    
+    @staticmethod
+    def randomize_turn(players: list):
+        """
+        Randominize which player start 1st and assign player roles.
+
+        Args:
+            players (list): List of players in the lobby.
             
+        Returns:
+            tuple: (starting_turn, player_x, player_o)
+        """
+        starting_turn = random.choice(["X", "O"])
+        player_x, player_o = (players[0], players[1]) if starting_turn == "X" else (players[1], players[0])
+        return starting_turn, player_x, player_o
+
+    @staticmethod
+    def randomize_turn(players: list) -> tuple:
+        """
+        Randomizes which player starts first and assigns player roles.
+
+        This method determines the starting turn for a game (either 'X' or 'O') 
+        by randomly selecting one of the two players to begin. It also assigns 
+        the roles of Player X and Player O based on the randomized starting turn.
+
+        Args:
+            players (list): A list of players in the lobby. Each player is represented 
+                            as a dictionary containing their details, such as "id" and "first_name".
+
+        Returns:
+            tuple: A tuple containing:
+                - starting_turn (str): The player starting the game ('X' or 'O').
+                - player_x (dict): The player assigned the 'X' role.
+                - player_o (dict): The player assigned the 'O' role.
+
+        Raises:
+            ValueError: If the players list does not contain exactly two players.
+        """
+        # Step 1: Ensure the players list contains exactly two players.
+        if len(players) != 2:
+            # Raise an error if the player count is invalid.
+            raise ValueError("Exactly two players are required to start the game.")
+
+        # Step 2: Randomly determine the starting turn ('X' or 'O').
+        starting_turn = random.choice(["X", "O"])
+
+        # Step 3: Assign roles based on the starting turn.
+        # If starting_turn is 'X', the first player in the list is Player X; otherwise, they are Player O.
+        if starting_turn == "X":
+            player_x, player_o = players[0], players[1]
+        else:
+            player_x, player_o = players[1], players[0]
+
+        # Step 4: Log the assignment details for debugging purposes.
+        logger.debug(f"Randomized starting turn: {starting_turn}")
+        logger.debug(f"Player X: {player_x['first_name']}, Player O: {player_o['first_name']}")
+
+        # Step 5: Return the starting turn and assigned roles.
+        return starting_turn, player_x, player_o
+
+    @staticmethod
+    def initialize_game(game_id: int, player_x: dict, player_o: dict, starting_turn: str):
+        """
+        Initialize the game instance with the provided players and starting turn.
+
+        Args:
+            game_id (int): The ID of the game to initialize.
+            player_x (dict): Player X information.
+            player_o (dict): Player O information
+            starting_turn (str): The starting Turin ("X" or "O")
+            
+        Returns:
+            TicTacToeGame: The initialized game instance
+        """
+        # Fetch CustomUser instance for the players
+        player_x_instance = CustomUser.objects.get(pk=player_x["id"])
+        player_o_instance = CustomUser.objects.get(pk=player_o["id"])
+        
+        # Retrieve and update the game instance
+        game = TicTacToeGame.objects.get(id=game_id)
+        game.player_x = player_x_instance
+        game.player_o = player_o_instance
+        game.starting_turn = starting_turn
+        game.board_state = DEFAULT_BOARD_STATE
+        game.save()
+        
+        return game
 
         
         

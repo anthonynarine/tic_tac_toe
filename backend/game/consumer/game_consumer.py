@@ -154,6 +154,7 @@ class GameConsumer(JsonWebsocketConsumer):
         logger.info(f"User {self.user.first_name} successfully joined lobby {self.lobby_group_name} as {player_role}.")
         
     def handle_leave_lobby(self) -> None:
+        
         """
         Handle explicit leave lobby from the client.
         """
@@ -179,3 +180,64 @@ class GameConsumer(JsonWebsocketConsumer):
             
         # Close the Websocket connection
         self.close(code=1000)
+        
+    def handle_start_game(self) -> None:
+        
+        """
+        Handle the game start event and notify both players in the lobby.
+
+        This method validates the lobby, ensures exactly two players are present, 
+        randomizes the starting turn, assigns player roles, and initializes the game.
+
+        Parameters:
+            self: The instance of the WebSocket consumer calling this method.
+        
+        Raises:
+            ValueError: If the lobby does not exist or if there is invalid player data.
+        """
+        # Step 1: Validate the lobby existence and player list
+        try:
+            players = GameUtils.validate_lobby(group_name=self.lobby_group_name)
+        except ValueError as e:
+            logger.error(e)
+            self.send_json({"type": "error", "message": str(e)})
+            return
+        
+        # Step 2 Ensure there are exactly two players in the lobby
+        if len(players) != 2:
+            logger.warning(f"Game start failed: Invalid number of players in the {self.lobby_group_name}")
+            self.send_json({
+                "type": "error",
+                "message": "The game requires exactly two players to start."
+            })
+            return
+
+        # Step 3: Randomize the starting turn and assign player roles
+        starting_turn, player_x, player_o = GameUtils.randomize_turn(players=players)
+        
+        logger.info(
+            f"Game is starting in lobby {self.lobby_group_name}. "
+            f"Player X: {player_x['first_name']}, Player O: {player_o['first_name']}, Starting turn: {starting_turn}"
+        )
+        
+        # Step 4: Initialize the game instance with the validated players and starting turn
+        try:
+            game = GameUtils.initialize_game(
+                game_id=self.game_id,
+                player_x=player_x,
+                player_o=player_o,
+                starting_turn=starting_turn,
+            )
+            # Step 5: Send acknowledgment to the player who initiated the game start
+            self.send_json({
+                "type": "game_start_acknowledgment",
+                "message": "Game has started successfully!",
+                "game_id": game.id,
+                "current_turn": starting_turn,
+            })
+        except Exception as e:
+            logger.error(f"Failed to start the game: {e}")
+            self.send_json({"type": "error", "message": "Failed to start the game due to a server error."})
+
+            
+            
