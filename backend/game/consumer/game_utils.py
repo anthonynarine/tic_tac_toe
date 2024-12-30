@@ -1,16 +1,12 @@
 
-from typing import TYPE_CHECKING
 from asgiref.sync import async_to_sync
-from django.contrib.auth import get_user_model
 from channels.layers import BaseChannelLayer
 from game.models import TicTacToeGame
+from users.models import CustomUser
 import logging
 
 logger = logging.getLogger(__name__)
 
-# Import AbstractBaseUser for type hints during static analysis only
-if TYPE_CHECKING:
-    from django.contrib.auth.models import AbstractBaseUser
 
 class GameUtils:
     """
@@ -50,14 +46,14 @@ class GameUtils:
             game.player_x = user
             game.save()
             return "X"
-        elif not game.player_o and user != game.player_x:
+        elif not game.player_o and user != game.pyayer_x:
             game.player_o = user
             game.save()
             return "O"
         return "Spectator"
         
     @staticmethod
-    def add_player_to_lobby(user: 'AbstractBaseUser', group_name: str, channel_layer: BaseChannelLayer) -> None:
+    def add_player_to_lobby(user: CustomUser, group_name: str, channel_layer: BaseChannelLayer) -> None:
         """
         Add a player to the lobby and broadcast the updated player list.
 
@@ -107,6 +103,58 @@ class GameUtils:
             group_name,
             {
                 "type": "update_player_list",
-                "players": GameUtils.lobby_players[group_name]
+                "players": GameUtils.lobby_players[group_name],
             }
         )
+
+    @staticmethod
+    def _remove_player_from_lobby(
+        user: CustomUser,
+        group_name: str,
+        channel_layer: BaseChannelLayer,
+        channel_name: str
+    ) -> None:
+        """
+        Remove a player from the lobby and broadcast the updated player list.
+
+        Args:
+            user (User): The user to remove.
+            group_name (str): The name of the lobby group.
+            channel_layer (BaseChannelLayer): The channel layer for broadcasting updates.
+            channel_name (str): The WebSocket channel name for the user.
+
+        Raises:
+            ValueError: If the group_name does not exist in `lobby_players`.
+        """
+        if group_name not in GameUtils.lobby_players:
+            raise ValueError(f"Lobby {group_name} does not exist.")
+        
+        # Log the player removal
+        logger.info(f"Removing player {user.first_name} (ID: {user.id}) from lobby {group_name}")
+        
+        # Remove the player from the lobby's players list
+        GameUtils.lobby_players[group_name] = [
+            p for p in GameUtils.lobby_players[group_name] if p["id"] != user.id
+        ]
+        
+        # Broadcast the updated player list if there are remaining players
+        if GameUtils.lobby_players[group_name]:
+            GameUtils.broadcast_player_list(channel_layer, group_name)
+            logger.info(f"Updated player list after removal: {GameUtils.lobby_players[group_name]}")
+        else:
+            # Clean up the lobby if it becomes empty
+            del GameUtils.lobby_players[group_name]
+            logger.info(f"Lobby {group_name} has been deleted after becoming empty.")
+
+        # Remove the channel from the WebSocket group
+        try:
+            async_to_sync(channel_layer.group_discard)(group_name, channel_name)
+            logger.info(f"Channel {channel_name} has been removed from group {group_name}.")
+        except Exception as e:
+            logger.error(f"Failed to remove channel {channel_name} from group {group_name}: {e}")
+
+
+            
+
+        
+        

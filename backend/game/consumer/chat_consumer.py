@@ -91,3 +91,14 @@ def receive_json(self, content: dict, **kwargs) -> None:
         # Step 4: Log unexpected errors and send a generic error response.
         logger.error(f"Unexpected error in ChatConsumer: {e}")
         SharedUtils.send_error(self, f"An unexpected error occurred: {str(e)}")
+
+def handle_chat_message(self, content: dict) -> None:
+    """
+    Handle a chat message sent by the client to the server and boradcast it to all players
+    
+    Parameter:
+        content (dict): The message payload sent by the client.
+    """
+    try:
+        # Validate the message
+        ChatUtils

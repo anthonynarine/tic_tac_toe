@@ -152,3 +152,30 @@ class GameConsumer(JsonWebsocketConsumer):
         })
         
         logger.info(f"User {self.user.first_name} successfully joined lobby {self.lobby_group_name} as {player_role}.")
+        
+    def handle_leave_lobby(self) -> None:
+        """
+        Handle explicit leave lobby from the client.
+        """
+        logger.info(f"User {self.user.first_name} is leaving the lobby {self.lobby_group_name}")
+        try:
+            # Remove the player from the lobby
+            GameUtils._remove_player_from_lobby(
+                user=self.user,
+                group_name=self.lobby_group_name,
+                channel_layer=self.channel_layer,
+                channel_name=self.channel_name
+            )
+            
+            # Notify the user that they left successfully
+            self.send_json({
+                "type": "leave_lobby_success",
+                "message": "You have successfully left the lobby",
+            })
+            
+        except ValueError as e:
+            logger.error(e)
+            self.send_json({"type": "error", "message": str(e)})
+            
+        # Close the Websocket connection
+        self.close(code=1000)
