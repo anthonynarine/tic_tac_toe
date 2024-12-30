@@ -251,32 +251,43 @@ class GameUtils:
         return starting_turn, player_x, player_o
 
     @staticmethod
-    def initialize_game(game_id: int, player_x: dict, player_o: dict, starting_turn: str):
+    def initialize_game(game_id: int, player_x: dict, player_o: dict, starting_turn: str) -> TicTacToeGame:
         """
         Initialize the game instance with the provided players and starting turn.
 
         Args:
             game_id (int): The ID of the game to initialize.
-            player_x (dict): Player X information.
-            player_o (dict): Player O information
-            starting_turn (str): The starting Turin ("X" or "O")
-            
+            player_x (dict): Player X information (must contain "id").
+            player_o (dict): Player O information (must contain "id").
+            starting_turn (str): The starting turn ("X" or "O").
+
         Returns:
-            TicTacToeGame: The initialized game instance
+            TicTacToeGame: The initialized game instance.
+
+        Raises:
+            ValueError: If the users or game instance cannot be retrieved.
         """
-        # Fetch CustomUser instance for the players
-        player_x_instance = CustomUser.objects.get(pk=player_x["id"])
-        player_o_instance = CustomUser.objects.get(pk=player_o["id"])
-        
-        # Retrieve and update the game instance
-        game = TicTacToeGame.objects.get(id=game_id)
-        game.player_x = player_x_instance
-        game.player_o = player_o_instance
-        game.starting_turn = starting_turn
-        game.board_state = DEFAULT_BOARD_STATE
-        game.save()
-        
+        # Step 1: Fetch CustomUser instances for the players
+        try:
+            player_x_instance = CustomUser.objects.get(pk=player_x["id"])
+            player_o_instance = CustomUser.objects.get(pk=player_o["id"])
+        except CustomUser.DoesNotExist as e:
+            raise ValueError(f"User does not exist: {e}")
+
+        # Step 2: Retrieve and update the game instance
+        try:
+            game = TicTacToeGame.objects.get(id=game_id)
+            game.player_x = player_x_instance
+            game.player_o = player_o_instance
+            game.current_turn = starting_turn  # Fixed typo from "starting_turn" to "current_turn"
+            game.board_state = DEFAULT_BOARD_STATE
+            game.save()
+        except TicTacToeGame.DoesNotExist as e:
+            raise ValueError(f"Game does not exist: {e}")
+
+        # Step 3: Return the updated game instance
         return game
+
 
         
         
