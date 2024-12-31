@@ -374,7 +374,68 @@ class GameConsumer(JsonWebsocketConsumer):
             # Step 4: Determine the user's role in the game
             player_role = GameUtils.determine_player_role(user=self.user, game=game)
 
+            # Step 5: Prepare detailed player information
+            player_x_info = {
+                "id": game.player_x.id,
+                "first_name": game.player_x.first_name,
+            } if game.player_x else None
 
-    
-                    
-            
+            player_o_info = {
+                "id": game.player_o.id if game.player_o else None,
+                "first_name": "AI" if game.is_ai_game and game.player_o == ai_user else (
+                    game.player_o.first_name if game.player_o else "Waiting..."
+                ),
+            }
+
+            logger.debug(f"Player X Info: {player_o_info}"),
+            logger.debug(f"Player O Info: {player_o_info}")
+
+            # Step 6: Broadcast the game update to all clients
+            # Step 6: Broadcast the game update to all clients
+            self.send_json({
+                "type": "game_update",
+                "game_id": game.id,
+                "board_state": event["board_state"],
+                "current_turn": event["current_turn"],
+                "winner": event["winner"],
+                "player_role": player_role,
+                "player_x": player_x_info,
+                "player_o": player_o_info,
+            })
+            logger.info("Game update broadcasted successfully.")
+            logger.info(f"Broadcasting game update: Board State={game.board_state}, Current Turn={game.current_turn}")
+
+        except Exception as e:
+            logger.error(f"Error during game update: {e}")
+            self.send_json({"type": "error", "message": "An error occurred during the game update."})
+
+    def disconnect(self, code: int) -> None:
+        """
+        Handle WebSocket disconnection for game-related functionality.
+
+        Parameters:
+            code (int): The WebSocket close code.
+        """
+        if not hasattr(self, "lobby_group_name"):
+            logger.warning("Game user disconnected before joining a game lobby")
+            return
+
+        try:
+            if self.lobby_group_name in GameUtils.lobby_players:
+                GameUtils._remove_player_from_lobby(
+                    user=self.user,
+                    group_name=self.lobby_group_name,
+                    channel_layer=self.channel_layer,
+                    channel_name=self.channel_name,
+                )
+        except Exception as e:
+            logger.error(f"Error during game disconnection: {e}")
+
+        async_to_sync(self.channel_layer.group_discard)(
+            self.lobby_group_name,
+            self.channel_name,
+        )
+        logger.info(f"Game user {self.user.first_name} disconnected from game lobby {self.lobby_group_name}")
+
+
+

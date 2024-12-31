@@ -1,6 +1,7 @@
 import logging
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
+from .game_utils import GameUtils
 
 from backend.game.consumer.chat_utils import ChatUtils
 from .shared_utils_game_chat import SharedUtils
@@ -141,3 +142,31 @@ class ChatConsumer(JsonWebsocketConsumer):
         else:
             logger.warning(f"chat_message event missing 'content' field: {event}")
             self.send_json({"type": "error", "message": "Invalid chat message format."})
+
+    def disconnect(self, code: int) -> None:
+        """
+        Handle WebSocket disconnection for chat-related functionality.
+
+        Parameters:
+            code (int): The WebSocket close code.
+        """
+        if not hasattr(self, "lobby_group_name"):
+            logger.warning("Chat user disconnected before joining a chat lobby")
+            return
+
+        try:
+            if self.lobby_group_name in GameUtils.lobby_players:
+                GameUtils._remove_player_from_lobby(
+                    user=self.user,
+                    group_name=self.lobby_group_name,
+                    channel_layer=self.channel_layer,
+                    channel_name=self.channel_name,
+                )
+        except Exception as e:
+            logger.error(f"Error during chat disconnection: {e}")
+
+        async_to_sync(self.channel_layer.group_discard)(
+            self.lobby_group_name,
+            self.channel_name,
+        )
+        logger.info(f"Chat user {self.user.first_name} disconnected from chat lobby {self.lobby_group_name}")
