@@ -1,6 +1,5 @@
 
 import random
-import re
 from asgiref.sync import async_to_sync
 from channels.layers import BaseChannelLayer
 from game.models import TicTacToeGame, DEFAULT_BOARD_STATE
@@ -192,21 +191,6 @@ class GameUtils:
         return players
     
     @staticmethod
-    def randomize_turn(players: list):
-        """
-        Randominize which player start 1st and assign player roles.
-
-        Args:
-            players (list): List of players in the lobby.
-            
-        Returns:
-            tuple: (starting_turn, player_x, player_o)
-        """
-        starting_turn = random.choice(["X", "O"])
-        player_x, player_o = (players[0], players[1]) if starting_turn == "X" else (players[1], players[0])
-        return starting_turn, player_x, player_o
-
-    @staticmethod
     def randomize_turn(players: list) -> tuple:
         """
         Randomizes which player starts first and assigns player roles.
@@ -288,6 +272,36 @@ class GameUtils:
         # Step 3: Return the updated game instance
         return game
 
+    @staticmethod
+    def get_ai_user() -> CustomUser:
+        """
+        Fetch the AI user. Ensure that the AI user exists in the database.
 
-        
-        
+        Returns:
+            CustomUser: The AI user instance if found, otherwise None.
+        """
+        ai_user = CustomUser.objects.filter(email="ai@tictactoe.com").first()
+        if not ai_user:
+            logger.warning("AI user with email ai@tictactoe.com does not exist.")
+        return ai_user
+    
+    @staticmethod
+    def determine_player_role(user: CustomUser, game: TicTacToeGame) -> str:
+        """
+        Determine the role of the user in the game (X, O, or Spectator)
+
+        Args:
+            user (CustomUser): The current user making the reqeust.
+            game (TicTacToeGame): The TicTacToeGame instance.
+        Returns:
+            str: "X", "O", or "Spectator"
+        """
+        if not game.player_x or not game.player_o:
+            logger.warning("Game is incomplete; waiting for players to join.")
+            return "Spectator"
+
+        if user == game.player_x:
+            return "X"
+        elif user == game.player_o:
+            return "O"
+        return "Spectator"

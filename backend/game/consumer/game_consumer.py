@@ -1,6 +1,7 @@
 import logging
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
+from django.core.exceptions import ValidationError
 from .shared_utils_game_chat import SharedUtils
 from .game_utils import GameUtils
 
@@ -275,6 +276,103 @@ class GameConsumer(JsonWebsocketConsumer):
             logger.error(f"Failed to start the game: {e}")
             self.send_json({"type": "error", "message": "Failed to start the game due to a server error."})
 
+    def handle_move(self, content: dict) -> None:
+        """
+        Handle a move made by a player.
+
+        Parameters:
+            content (dict): The message payload containing the move details.
+        """
+        # Step 1: Extract the position from the message payload
+        position = content.get("position")
+        user = self.scope["user"]
+
+        # Step 2: Validate the move position
+        if position is None:
+            self.send_json({
+                "type": "error",
+                "message": "Invalid move: Position is missing."
+            })
+            return
+
+        if not isinstance(position, int) or not (0 <= position < 9):
+            self.send_json({
+                "type": "error",
+                "message": "Invalid move: Position must be an integer between 0 and 8."
+            })
+            return
+
+        # Step 3: Retrieve the game instance using the utility method
+        try:
+            game = GameUtils.get_game_instance(game_id=self.game_id)
+        except ValueError as e:
+            self.send_json({"type": "error", "message": str(e)})
+            return
+
+        logger.info(f"Game object retrieved: {game}")
+
+        # Step 4: Determine the player's marker ("X" or "O")
+        if user == game.player_x:
+            player_marker = "X"
+        elif user == game.player_o:
+            player_marker = "O"
+        else:
+            logger.warning(f"Unauthorized move attempt by {user.first_name}")
+            self.send_json({
+                "type": "error",
+                "message": "You are not a participant in this game."
+            })
+            return
+
+        logger.info(f"Player {user.first_name} ({player_marker}) made a move at position {position}")
+
+        # Step 5: Make the move and update the game state
+        try:
+            game.make_move(position=position, player=player_marker)
+            logger.info(f"Move made successfully: {game.board_state}")
+        except ValidationError as e:
+            logger.error(f"Invalid move: {e}")
+            self.send_json({
+                "type": "error",
+                "message": str(e) if str(e) else "Invalid move due to a validation error."
+            })
+
+    def game_update(self, event: dict) -> None:
+        """
+        Broadcast the updated game state to all connected clients.
+        
+        Parameters:
+            event(dict): The message payload containing the updated game state.
+                        Expected keys: "board_state, "current_turn", "winner".
+        """
+        logger.info(f"Received game update event: {event}")
+        
+        try:
+            # Step 1: Validate required keys in the event playload
+            required_keys = ["board_state", "current_turn", "winner"]
+            if not all(key in event for key in required_keys):
+                logger.error(f"Missing keys in event:: {event}")
+                self.send_json({"type": "error", "message": "Invalid game update payload."})
+                return
+            
+            # Step 2 Retrieve the game instance
+            try:
+                game = GameUtils.get_game_instance(self.game_id)
+            except ValueError as e:
+                self.send_json({"type": "error", "message": str(e)})
+                return
+            
+            # Step 3: Retrieve the AI user if the game is AI-based
+            ai_user = None
+            if game.is_ai_game:
+                ai_user = self.get_ai_user()
+                if not ai_user:
+                    logger.critical("AI user (ai@tictactoe.com) is missing. Please run migrations.")
+                    self.send_json({"type": "error", "message": "AI user missing."})
+                    return
+                        
+            # Step 4: Determine the user's role in the game
+            player_role = GameUtils.determine_player_role(user=self.user, game=game)
 
 
     
