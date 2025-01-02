@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { GameWebSocketContext } from "../context/GameWebsocketContext";
 import { useGameContext } from "../context/gameContext";
+import { showToast } from "../../utils/toast/Toast";
 
 
 /**
@@ -37,19 +38,21 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
             console.error("Access token not found. Cannot initialize WebSocket.");
         }
 
-        const webSocketUrl = `ws://localhost:8000/ws/lobby/${gameId}/?token=${token}`;
+        const webSocketUrl_V1 = `ws://localhost:8000/ws/lobby/${gameId}/?token=${token}`;
+        const gameWebSocketUrl = `ws://localhost:8000/ws/game/${gameId}/?token=${token}`;
 
-        const webSocket = new WebSocket(webSocketUrl);
-        socketRef.current = webSocket;
+        const gameWebSocket = new WebSocket(webSocketUrl_V1);
+        socketRef.current = gameWebSocket;
 
         // When the Websocket connection opens
-        webSocket.onopen = () => {
+        gameWebSocket.onopen = () => {
             console.log(`Websocket connected for game: ${gameId}`);
             setIsConnected(true);
+            showToast("success", "Successfully connected to the game WebSocket."); // Handle connection_success equivalent
         };
 
         // When a message is received via Websocket
-        webSocket.onmessage = (event) => {
+        gameWebSocket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log("Websocket message recieved:", data);
         
@@ -63,13 +66,13 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
         };
 
         // When the Websocket connection is closed
-        webSocket.onclose = () => {
+        gameWebSocket.onclose = () => {
             console.log("Websocket disconnected");
             setIsConnected(false);
         };
 
         // When there's an error in the Websocket connection
-        webSocket.onerror = (error) => {
+        gameWebSocket.onerror = (error) => {
             console.error("Websocket error:", error);
         };
 
