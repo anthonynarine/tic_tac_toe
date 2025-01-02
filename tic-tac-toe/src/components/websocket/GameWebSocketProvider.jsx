@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { WebSocketContext } from "./WebsocketContext";
+import { GameWebSocketContext } from "../context/GameWebsocketContext";
 import { useGameContext } from "../context/gameContext";
-import { useNavigate } from "react-router-dom";
 
 
 /**
@@ -15,17 +14,15 @@ import { useNavigate } from "react-router-dom";
  * @returns 
  */
 
-export const WebSocketProvider = ({ children, gameId }) => {
+export const GameWebSocketProvider = ({ children, gameId }) => {
     // Refrence to hold the Websocket instance
     const socketRef = useRef(null);
 
     // State to track if the Websocket is connected
     const [isConnected, setIsConnected] = useState(false);
 
-    const navigate = useNavigate()
-
     // Access the game context to update the state
-    const { state, dispatch } = useGameContext(); 
+    const { dispatch } = useGameContext(); 
 
     // Effect to handle the Websocket Connectin lifecycle. 
     useEffect(() => {
@@ -109,8 +106,8 @@ export const WebSocketProvider = ({ children, gameId }) => {
 
     // Render the context provider with the given children
     return (
-        <WebSocketContext.Provider value={contextValue}>
+        <GameWebSocketContext.Provider value={contextValue}>
             {children}
-        </WebSocketContext.Provider>
+        </GameWebSocketContext.Provider>
     )
 };

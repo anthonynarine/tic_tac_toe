@@ -1,7 +1,7 @@
 from django.urls import re_path
-from .consumer import GameLobbyConsumer
-from consumer.chat_consumer import ChatConsumer
-from consumer.game_consumer import GameConsumer
+from .consumer.consumer_v1 import GameLobbyConsumer
+from game.consumer.chat_consumer import ChatConsumer
+from game.consumer.game_consumer import GameConsumer
 
 # WebSocket URL patterns
 websocket_urlpatterns = [

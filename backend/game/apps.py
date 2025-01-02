@@ -7,5 +7,5 @@ class GameConfig(AppConfig):
     
     def ready(self):
         # Import all signal modules
-        import backend.game.signals.create_ai_player_signal
-        import backend.game.signals.game_update_signal
+        import game.signals.create_ai_player_signal
+        import game.signals.game_update_signal

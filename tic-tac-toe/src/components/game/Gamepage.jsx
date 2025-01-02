@@ -3,7 +3,7 @@ import GameLoader from "../../utils/gameLoader/Gameloader";
 import GameBoard from "./GameBoard";
 import GameResult from "./GameResult";
 import GameManager from "./GameManager";
-import { WebSocketProvider } from "../websocket/WebSocketProvider";
+import { GameWebSocketProvider } from "../websocket/GameWebSocketProvider";
 import { useParams } from "react-router-dom";
 
 /**
@@ -114,8 +114,8 @@ export const GamePage = () => {
  * @returns {JSX.Element} The game component with WebSocket support.
  */
 export const Game = () => (
-    <WebSocketProvider gameId={useParams().id}>
+    <GameWebSocketProvider gameId={useParams().id}>
         <GamePage />
-    </WebSocketProvider>
+    </GameWebSocketProvider>
 );
 
