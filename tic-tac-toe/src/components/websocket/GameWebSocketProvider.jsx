@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { GameWebSocketContext } from "../context/GameWebsocketContext";
 import { useGameContext } from "../context/gameContext";
 import { showToast } from "../../utils/toast/Toast";
+import { useNavigate } from "react-router-dom";
+import gameWebsocketActions from "./gameWebsocketActions";
 
 
 /**
@@ -24,6 +26,7 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
 
     // Access the game context to update the state
     const { dispatch } = useGameContext(); 
+    const navigate = useNavigate();
 
     // Effect to handle the Websocket Connectin lifecycle. 
     useEffect(() => {
@@ -55,13 +58,13 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
         gameWebSocket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log("Websocket message recieved:", data);
-        
-            // Handle specific message types (e.g game updates)
-            if (data.type === "game_update") {
-                dispatch({
-                    type: "UPDATE_GAME_STATE",
-                    payload: data, // Dispatch the updated game state to  the reducer
-                })
+
+            const actions = gameWebsocketActions(dispatch, navigate); // Get actions
+
+            if (actions[data.type]) {
+                actions[data.type](data); // Call the appropriate handler
+            } else {
+                console.warn(`Unhandled WS message type: ${data.type}`)
             }
         };
 

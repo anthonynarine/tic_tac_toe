@@ -86,7 +86,6 @@ export const lobbyReducer = (state, action) => {
             };
         }
         
-
         case "ADD_MESSAGE": {
             /**
              * Adds a chat message to the lobby.
@@ -159,8 +158,7 @@ export const lobbyReducer = (state, action) => {
                 isGameStarted: true, // Mark the game as started
             };
         }
-        
-        
+            
         case "START_GAME": {
             /**
              * Updates the state to indicate the game has started.
