@@ -2,11 +2,11 @@ import "./ResultModal.css";
 import classNames from "classnames";
 import { useNavigate } from "react-router-dom";
 import { AiFillHome } from "react-icons/ai"; // Import the home icon
-import { useGameContext } from "../context/gameContext";
+import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
 
 export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
   const navigate = useNavigate(); // Hook for navigation
-  const { dispatch } = useGameContext();
+  const { dispatch } = useGameWebSocketContext();
 
   const resultModalClasses = classNames({
     "modal-open": isGameOver,

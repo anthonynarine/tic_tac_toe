@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { ChatWebsocketContext } from "../context/ChatWebsocketContext";
+import { ChatWebsocketContext } from "./ChatWebsocketContext";
 import { useLobbyContext } from "../context/lobbyContext";
 
 /**

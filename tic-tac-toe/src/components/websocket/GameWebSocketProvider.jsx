@@ -1,119 +1,98 @@
-import React, { useState, useEffect, useRef } from "react";
-import { GameWebSocketContext } from "../context/GameWebsocketContext";
-import { useGameContext } from "../context/gameContext";
+import React, { useState, useEffect, useRef, useReducer } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { GameWebSocketContext } from "./GameWebsocketContext";
 import { showToast } from "../../utils/toast/Toast";
-import { useNavigate } from "react-router-dom";
 import gameWebsocketActions from "./gameWebsocketActions";
-
+import { gameReducer, INITIAL_STATE } from "../reducers/gameReducer";
 
 /**
- * WebsocketProvider
+ * GameWebSocketProvider
  * 
- * This component sets up a Websocket connection for real time communication with the backend.
- * It provides "sendessage and isConnected through a context for child components"
- * @param {Objec} props - The component's props
- * @param {React.ReactNode} props.children - The child components that need access to the Websocket context.
- * @param {string} props.gameId - The game ID for establishing a Websocket connection specific to a game 
- * @returns 
+ * Manages the WebSocket connection and game state for a specific game ID.
+ * Provides game state, dispatch, and WebSocket communication to child components.
+ * 
+ * @param {Object} props - The component's props.
+ * @param {React.ReactNode} props.children - Child components requiring game context.
+ * @param {string} [props.gameId] - Optional game ID. Extracted from route if not provided.
+ * 
+ * @returns {JSX.Element} The GameWebSocketProvider component.
  */
-
 export const GameWebSocketProvider = ({ children, gameId }) => {
-    // Refrence to hold the Websocket instance
+    const { id: routeGameId } = useParams(); // Get game ID from the route
+    const effectiveGameId = gameId || routeGameId; // Use the prop if available, fallback to route
+    const [state, dispatch] = useReducer(gameReducer, INITIAL_STATE);
     const socketRef = useRef(null);
-
-    // State to track if the Websocket is connected
     const [isConnected, setIsConnected] = useState(false);
-
-    // Access the game context to update the state
-    const { dispatch } = useGameContext(); 
     const navigate = useNavigate();
 
-    // Effect to handle the Websocket Connectin lifecycle. 
     useEffect(() => {
+        if (!effectiveGameId) return;
 
-        if(!gameId)  return;
-
-        // Construct websocket URL with the game ID and user token for auth
         const token = localStorage.getItem("access_token");
-
-        // Check if token exists before initializing the WebSocket
         if (!token) {
             console.error("Access token not found. Cannot initialize WebSocket.");
+            return;
         }
 
-        const webSocketUrl_V1 = `ws://localhost:8000/ws/lobby/${gameId}/?token=${token}`;
-        const gameWebSocketUrl = `ws://localhost:8000/ws/game/${gameId}/?token=${token}`;
-
-        const gameWebSocket = new WebSocket(webSocketUrl_V1);
+        const gameWebSocketUrl = `ws://localhost:8000/ws/game/${effectiveGameId}/?token=${token}`;
+        const gameWebSocket = new WebSocket(gameWebSocketUrl);
         socketRef.current = gameWebSocket;
 
-        // When the Websocket connection opens
         gameWebSocket.onopen = () => {
-            console.log(`Websocket connected for game: ${gameId}`);
+            console.log(`WebSocket connected for game: ${effectiveGameId}`);
             setIsConnected(true);
-            showToast("success", "Successfully connected to the game WebSocket."); // Handle connection_success equivalent
+            showToast("success", "Successfully connected to the game WebSocket.");
         };
 
-        // When a message is received via Websocket
         gameWebSocket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            console.log("Websocket message recieved:", data);
+            console.log("WebSocket message received:", data);
 
-            const actions = gameWebsocketActions(dispatch, navigate); // Get actions
-
+            const actions = gameWebsocketActions(dispatch, navigate);
             if (actions[data.type]) {
-                actions[data.type](data); // Call the appropriate handler
+                actions[data.type](data);
             } else {
-                console.warn(`Unhandled WS message type: ${data.type}`)
+                console.warn(`Unhandled WebSocket message type: ${data.type}`);
             }
         };
 
-        // When the Websocket connection is closed
         gameWebSocket.onclose = () => {
-            console.log("Websocket disconnected");
+            console.log("WebSocket disconnected");
             setIsConnected(false);
+            socketRef.current = null; // Clear the reference
         };
 
-        // When there's an error in the Websocket connection
         gameWebSocket.onerror = (error) => {
-            console.error("Websocket error:", error);
+            console.error("WebSocket error:", error);
         };
 
-        // Clean up Websocket connection when the component or gameId changes
         return () => {
             if (socketRef.current) {
-                socketRef.current.close()
+                socketRef.current.close();
+                socketRef.current = null; // Ensure cleanup
             }
         };
-    }, [gameId]);
-
-    /**
-     * SendMessage
-     * 
-     * Send a JSON-formatted message over the WebSocket connection.
-     * 
-     * @param {Object} message - The message payload to send
-     */
+    }, [effectiveGameId, navigate]);
 
     const sendMessage = (message) => {
         if (socketRef.current && isConnected) {
-            socketRef.current.send(JSON.stringify(message)); // Send the message as JSON string
+            socketRef.current.send(JSON.stringify(message));
             console.log("Message sent:", message);
         } else {
-            console.error("Cannot send message: Websocket is not connected");
+            console.error("Cannot send message: WebSocket is not connected");
         }
     };
 
-    // Context vaue to provied WebSocket functinality to child components
     const contextValue = {
-        sendMessage, // Function to send message over WebSocket
-        isConnected, // State to indicate if the WebSocket is connected
+        state,        // Game state managed by useReducer
+        dispatch,     // Dispatch function to update state
+        sendMessage,  // Function to send WebSocket messages
+        isConnected,  // WebSocket connection status
     };
 
-    // Render the context provider with the given children
     return (
         <GameWebSocketContext.Provider value={contextValue}>
             {children}
         </GameWebSocketContext.Provider>
-    )
+    );
 };

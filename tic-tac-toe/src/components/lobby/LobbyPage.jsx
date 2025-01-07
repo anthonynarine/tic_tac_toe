@@ -1,72 +1,52 @@
-import React, { useState, useRef, useEffect } from "react";
+import React from "react";
+import { useParams } from "react-router-dom";
 import { useLobbyContext } from "../context/lobbyContext";
-import { useGameWebsocketContext } from "../websocket/GameWebsocketContext";
-import { useChatWebsocketContext } from "../websocket/ChatWebsocketContext";
+import { ChatWebsocketProvider} from "../websocket/ChatWebsocketProvider"
+import { useGameWebSocketContext} from "../websocket/GameWebsocketContext"
 import PlayerList from "./PlayerList"; // Abstracted player list component
 import { showToast } from "../../utils/toast/Toast";
 import "./lobby.css";
 
 /**
- * LobbyPage Component
+ * LobbyPageContent Component
  * 
- * Handles game lobby functionality, including chat and game-related
- * features like sending messages, displaying players, and starting a game.
- * Integrates with the ChatWebsocketProvider and GameWebsocketProvider for
- * seamless WebSocket communication.
+ * The main content of the LobbyPage, managing players, chat, and game controls.
  * 
- * @returns {JSX.Element} The LobbyPage component UI.
+ * @returns {JSX.Element} The LobbyPage content UI.
  */
-const LobbyPage = () => {
-    // Contexts for managing state and dispatch
-    const { state } = useLobbyContext(); // Step 1: Access the lobby state
-    const { sendGameMessage, isConnected: isGameConnected } = useGameWebsocketContext(); // Step 2: Access game WebSocket functionality
-    const { sendChatMessage, isConnected: isChatConnected } = useChatWebsocketContext(); // Step 3: Access chat WebSocket functionality
+const LobbyPageContent = () => {
+    const { state } = useLobbyContext();
+    const { sendGameMessage, isConnected: isGameConnected } = useGameWebSocketContext();
 
-    // Local state for chat message input
-    const [message, setMessage] = useState(""); // Manage chat input
-    const chatContainerRef = useRef(null); // Reference for auto-scrolling chat messages
+    const [message, setMessage] = React.useState("");
+    const chatContainerRef = React.useRef(null);
 
-    // Constants
-    const MAX_PLAYERS = 2; // Define the max number of players
-    const isLobbyFull = state.players.length === MAX_PLAYERS; // Check if the lobby is full
+    const MAX_PLAYERS = 2;
+    const isLobbyFull = state.players.length === MAX_PLAYERS;
 
-    /**
-     * Handles sending a chat message.
-     * Validates input and sends the message through the ChatWebsocketProvider.
-     */
     const handleSendMessage = () => {
         if (message.trim()) {
-            sendChatMessage({ type: "chat_message", message }); // Send message via WebSocket
-            setMessage(""); // Clear input field after sending
+            sendGameMessage({ type: "chat_message", message });
+            setMessage("");
         } else {
-            showToast("error", "Message cannot be empty."); // Error if message is empty
+            showToast("error", "Message cannot be empty.");
         }
     };
 
-    /**
-     * Handles starting the game.
-     * Validates player count and sends a start game request.
-     */
     const handleStartGame = () => {
         if (!isLobbyFull) {
             showToast("error", "You need at least 2 players to start the game.");
             return;
         }
-        sendGameMessage({ type: "start_game" }); // Send start game action via WebSocket
+        sendGameMessage({ type: "start_game" });
     };
 
-    /**
-     * Handles inviting players to empty slots.
-     */
     const handleInvite = () => {
-        navigator.clipboard.writeText(window.location.href); // Copy lobby link to clipboard
-        showToast("success", "Invite link copied to clipboard!"); // Show success notification
+        navigator.clipboard.writeText(window.location.href);
+        showToast("success", "Invite link copied to clipboard!");
     };
 
-    /**
-     * Automatically scrolls the chat container when new messages are added.
-     */
-    useEffect(() => {
+    React.useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
@@ -76,12 +56,12 @@ const LobbyPage = () => {
         <div className="lobby-container">
             <h1 className="lobby-title">Game Lobby</h1>
 
-            {/* Render player list */}
+            {/* Player List Section */}
             <div className="lobby-details">
                 <PlayerList players={state.players} maxPlayers={MAX_PLAYERS} onInvite={handleInvite} />
             </div>
 
-            {/* Chat section */}
+            {/* Chat Section */}
             <div className="chat-container">
                 <h3>Game Chat</h3>
                 <div className="chat-messages" ref={chatContainerRef}>
@@ -91,24 +71,52 @@ const LobbyPage = () => {
                         </div>
                     ))}
                 </div>
-                <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type a message"
-                />
-                <button onClick={handleSendMessage} disabled={!isChatConnected}>
-                    Send
-                </button>
+                <div className="input-container">
+                    <input
+                        type="text"
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        placeholder="Type a message"
+                        className="chat-input"
+                    />
+                    <button
+                        onClick={handleSendMessage}
+                        disabled={!isGameConnected}
+                        className="send-button"
+                    >
+                        Send
+                    </button>
+                </div>
             </div>
 
-            {/* Control buttons */}
-            <div className="lobby-buttons">
-                <button onClick={handleStartGame} disabled={!isGameConnected || !isLobbyFull}>
+            {/* Game Controls */}
+            <div className="buttons-container">
+                <button
+                    onClick={handleStartGame}
+                    disabled={!isGameConnected || !isLobbyFull}
+                    className="start-button"
+                >
                     Start Game
                 </button>
             </div>
         </div>
+    );
+};
+
+/**
+ * LobbyPage Component
+ * 
+ * Wraps the LobbyPageContent with ChatWebsocketProvider for chat functionality.
+ * 
+ * @returns {JSX.Element} The wrapped LobbyPage UI.
+ */
+const LobbyPage = () => {
+    const { id: lobbyName } = useParams();
+
+    return (
+        <ChatWebsocketProvider lobbyName={lobbyName}>
+            <LobbyPageContent />
+        </ChatWebsocketProvider>
     );
 };
 

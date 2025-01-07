@@ -4,13 +4,12 @@ import { Board } from "../board/Board";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import useGameServices from "../hooks/useGameServices";
-import { useGameContext } from "../context/gameContext";
-import { WebSocketProvider } from "../websocket/WebSocketProvider";
+import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
 import { useWebSocketContext } from "../websocket/WebsocketContext";
 
 export const GameComponent = () => {
   const { id: gameId } = useParams(); // Extract the game ID from the URL (React Router)
-  const { state, dispatch } = useGameContext(); // Get current game state and dispatch function from context
+  const { state, dispatch } = useGameWebSocketContext(); // Get current game state and dispatch function from context
   const { fetchGame, makeMove, playAgainAI, completeGame } = useGameServices(); // Destructure backend service calls from custom hook
   const { sendMessage, isConnected } = useWebSocketContext(); // Access WebSocket functions from WebSocketContext
 
@@ -138,8 +137,4 @@ export const GameComponent = () => {
   );
 };
 
-export const Game = () => (
-  <WebSocketProvider gameId={useParams().id}>
-    <GameComponent />
-  </WebSocketProvider>
-);
+export default GameComponent

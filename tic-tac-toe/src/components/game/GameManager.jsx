@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useGameContext } from "../context/gameContext";
+import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
 import useGameServices from "../hooks/useGameServices";
 import { showToast } from "../../utils/toast/Toast";
 
@@ -31,7 +31,7 @@ import { showToast } from "../../utils/toast/Toast";
  */
 const GameManager = ({ gameId, children }) => {
     // Context and state
-    const { state, dispatch } = useGameContext();
+    const { state, dispatch } = useGameWebSocketContext();
     const { fetchGame, makeMove, playAgainAI, completeGame, finalizeGame } = useGameServices();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);

@@ -23,7 +23,7 @@ const Home = () => {
           navigate(`/games/${newGame.id}`);
         } else {
           // Navigate to the lobby for multiplayer games
-          navigate(`/lobby/${newGame.id}`);
+          navigate(`/lobbypage/${newGame.id}`);
         }
       }
     } catch (error) {

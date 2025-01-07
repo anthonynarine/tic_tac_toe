@@ -8,18 +8,19 @@ import RegistrationPage from "./components/user/RegisterPage";
 // import { Game } from "./components/game/Game";
 import { GamePage } from "./components/game/Gamepage";
 import ToastTestPage from "./utils/toast/ToastTestPage";
+import LobbyPage from "./components/lobby/LobbyPage";
 import Lobby from "./components/lobby/Lobby";
 
 import { UserProvider } from "./components/context/userContext";
-import { GameProvider } from "./components/context/gameContext";
 import { LobbyProvider } from "./components/context/lobbyContext";
+import { GameWebSocketProvider } from "./components/websocket/GameWebSocketProvider";
 
 function App() {
   return (
     <>
       <ToastContainer />
       <UserProvider>
-        <GameProvider>
+        <GameWebSocketProvider>
           <LobbyProvider>
           <Navbar />
             <div className="main-content">
@@ -29,11 +30,12 @@ function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/games/:id" element={<GamePage />} />
                 <Route path="/lobby/:id" element={<Lobby />} />
+                <Route path="lobbypage/:id" element={<LobbyPage />} />
                 <Route path="/toast-test-page" element={<ToastTestPage />} />
               </Routes>
             </div>
           </LobbyProvider>
-        </GameProvider>
+        </GameWebSocketProvider>
       </UserProvider>
     </>
   );

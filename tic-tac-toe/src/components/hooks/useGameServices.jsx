@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import useAuthAxios from "./useAuthAxios";
 import { showToast } from "../../utils/toast/Toast";
-import { useGameContext } from "../context/gameContext"
+import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
 import { useNavigate } from "react-router-dom";
 
 const useGameServices = () => {
@@ -10,7 +10,7 @@ const useGameServices = () => {
     const [joinableGames, setJoinableGames] = useState([]); // For open games
     const [loading, setLoading] = useState(true); 
     const [error, setError] = useState(null);
-    const { dispatch } = useGameContext();
+    const { dispatch } = useGameWebSocketContext();
     const navigate = useNavigate();
 
     // Helper function to extract error message
@@ -273,8 +273,6 @@ const useGameServices = () => {
             return null; // Return null if there's an error
         }
     }, [authAxios, completeGame, dispatch]);
-
-
 
     // Function to create a new AI game
     const playAgainAI = async () => {
