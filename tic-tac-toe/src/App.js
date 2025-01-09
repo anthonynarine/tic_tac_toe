@@ -29,7 +29,7 @@ function App() {
                 <Route path="/register" element={<RegistrationPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/games/:id" element={<GamePage />} />
-                <Route path="/lobby/:id" element={<Lobby />} />
+                {/* <Route path="/lobby/:id" element={<Lobby />} /> */}
                 <Route path="lobbypage/:id" element={<LobbyPage />} />
                 <Route path="/toast-test-page" element={<ToastTestPage />} />
               </Routes>

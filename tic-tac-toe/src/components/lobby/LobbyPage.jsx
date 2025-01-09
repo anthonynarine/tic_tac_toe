@@ -1,8 +1,10 @@
 import React from "react";
 import { useParams } from "react-router-dom";
+import { useEffect } from "react";
 import { useLobbyContext } from "../context/lobbyContext";
-import { ChatWebsocketProvider} from "../websocket/ChatWebsocketProvider"
-import { useGameWebSocketContext} from "../websocket/GameWebsocketContext"
+import { ChatWebsocketProvider } from "../websocket/ChatWebsocketProvider";
+import { useChatWebSocketContext } from "../websocket/ChatWebsocketContext";
+import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
 import PlayerList from "./PlayerList"; // Abstracted player list component
 import { showToast } from "../../utils/toast/Toast";
 import "./lobby.css";
@@ -17,6 +19,7 @@ import "./lobby.css";
 const LobbyPageContent = () => {
     const { state } = useLobbyContext();
     const { sendGameMessage, isConnected: isGameConnected } = useGameWebSocketContext();
+    const { sendChatMessage, isConnected: isChatConnected } = useChatWebSocketContext();
 
     const [message, setMessage] = React.useState("");
     const chatContainerRef = React.useRef(null);
@@ -24,15 +27,23 @@ const LobbyPageContent = () => {
     const MAX_PLAYERS = 2;
     const isLobbyFull = state.players.length === MAX_PLAYERS;
 
+    console.log("Lobby State", state)
+
+    /**
+     * Handles sending a chat message.
+     */
     const handleSendMessage = () => {
         if (message.trim()) {
-            sendGameMessage({ type: "chat_message", message });
+            sendChatMessage(message); // Use chat WebSocket
             setMessage("");
         } else {
             showToast("error", "Message cannot be empty.");
         }
     };
 
+    /**
+     * Handles starting the game.
+     */
     const handleStartGame = () => {
         if (!isLobbyFull) {
             showToast("error", "You need at least 2 players to start the game.");
@@ -41,12 +52,18 @@ const LobbyPageContent = () => {
         sendGameMessage({ type: "start_game" });
     };
 
+    /**
+     * Handles inviting players by copying the lobby link.
+     */
     const handleInvite = () => {
         navigator.clipboard.writeText(window.location.href);
         showToast("success", "Invite link copied to clipboard!");
     };
 
-    React.useEffect(() => {
+    /**
+     * Automatically scrolls the chat container when new messages are added.
+     */
+    useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
@@ -81,7 +98,7 @@ const LobbyPageContent = () => {
                     />
                     <button
                         onClick={handleSendMessage}
-                        disabled={!isGameConnected}
+                        disabled={!isChatConnected} // Disable if chat WebSocket is not connected
                         className="send-button"
                     >
                         Send
@@ -93,7 +110,7 @@ const LobbyPageContent = () => {
             <div className="buttons-container">
                 <button
                     onClick={handleStartGame}
-                    disabled={!isGameConnected || !isLobbyFull}
+                    disabled={!isGameConnected || !isLobbyFull} // Disable if game WebSocket is not connected
                     className="start-button"
                 >
                     Start Game

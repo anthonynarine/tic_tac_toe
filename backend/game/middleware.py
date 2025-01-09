@@ -2,6 +2,7 @@ import logging
 from urllib.parse import parse_qs
 from channels.db import database_sync_to_async
 from rest_framework_simplejwt.tokens import AccessToken
+from django.core.cache import cache
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -10,10 +11,9 @@ class JWTWebSocketMiddleware:
     """
     Middleware for WebSocket connections to handle JWT-based authentication.
 
-    This middleware intercepts WebSocket connection requests and extracts the JWT token
-    from query parameters or headers. It validates the token and attaches the authenticated
-    user to the WebSocket connection's scope. If the token is invalid or missing, the scope
-    is assigned an AnonymousUser.
+    This middleware intercepts WebSocket connection requests, extracts the JWT token,
+    validates the token, and attaches the authenticated user to the WebSocket's scope.
+    If the token is missing, invalid, or expired, an AnonymousUser is assigned to the scope.
     """
 
     def __init__(self, app):
@@ -29,11 +29,12 @@ class JWTWebSocketMiddleware:
         """
         Process the WebSocket connection and authenticate the user using the JWT token.
 
-        This method:
-        - Extracts the token from the WebSocket connection's headers or query string.
-        - Decodes and validates the token.
-        - Attaches the authenticated user to the WebSocket connection's scope.
-        - Assigns an AnonymousUser if the token is invalid or missing.
+        Steps:
+        1. Extract the JWT token from the WebSocket connection's headers or query string.
+        2. Decode and validate the token using SimpleJWT.
+        3. Retrieve the user from the database or cache using the user ID from the token payload.
+        4. Attach the authenticated user to the WebSocket connection's scope.
+        5. Assign an AnonymousUser if the token is missing, invalid, or expired.
 
         Args:
             scope (dict): The WebSocket connection scope, containing metadata about the connection.
@@ -49,26 +50,37 @@ class JWTWebSocketMiddleware:
         from django.contrib.auth.models import AnonymousUser
         from django.contrib.auth import get_user_model
 
-        # Extract token from headers or query string
+        # Step 1: Extract token from headers or query string
         token = self._get_token_from_scope(scope)
 
         if token:
             try:
-                # Decode and validate the JWT token
+                # Step 2: Decode and validate the JWT token
                 User = get_user_model()  # Fetch the custom user model dynamically
                 access_token = AccessToken(token)  # Decode the JWT token
                 user_id = access_token["user_id"]  # Extract the user ID from the token payload
 
-                # Fetch the user and attach it to the WebSocket scope
-                scope["user"] = await self.get_user(user_id, User)
-                logger.info(f"User authenticated successfully: {scope['user']}")
+                # Step 3: Retrieve the user from cache or database
+                cache_key = f"user_{user_id}"
+                user = cache.get(cache_key)
+
+                if not user:
+                    user = await self.get_user(user_id, User)  # Fetch user from database
+                    cache.set(cache_key, user, timeout=60)  # Cache user for 60 seconds
+
+                # Step 4: Attach the authenticated user to the WebSocket scope
+                if user:
+                    scope["user"] = user
+                    logger.info(f"User authenticated successfully: {scope['user']} (ID: {user_id})")
+                else:
+                    raise ValueError("User not found.")
             except Exception as e:
-                # Handle invalid or expired tokens gracefully
+                # Step 5: Handle invalid or expired tokens gracefully
                 logger.warning(f"Invalid or expired token: {e}")
                 scope["user"] = AnonymousUser()
         else:
-            # Assign AnonymousUser if no token is found
-            logger.warning("No token found; assigning AnonymousUser.")
+            # Step 5: Assign AnonymousUser if no token is found
+            logger.info("No token found; assigning AnonymousUser.")
             scope["user"] = AnonymousUser()
 
         # Pass the request to the next middleware or application in the stack
@@ -79,9 +91,9 @@ class JWTWebSocketMiddleware:
         """
         Retrieve a user from the database asynchronously using the user ID from the token.
 
-        This method:
-        - Queries the database to fetch the user with the given primary key.
-        - Returns an AnonymousUser if the user does not exist.
+        Steps:
+        1. Query the database to fetch the user with the given primary key (ID).
+        2. Return an AnonymousUser if the user does not exist.
 
         Args:
             user_id (int): The ID of the user.
@@ -101,8 +113,10 @@ class JWTWebSocketMiddleware:
         """
         Extract the JWT token from the WebSocket connection's headers or query string.
 
-        This method first checks the headers for an 'Authorization' header containing a Bearer token.
-        If not found, it looks for a 'token' query parameter in the WebSocket's query string.
+        Steps:
+        1. Check the 'Authorization' header in the WebSocket connection's headers.
+        2. If the 'Authorization' header is missing, check the query string for a 'token' parameter.
+        3. Return the token if found; otherwise, return None.
 
         Args:
             scope (dict): The WebSocket connection scope, including headers and query string.
@@ -115,9 +129,10 @@ class JWTWebSocketMiddleware:
         auth_header = headers.get(b"authorization")  # Look for the 'Authorization' header
         if auth_header:
             # Decode the header value and extract the token after "Bearer "
-            token = auth_header.decode().split("Bearer ")[-1]
-            logger.debug("Token extracted from Authorization header.")
-            return token
+            parts = auth_header.decode().split()
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                logger.debug("Token extracted from Authorization header.")
+                return parts[1]
 
         # Step 2: Extract token from the query string
         query_string = parse_qs(scope.get("query_string", b"").decode())  # Parse query string

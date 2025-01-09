@@ -60,8 +60,8 @@ export const ChatWebsocketProvider = ({ children, lobbyName }) => {
         };
 
         // WebSocket 'onclose' handler: Called when the connection is closed
-        chatWebSocket.onclose = () => {
-            console.log("Chat WebSocket disconnected.");
+        chatWebSocket.onclose = (event) => {
+            console.log("Chat WebSocket disconnected.", event);
             setIsConnected(false);
         };
 
@@ -72,24 +72,44 @@ export const ChatWebsocketProvider = ({ children, lobbyName }) => {
 
         // STEP 4: Cleanup WebSocket on component unmount or lobbyName change
         return () => {
-            if (socketRef.current) socketRef.current.close();
+            if (socketRef.current?.readyState === WebSocket.OPEN) {
+                console.log("Closing WebSocket connection for lobby:", lobbyName);
+                socketRef.current.close();
+            }
         };
+        
     }, [lobbyName, dispatch]); // Rerun effect when lobbyName changes
 
     // STEP 5: Method to send a chat message over the WebSocket
     /**
      * Sends a chat message through the WebSocket connection.
      *
-     * @param {Object} message - The message payload to send.
+     * @param {string} content - The chat message content to send.
      */
-    const sendChatMessage = (message) => {
+    const sendChatMessage = (content) => {
+        console.log("Received content:", content); // Add this to see what is being passed
+        console.log("Type of content:", typeof content);
+    
+        if (typeof content !== "string") {
+            console.error("Invalid message content: Expected a string.");
+            return; // Exit early if the content is not a string
+        }
+    
         if (socketRef.current && isConnected) {
-            socketRef.current.send(JSON.stringify(message)); // Send message as JSON
-            console.log("Chat message sent:", message);
+            const payload = {
+                type: "chat_message", // Fixed message type
+                message: content.trim(), // Ensure the message is a trimmed string
+            };
+    
+            socketRef.current.send(JSON.stringify(payload)); // Send message as JSON
+            console.log("Chat message sent:", payload);
         } else {
             console.error("Cannot send chat message: WebSocket is not connected.");
         }
     };
+    
+    
+
 
     // STEP 6: Define context value and render the provider
     const contextValue = {

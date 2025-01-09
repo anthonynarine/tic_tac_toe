@@ -1,14 +1,13 @@
 import React, { useState } from "react";
-import { FaBars, FaTimes, FaUser, FaSignInAlt, FaSignOutAlt } from "react-icons/fa";
+import { FaBars, FaTimes, } from "react-icons/fa";
 import "./Navbar.css";
 import { PiGameControllerThin } from "react-icons/pi";
 import { CiLogin, CiLogout } from "react-icons/ci";
-import logored from "../assets/logo-red.png";
+
 import { useAuth } from "../hooks/useAuth";
 import { useUserContext } from "../context/userContext";
 import useGameServices from "../hooks/useGameServices";
-import { RiUserHeartLine } from "react-icons/ri";
-import { PiUserCirclePlusThin } from "react-icons/pi";
+
 import { LiaUserNinjaSolid } from "react-icons/lia";
 import { CiHome } from "react-icons/ci";
 
