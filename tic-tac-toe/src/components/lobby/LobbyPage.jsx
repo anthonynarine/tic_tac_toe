@@ -16,7 +16,7 @@ import "./lobby.css";
  * 
  * @returns {JSX.Element} The LobbyPage content UI.
  */
-const LobbyPageContent = () => {
+const LobbyPage = () => {
     const { state } = useLobbyContext();
     const { sendGameMessage, isConnected: isGameConnected } = useGameWebSocketContext();
     const { sendChatMessage, isConnected: isChatConnected } = useChatWebSocketContext();
@@ -120,21 +120,5 @@ const LobbyPageContent = () => {
     );
 };
 
-/**
- * LobbyPage Component
- * 
- * Wraps the LobbyPageContent with ChatWebsocketProvider for chat functionality.
- * 
- * @returns {JSX.Element} The wrapped LobbyPage UI.
- */
-const LobbyPage = () => {
-    const { id: lobbyName } = useParams();
-
-    return (
-        <ChatWebsocketProvider lobbyName={lobbyName}>
-            <LobbyPageContent />
-        </ChatWebsocketProvider>
-    );
-};
 
 export default LobbyPage;

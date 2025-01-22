@@ -24,6 +24,14 @@ export const ChatWebsocketProvider = ({ children, lobbyName }) => {
      * Ensures only one WebSocket connection is active at any time for the current lobby.
      */
     useEffect(() => {
+        console.log("ChatWebsocketProvider mounted for lobby:", lobbyName);
+
+        return () => {
+            console.log("ChatWebsocketProvider unmounted for lobby:", lobbyName);
+        };
+    }, []);
+
+    useEffect(() => {
         console.log("Initializing WebSocket for lobby:", lobbyName);
 
         if (!lobbyName) return; // Exit if no lobbyName is provided
@@ -85,10 +93,13 @@ export const ChatWebsocketProvider = ({ children, lobbyName }) => {
         };
 
         // STEP 4: Cleanup WebSocket connection on unmount or lobbyName change
+        // STEP 4: Cleanup WebSocket connection on unmount or lobbyName change
         return () => {
             if (socketRef.current) {
                 console.log("Cleaning up WebSocket for lobby:", lobbyName);
-                socketRef.current.close();
+                if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    socketRef.current.close();
+                }
                 socketRef.current = null; // Ensure the reference is cleared
             }
         };
