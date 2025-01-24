@@ -1,5 +1,5 @@
 import { Route, Routes, useParams } from "react-router-dom";
-import { ToastContainer } from "react-toastify";D
+import { ToastContainer } from "react-toastify";
 
 import Navbar from "./components/navbar/Navbar";
 import HomePage from "./components/home/HomePage";
@@ -17,6 +17,7 @@ import { ChatWebsocketProvider } from "./components/websocket/ChatWebsocketProvi
 // ChatProviderWrapper ensures lobbyName is passed correctly
 const ChatProviderWrapper = ({ children }) => {
     const { id: lobbyName } = useParams();
+    console.log("Rendering ChatProvider for lobby:", lobbyName)
     return <ChatWebsocketProvider lobbyName={lobbyName}>{children}</ChatWebsocketProvider>;
 };
 

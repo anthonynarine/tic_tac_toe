@@ -29,7 +29,7 @@ export const ChatWebsocketProvider = ({ children, lobbyName }) => {
         return () => {
             console.log("ChatWebsocketProvider unmounted for lobby:", lobbyName);
         };
-    }, []);
+    },[lobbyName]);
 
     useEffect(() => {
         console.log("Initializing WebSocket for lobby:", lobbyName);
@@ -98,7 +98,10 @@ export const ChatWebsocketProvider = ({ children, lobbyName }) => {
             if (socketRef.current) {
                 console.log("Cleaning up WebSocket for lobby:", lobbyName);
                 if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    console.log("Closing open Websocket")
                     socketRef.current.close();
+                } else {
+                    console.log("Websocket was not open during cleanup")
                 }
                 socketRef.current = null; // Ensure the reference is cleared
             }
