@@ -66,11 +66,15 @@ class ChatConsumer(JsonWebsocketConsumer):
             logger.info(f"New chat lobby initialized: {self.lobby_group_name}")
 
         # Step 4: Prevent duplicate connections for the same user
-        for channel in SharedUtils.lobby_players[self.lobby_group_name]["channels"]:
-            if self.user.id in [player["id"] for player in SharedUtils.lobby_players[self.lobby_group_name]["players"]]:
-                logger.warning(f"Duplicate WebSocket connection detected for user {self.user.first_name}. Closing connection.")
-                self.close(code=4004)
-                return
+        existing_players = SharedUtils.lobby_players[self.lobby_group_name]["players"]
+        if self.user.id in [player["id"] for player in existing_players]:
+            logger.warning(
+                f"Duplicate WebSocket connection detected for user {self.user.first_name} "
+                f"(ID: {self.user.id}) in lobby {self.lobby_group_name}. Closing connection."
+            )
+            self.close(code=4004)
+            return
+
 
         # Step 5: Add the WebSocket channel to the group
         try:
@@ -110,7 +114,6 @@ class ChatConsumer(JsonWebsocketConsumer):
         })
         logger.info(f"User {self.user.first_name} joined chat lobby: {self.lobby_group_name}.")
 
-        
     def receive_json(self, content: dict, **kwargs) -> None:
         """
         Handle incoming chat-related messages from the WebSocket client.
@@ -291,46 +294,66 @@ class ChatConsumer(JsonWebsocketConsumer):
         """
         Handle WebSocket disconnection for chat-related functionality.
 
-        Steps:
-        1. Ensure `lobby_group_name` exists.
-        2. Attempt to remove the user from the lobby group and handle cleanup.
-        3. Remove the WebSocket channel from the group.
-        """
-        logger.debug(f"Disconnecting WebSocket for code: {code}")
+        This method ensures that when a WebSocket connection is disconnected, the associated
+        channel and user are removed from the lobby group. If the lobby becomes empty (no players
+        or channels remain), it cleans up the lobby entirely. It also handles errors gracefully
+        and logs detailed information for debugging.
 
-        # Step 1: Ensure `lobby_group_name` exists.
+        Args:
+            code (int): The WebSocket close code indicating the reason for disconnection.
+
+        Steps:
+            1. Ensure `lobby_group_name` exists for the connection. If missing, log a warning and exit.
+            2. Attempt to remove the user and channel from the lobby group, updating the lobby state.
+            3. If the lobby has no players or channels remaining, delete it from the shared state.
+            4. Remove the WebSocket channel from the group using `channel_layer.group_discard`.
+            5. Log success or any errors encountered during cleanup.
+        """
+        logger.debug(f"Disconnecting WebSocket for code: {code}, Channel: {self.channel_name}")
+
+        # Step 1: Ensure `lobby_group_name` exists
         if not hasattr(self, "lobby_group_name") or not self.lobby_group_name:
-            logger.warning("Chat user disconnected before joining a chat lobby or lobby_group_name is missing.")
+            logger.warning(
+                f"User disconnected before joining a chat lobby. Channel: {self.channel_name}"
+            )
             return
 
-        # Step 2: Attempt to remove the user from the lobby group and handle cleanup.
+        # Step 2: Attempt to remove the user from the lobby group and handle cleanup
         try:
-            if hasattr(self, "user") and self.user:
-                if self.lobby_group_name in GameUtils.lobby_players:
-                    logger.debug(f"Removing user {self.user.first_name} from lobby group {self.lobby_group_name}.")
-                    GameUtils._remove_player_from_lobby(
-                        user=self.user,
-                        group_name=self.lobby_group_name,
-                        channel_layer=self.channel_layer,
-                        channel_name=self.channel_name,
-                    )
-                else:
-                    logger.debug(f"Lobby group {self.lobby_group_name} not found in active lobby players.")
-            else:
-                logger.warning("User attribute is missing or user is not authenticated during disconnection.")
-        except Exception as e:
-            logger.error(f"Error during chat disconnection for user: {getattr(self, 'user', 'Unknown')}. Error: {e}")
+            # Check if the lobby exists in the shared state
+            if self.lobby_group_name in SharedUtils.lobby_players:
+                # Remove the user from the players list
+                SharedUtils.lobby_players[self.lobby_group_name]["players"] = [
+                    player for player in SharedUtils.lobby_players[self.lobby_group_name]["players"]
+                    if player["id"] != self.user.id
+                ]
+                
+                # Remove the WebSocket channel from the channels set
+                SharedUtils.lobby_players[self.lobby_group_name]["channels"].discard(
+                    self.channel_name
+                )
 
-        # Step 3: Remove the WebSocket channel from the group.
+                # Step 3: Clean up the lobby if no players or channels remain
+                if not SharedUtils.lobby_players[self.lobby_group_name]["players"] and \
+                not SharedUtils.lobby_players[self.lobby_group_name]["channels"]:
+                    del SharedUtils.lobby_players[self.lobby_group_name]
+                    logger.info(f"Lobby {self.lobby_group_name} cleaned up as it is now empty.")
+        except Exception as e:
+            # Log any errors encountered during cleanup
+            logger.error(
+                f"Error during disconnection for channel {self.channel_name}. Error: {e}"
+            )
+
+        # Step 4: Remove the WebSocket channel from the group
         try:
             async_to_sync(self.channel_layer.group_discard)(
                 self.lobby_group_name,
                 self.channel_name,
             )
-            
-            logger.info(f"Chat user {getattr(self.user, 'first_name', 'Unknown')} disconnected from chat lobby {self.lobby_group_name}")
+            logger.info(f"Channel {self.channel_name} removed from group {self.lobby_group_name}.")
         except Exception as e:
-            logger.error(f"Error removing WebSocket channel from group {self.lobby_group_name}. Error: {e}")
+            # Log any errors encountered when discarding the channel
+            logger.error(f"Error removing channel {self.channel_name} from group {self.lobby_group_name}: {e}")
 
     def update_user_list(self, event: dict) -> None:
         """
