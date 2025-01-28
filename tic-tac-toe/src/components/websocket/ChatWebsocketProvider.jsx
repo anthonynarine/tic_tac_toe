@@ -3,12 +3,31 @@ import { ChatWebsocketContext } from "./ChatWebsocketContext";
 import { useLobbyContext } from "../context/lobbyContext";
 
 export const ChatWebsocketProvider = ({ children, lobbyName }) => {
+<<<<<<< HEAD
     const socketRef = useRef(null);
     const [isConnected, setIsConnected] = useState(false);
     const { dispatch } = useLobbyContext();
     let retryTimeout = null;
     let retryAttempts = 0;
     const MAX_RETRIES = 5;
+=======
+    // STEP 1: Setup references and state
+    const socketRef = useRef(null); // Singleton reference to the WebSocket instance
+    const [isConnected, setIsConnected] = useState(false); // Tracks WebSocket connection status
+    const { dispatch } = useLobbyContext(); // Access the lobby reducer's dispatch function
+
+    /**
+     * Establish a WebSocket connection to the server when the `lobbyName` changes.
+     * Ensures only one WebSocket connection is active at any time for the current lobby.
+     */
+    useEffect(() => {
+        console.log("ChatWebsocketProvider mounted for lobby:", lobbyName);
+
+        return () => {
+            console.log("ChatWebsocketProvider unmounted for lobby:", lobbyName);
+        };
+    },[lobbyName]);
+>>>>>>> 903d9d044f4f97693c3bcf81d042369cde8ddd8b
 
     useEffect(() => {
         console.log(`ChatWebsocketProvider mounted for lobby: ${lobbyName}`);
@@ -93,12 +112,20 @@ export const ChatWebsocketProvider = ({ children, lobbyName }) => {
             }
 
             if (socketRef.current) {
+<<<<<<< HEAD
                 const state = socketRef.current.readyState;
                 if (state === WebSocket.CONNECTING) {
                     console.log("WebSocket still connecting. Skipping immediate cleanup.");
                 } else if (state === WebSocket.OPEN || state === WebSocket.CLOSING) {
                     console.log("Closing WebSocket for cleanup.");
+=======
+                console.log("Cleaning up WebSocket for lobby:", lobbyName);
+                if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    console.log("Closing open Websocket")
+>>>>>>> 903d9d044f4f97693c3bcf81d042369cde8ddd8b
                     socketRef.current.close();
+                } else {
+                    console.log("Websocket was not open during cleanup")
                 }
                 socketRef.current = null;
             }
