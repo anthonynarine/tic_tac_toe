@@ -7,34 +7,31 @@ import { CiCirclePlus } from "react-icons/ci";
 import "./lobby.css";
 
 /**
- * LobbyPage Component
+ * Lobby Component
  *
  * Handles game lobby functionality, including WebSocket connection, chat, player management,
  * and initiating the game.
  */
 const LobbyPage = () => {
-    /** Contexts */
-    const { user } = useUserContext(); // Access logged-in user details.
-    const { state, dispatch: lobbyDispatch } = useLobbyContext(); // Access and dispatch lobby state.
+    // Contexts
+    const { user } = useUserContext();
+    const { state, dispatch: lobbyDispatch } = useLobbyContext();
 
-    /** Hooks */
-    const { id: gameId } = useParams(); // Extract game ID from URL params.
-    const navigate = useNavigate(); // Navigate between routes.
+    // Hooks
+    const { id: gameId } = useParams();
+    const navigate = useNavigate();
 
-    /** State */
-    const [message, setMessage] = useState(""); // Chat message input.
-    const [socket, setSocket] = useState(null); // WebSocket instance.
-    const chatContainerRef = useRef(null); // Reference for the chat container for auto-scrolling.
+    // State
+    const [message, setMessage] = useState("");
+    const [socket, setSocket] = useState(null);
+    const chatContainerRef = useRef(null);
 
-    /** Constants */
-    const MAX_PLAYERS = 2; // Maximum players allowed in the lobby.
-    const isLobbyFull = state.players.length === MAX_PLAYERS; // Check if the lobby is full.
-
-    // ---------------------------- WebSocket Setup ---------------------------- //
+    // Constants
+    const MAX_PLAYERS = 2;
+    const isLobbyFull = state.players.length === MAX_PLAYERS;
 
     /**
-     * Establishes a WebSocket connection to the backend's ChatConsumer.
-     * Listens for messages and dispatches actions to update the lobby state.
+     * Establish WebSocket connection for the lobby.
      */
     useEffect(() => {
         const token = localStorage.getItem("access_token");
@@ -44,21 +41,18 @@ const LobbyPage = () => {
             return;
         }
 
-        // Connect to ChatConsumer WebSocket
         const webSocket = new WebSocket(
             `ws://localhost:8000/ws/chat/${gameId}/?token=${token}`
         );
 
-        // WebSocket lifecycle events
         webSocket.onopen = () => console.log("WebSocket connected.");
         webSocket.onmessage = (event) => handleWebSocketMessage(event);
         webSocket.onclose = () => console.log("WebSocket disconnected.");
         webSocket.onerror = (error) =>
             console.error("WebSocket encountered an error:", error);
 
-        setSocket(webSocket); // Store WebSocket instance in state.
+        setSocket(webSocket);
 
-        // Cleanup WebSocket on component unmount
         return () => {
             console.log("Cleaning up WebSocket connection...");
             webSocket.close();
@@ -66,25 +60,22 @@ const LobbyPage = () => {
     }, [gameId, navigate]);
 
     /**
-     * Handles incoming WebSocket messages.
+     * Handles WebSocket messages.
      *
      * @param {Object} event - The WebSocket event containing the message data.
      */
     const handleWebSocketMessage = (event) => {
-        const data = JSON.parse(event.data); // Parse the incoming message.
+        const data = JSON.parse(event.data);
         console.log("WebSocket message received:", data);
 
-        // Define actions based on message types
         const actions = {
             connection_success: () => showToast("success", data.message),
-            chat_message: () =>
-                lobbyDispatch({ type: "ADD_MESSAGE", payload: data.message }),
-            player_list: () =>
-                lobbyDispatch({ type: "PLAYER_LIST", payload: data.players }),
+            chat_message: () => lobbyDispatch({ type: "ADD_MESSAGE", payload: data.message }),
+            update_user_list: () => lobbyDispatch({ type: "PLAYER_LIST", payload: data.players }),
+            game_start_acknowledgment: () => handleGameStartAcknowledgment(data),
             error: () => showToast("error", data.message || "An error occurred."),
         };
 
-        // Execute the corresponding action
         const action = actions[data.type];
         if (action) {
             action();
@@ -93,10 +84,18 @@ const LobbyPage = () => {
         }
     };
 
-    // ---------------------------- Chat Functionality ---------------------------- //
+    /**
+     * Handles game start acknowledgment message.
+     *
+     * @param {Object} data - WebSocket payload.
+     */
+    const handleGameStartAcknowledgment = (data) => {
+        showToast("success", data.message);
+        navigate(`/games/${data.game_id}`);
+    };
 
     /**
-     * Sends a chat message to the backend.
+     * Handles sending chat messages.
      */
     const handleSendMessage = () => {
         if (message.trim() && socket) {
@@ -106,8 +105,44 @@ const LobbyPage = () => {
                     message,
                 })
             );
-            setMessage(""); // Clear the input after sending.
+            setMessage("");
         }
+    };
+
+    /**
+     * Handles starting the game.
+     */
+    const handleStartGame = () => {
+        if (!isLobbyFull) {
+            showToast("error", "You need at least 2 players to start the game.");
+            return;
+        }
+
+        socket?.send(
+            JSON.stringify({
+                type: "start_game",
+            })
+        );
+    };
+
+    /**
+     * Handles leaving the lobby.
+     */
+    const handleLeaveLobby = () => {
+        socket?.send(
+            JSON.stringify({
+                type: "leave_lobby",
+            })
+        );
+        navigate("/");
+    };
+
+    /**
+     * Copies the lobby invite link to the clipboard.
+     */
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(`${window.location.origin}/lobby/${gameId}`);
+        showToast("success", "Invite link copied to clipboard!");
     };
 
     /**
@@ -119,28 +154,14 @@ const LobbyPage = () => {
         }
     }, [state.messages]);
 
-    // ---------------------------- Utility Functions ---------------------------- //
-
-    /**
-     * Copies the lobby invite link to the clipboard.
-     */
-    const handleCopyLink = () => {
-        navigator.clipboard.writeText(`${window.location.origin}/lobby/${gameId}`);
-        showToast("success", "Invite link copied to clipboard!");
-    };
-
-    // ---------------------------- Render Functions ---------------------------- //
-
     /**
      * Renders the list of players in the lobby.
-     *
-     * @returns {JSX.Element} The player list UI.
      */
     const renderPlayersList = useMemo(
         () => (
             <div className="players-list">
                 {Array.from({ length: MAX_PLAYERS }).map((_, index) => {
-                    const player = state.players[index]; // Retrieve player data from state
+                    const player = state.players[index];
                     return (
                         <div key={index} className="player-slot">
                             {player ? (
@@ -166,13 +187,27 @@ const LobbyPage = () => {
         [state.players]
     );
 
-    // ---------------------------- Component Return ---------------------------- //
-
     return (
         <div className="lobby-container">
             <h1 className="lobby-title">Game Lobby</h1>
 
             <div className="lobby-details">{renderPlayersList}</div>
+
+            <div className="lobby-buttons">
+                <button
+                    onClick={handleStartGame}
+                    className="lobby-button start-game-button"
+                    disabled={!isLobbyFull}
+                >
+                    Start
+                </button>
+                <button
+                    onClick={handleLeaveLobby}
+                    className="lobby-button leave-lobby-button"
+                >
+                    Leave
+                </button>
+            </div>
 
             <div className="chat-container">
                 <h3>Game Chat</h3>
