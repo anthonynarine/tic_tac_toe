@@ -85,7 +85,8 @@ const LobbyPage = () => {
     };
 
     /**
-     * Handles game start acknowledgment message.
+     * Handles the server's confirmation that the game has
+     *  started and navigates players to the game page.
      *
      * @param {Object} data - WebSocket payload.
      */
@@ -110,7 +111,7 @@ const LobbyPage = () => {
     };
 
     /**
-     * Handles starting the game.
+     * Sends a ws request to the server to start the game..
      */
     const handleStartGame = () => {
         if (!isLobbyFull) {

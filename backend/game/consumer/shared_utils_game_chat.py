@@ -51,11 +51,11 @@ class SharedUtils:
     @staticmethod
     def validate_message(content: dict) -> bool:
         """
-        Validate the incoming message content.
-        
+        Validate the incoming WebSocket message content.
+
         Parameters:
-            content (dict): The message payload to validate.
-            
+            content (dict): The WebSocket message payload to validate.
+
         Returns:
             bool: True if the message is valid, False otherwise.
         """
@@ -66,23 +66,35 @@ class SharedUtils:
             logger.warning(f"Invalid message format received: Expected a JSON object, got {type(content).__name__}.")
             return False
 
-        # Step 2: Ensure required fields are present
-        required_fields = ["type", "message"]
-        missing_fields = [field for field in required_fields if field not in content]
-        if missing_fields:
-            logger.warning(f"Message missing required fields: {missing_fields}. Received: {content}")
+        # Step 2: Always require the "type" field
+        if "type" not in content:
+            logger.warning(f"Message missing required 'type' field. Received: {content}")
             return False
 
-        # Step 3: Validate the data types of the fields
+        # Step 3: Validate that "type" is a string
         if not isinstance(content["type"], str):
             logger.warning(f"Invalid 'type' field: Expected a string, got {type(content['type']).__name__}.")
             return False
-        if not isinstance(content["message"], str):
-            logger.warning(f"Invalid 'message' field: Expected a string, got {type(content['message']).__name__}.")
+
+        # Step 4: Define all valid WebSocket message types (from Game and Chat Consumers)
+        valid_types = (
+            "chat_message",  # User sends a chat message
+            "update_user_list",  # Server updates lobby user list
+            "start_game",  # A player starts the game
+            "leave_lobby",  # A player leaves the game
+            "game_update",  # Server sends updated game state
+            "game_start_acknowledgment",  # Server confirms game has started
+            "connection_success",  # WebSocket connection is established
+            "player_list",  # Update player list in the lobby
+            "error"  # Error messages from the server
+        )
+
+        # Step 5: If the message type is "chat_message", require a "message" field
+        if content["type"] == "chat_message" and "message" not in content:
+            logger.warning(f"Chat messages require a 'message' field. Received: {content}")
             return False
 
-        # Step 4: Additional validation for 'type' field (if applicable)
-        valid_types = ["chat_message"]  # Extend with other valid types as needed
+        # Step 6: Ensure the message type is valid
         if content["type"] not in valid_types:
             logger.warning(f"Unsupported message type: {content['type']}. Valid types: {valid_types}")
             return False
