@@ -137,14 +137,15 @@ class ChatConsumer(JsonWebsocketConsumer):
             1. Validate the incoming JSON message structure using `SharedUtils.validate_message`.
             2. Extract and normalize the `type` field from the payload.
             3. Route valid messages to their appropriate handler methods (e.g., `handle_chat_message`).
-            4. Send error responses for invalid or unsupported message types.
-            5. Log unexpected errors during message processing.
+            4. Foward "start_game" to Gameconsumer
+            5. Send error responses for invalid or unsupported message types.
 
         Raises:
             None: Errors are logged and handled with appropriate responses sent to the client.
         """
-        # Step 1: Validate the incoming message structure.
         logger.debug(f"Received WebSocket message: {content}")
+        
+        # Step 1: Validate the incoming message structure.
         if not SharedUtils.validate_message(content):
             logger.warning(f"Invalid message received. Content: {content}. Closing connection.")
             self.close(code=4003)  # Close the connection for invalid message structure.
@@ -157,8 +158,13 @@ class ChatConsumer(JsonWebsocketConsumer):
             # Step 3: Route the message to the appropriate handler based on its type.
             if message_type == "chat_message":
                 self.handle_chat_message(content)  # Route to chat message handler.
+                
+            # Step 4: Foward start_game to GameConsumer.
+            elif message_type == "start_game":
+                self.foward_to_game_consumer(content)
+                
+            # Step 5: Send an error response for unknown types
             else:
-                # Step 4: Send an error response for unsupported message types.
                 logger.warning(f"Unsupported message type received: {message_type}")
                 SharedUtils.send_error(self, "Invalid message type.")
 
@@ -393,4 +399,24 @@ class ChatConsumer(JsonWebsocketConsumer):
         # Step 4: Log the action for monitoring purposes
         logger.info(f"Sent updated user list to client: {validated_players}")
 
+    def foward_to_game_consumer(self, content: dict) -> None:
+        """
+        Foward the "start_game" message to GameConsumer.
+        
+        Args:
+            content (dict): The Websocket message containing the "start_game"
+            
+        Returns:
+            None
+        """
+        logger.info(f"Forwarding start_game to GameConsumer for lobby: {self.lobby_group_name}")
+        
+        # Send the message to GameConsumer via Django Channels
+        async_to_sync(self.channel_layer.group_send)(
+            f"game_lobby_{self.scope['url_route']['kwargs']['lobby_name']}", # Target game group
+            {
+                "type": "start_game",
+                "initiator": self.user.first_name, # Include the player who started the game
+            }
+        )
         
