@@ -29,7 +29,9 @@ class GameConsumer(JsonWebsocketConsumer):
         """
         # Step 1: Extract the game ID from the URL route.
         self.game_id = self.scope["url_route"].get("kwargs", {}).get("game_id")
-        self.lobby_group_name = f"Julia's_game_lobby_{self.game_id}"  # Derive lobby group name.
+        self.lobby_group_name = f"game_lobby_{self.game_id}"  # Derive lobby group name.
+        
+        logger.info(f"🔌 GameConsumer WebSocket connecting for group: {self.lobby_group_name}")
 
         # Step 2: Validate the game ID.
         if not self.game_id:
@@ -46,7 +48,8 @@ class GameConsumer(JsonWebsocketConsumer):
 
         # Step 4: Add the WebSocket channel to the game lobby group.
         async_to_sync(self.channel_layer.group_add)(
-            self.lobby_group_name, self.channel_name
+            self.lobby_group_name,
+            self.channel_name
         )
         logger.info(f"Game WebSocket connected for group: {self.lobby_group_name}")
 
@@ -82,6 +85,8 @@ class GameConsumer(JsonWebsocketConsumer):
             Exception: Catches and logs any unexpected errors during message processing.
                     Sends an error response to the client in case of such errors.
         """
+        logger.info(f"📩 GameConsumer received message: {content}")  
+        
         # Step 1: Validate the incoming message structure.
         if not SharedUtils.validate_message(content):
             # Close the connection if the message is invalid.
@@ -90,21 +95,19 @@ class GameConsumer(JsonWebsocketConsumer):
 
         # Step 2: Extract and normalize the message type.
         message_type = content.get("type").lower()
-
+        
         try:
             # Step 3: Route the message to the appropriate handler based on its type.
             if message_type == "join_lobby":
                 # Add the user to the game lobby.
                 self.handle_join_lobby(content)
             elif message_type == "start_game":
+                logger.info(f"✅ GameConsumer received start_game for lobby: {self.lobby_group_name}")
                 # Validate and start the game.
                 self.handle_start_game()
             elif message_type == "move":
                 # Validate and process the player's move.
                 self.handle_move(content)
-            elif message_type == "leave_lobby":
-                # Remove the user from the game lobby.
-                self.handle_leave_lobby()
             else:
                 # Send an error response for unsupported message types.
                 SharedUtils.send_error(self, "Invalid message type.")
@@ -159,65 +162,6 @@ class GameConsumer(JsonWebsocketConsumer):
         
         logger.info(f"User {self.user.first_name} successfully joined lobby {self.lobby_group_name} as {player_role}.")
         
-    def handle_leave_lobby(self) -> None:
-        
-        """
-        Handle explicit leave lobby from the client.
-        """
-        logger.info(f"User {self.user.first_name} is leaving the lobby {self.lobby_group_name}")
-        try:
-            # Remove the player from the lobby
-            GameUtils._remove_player_from_lobby(
-                user=self.user,
-                group_name=self.lobby_group_name,
-                channel_layer=self.channel_layer,
-                channel_name=self.channel_name
-            )
-            
-            # Broadcast the updated player list to all clients in the lobby
-            self.update_player_list({
-                "players": GameUtils.lobby_players.get(self.lobby_group_name, []),
-            })
-            
-            # Notify the user that they left successfully
-            self.send_json({
-                "type": "leave_lobby_success",
-                "message": "You have successfully left the lobby",
-            })
-            
-        except ValueError as e:
-            logger.error(e)
-            self.send_json({"type": "error", "message": str(e)})
-            
-        # Close the Websocket connection
-        self.close(code=1000)
-    
-    def update_player_list(self, event: dict) -> None:
-        """
-        Send the updated player list to the WebSocket client.
-
-        Parameters:
-            event (dict): The message payload containing the updated player list.
-                        Expected to have a "players" key with the list of players.
-        """
-        # Ensure the WebSocket connection is active before sending data
-        if self.scope["type"] == "websocket" and self.channel_name:
-            try:
-                # Extract the players list from the event payload
-                players = event.get("players", [])
-
-                # Send the player list to the WebSocket client
-                self.send_json({
-                    "type": "player_list",
-                    "players": players,
-                })
-
-            # Handle cases where the WebSocket connection is closed unexpectedly
-            except RuntimeError as e:
-                logger.warning(
-                    f"Attempted to send a message to a closed WebSocket connection: {e}"
-                )
-        
     def handle_start_game(self) -> None:
         
         """
@@ -232,6 +176,8 @@ class GameConsumer(JsonWebsocketConsumer):
         Raises:
             ValueError: If the lobby does not exist or if there is invalid player data.
         """
+        logger.info(f"🚀 GameConsumer.handle_start_game triggered for lobby {self.lobby_group_name}")  
+        
         # Step 1: Validate the lobby existence and player list
         try:
             players = GameUtils.validate_lobby(group_name=self.lobby_group_name)
@@ -253,7 +199,7 @@ class GameConsumer(JsonWebsocketConsumer):
         starting_turn, player_x, player_o = GameUtils.randomize_turn(players=players)
         
         logger.info(
-            f"Game is starting in lobby {self.lobby_group_name}. "
+            f"✅ Game is starting in lobby {self.lobby_group_name}. "
             f"Player X: {player_x['first_name']}, Player O: {player_o['first_name']}, Starting turn: {starting_turn}"
         )
         
@@ -265,16 +211,35 @@ class GameConsumer(JsonWebsocketConsumer):
                 player_o=player_o,
                 starting_turn=starting_turn,
             )
-            # Step 5: Send acknowledgment to the player who initiated the game start
-            self.send_json({
-                "type": "game_start_acknowledgment",
-                "message": "Game has started successfully!",
-                "game_id": game.id,
-                "current_turn": starting_turn,
-            })
+            # ✅ Log before sending acknowledgment
+            logger.info(f"📢 Sending game_start_acknowledgment for game {game.id}...")
+            
+            # Step 5: Send acknowledgment to frontend
+            async_to_sync(self.channel_layer.group_send)(
+                self.lobby_group_name,  # 📡 Target WebSocket group (game lobby)
+                {
+                    "type": "game_start_acknowledgment",
+                    "message": "Game has started successfully!",
+                    "game_id": game.id,
+                    "current_turn": starting_turn,
+                }
+            )
         except Exception as e:
             logger.error(f"Failed to start the game: {e}")
             self.send_json({"type": "error", "message": "Failed to start the game due to a server error."})
+            
+    def game_start_acknowledgment(self, event: dict) -> None:
+        """
+            Handle the game start acknoledgment message.
+        """
+        logger.info(f"📢 Broadcasting game start acknowledgment: {event}")
+        
+        self.send_json({
+            "type": "game_start_acknowledgment",
+            "message": event["message"],
+            "game_id": event["game_id"],
+            "current_turn": event["current_turn"],
+        })
 
     def handle_move(self, content: dict) -> None:
         """

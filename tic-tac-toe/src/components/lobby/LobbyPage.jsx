@@ -66,12 +66,12 @@ const LobbyPage = () => {
      */
     const handleWebSocketMessage = (event) => {
         const data = JSON.parse(event.data);
-        console.log("WebSocket message received:", data);
+        console.log("📥 WebSocket message received:", data);  // ✅ Debugging
 
         const actions = {
             connection_success: () => showToast("success", data.message),
             chat_message: () => lobbyDispatch({ type: "ADD_MESSAGE", payload: data.message }),
-            update_user_list: () => lobbyDispatch({ type: "PLAYER_LIST", payload: data.players }),
+            update_player_list: () => lobbyDispatch({ type: "PLAYER_LIST", payload: data.players }),
             game_start_acknowledgment: () => handleGameStartAcknowledgment(data),
             error: () => showToast("error", data.message || "An error occurred."),
         };
@@ -92,6 +92,11 @@ const LobbyPage = () => {
      */
     const handleGameStartAcknowledgment = (data) => {
         showToast("success", data.message);
+
+        console.log("🚀 WebSocket received game_start_acknowledgment:", data);
+        console.log("🚀 Navigating to game page:", `/games/${data.game_id}`);
+        console.log("Game ID received for navigation:", data.game_id, typeof data.game_id);
+
         navigate(`/games/${data.game_id}`);
     };
 

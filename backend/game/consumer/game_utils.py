@@ -52,144 +52,7 @@ class GameUtils:
             game.save()
             return "O"
         return "Spectator"
-        
-    @staticmethod
-    def add_player_to_lobby(user: CustomUser, group_name: str, channel_layer: BaseChannelLayer) -> None:
-        """
-        Add a player to the lobby and broadcast the updated player list.
-
-        Args:
-            user (AbstractBaseUser): The authenticated user.
-            group_name (str): The name of the lobby group.
-            channel_layer: The channel layer for broadcasting messages.
-        """
-        player = {"id": user.id, "first_name": user.first_name}
-
-        # Ensure a group (lobby) is initialized in the lobby_players dictionary.
-        if group_name not in GameUtils.lobby_players:
-            GameUtils.lobby_players[group_name] = []
-
-        # Add player to the lobby (avoiding duplicate entries).
-        GameUtils.lobby_players[group_name] = [
-            p for p in GameUtils.lobby_players[group_name] if p["id"] != user.id
-        ]
-        GameUtils.lobby_players[group_name].append(player)
-
-        # Broadcast updated player list
-        async_to_sync(channel_layer.group_send)(
-            group_name,
-            {
-                "type": "update_player_list",
-                "players": GameUtils.lobby_players[group_name],
-            },
-        )
-        logger.info(f"Player added to the lobby {group_name}: {player}")
-
-    @staticmethod
-    def broadcast_player_list(channel_layer: BaseChannelLayer, group_name: str) -> None:
-        """
-        Broadcast the updated player list to all clients in the specified lobby.
-
-        Args:
-            channel_layer (BaseChannelLayer): The channel layer used for broadcasting messages.
-            group_name (str): The name of the lobby group.
-
-        Raises:
-            ValueError: If the group_name is not found in lobby_players.
-        """
-        if group_name not in GameUtils.lobby_players:
-            raise ValueError(f"Group name {group_name} does not exist in the lobby_players.")
-        
-        async_to_sync(channel_layer.group_send)(
-            group_name,
-            {
-                "type": "update_player_list",
-                "players": GameUtils.lobby_players[group_name],
-            }
-        )
-
-    @staticmethod
-    def _remove_player_from_lobby(
-        user: CustomUser,
-        group_name: str,
-        channel_layer: BaseChannelLayer,
-        channel_name: str
-    ) -> None:
-        """
-        Remove a player from the lobby and broadcast the updated player list.
-
-        Args:
-            user (User): The user to remove.
-            group_name (str): The name of the lobby group.
-            channel_layer (BaseChannelLayer): The channel layer for broadcasting updates.
-            channel_name (str): The WebSocket channel name for the user.
-
-        Raises:
-            ValueError: If the group_name does not exist in `lobby_players`.
-        """
-        if group_name not in GameUtils.lobby_players:
-            raise ValueError(f"Lobby {group_name} does not exist.")
-        
-        # Log the player removal
-        logger.info(f"Removing player {user.first_name} (ID: {user.id}) from lobby {group_name}")
-        
-        # Remove the player from the lobby's players list
-        GameUtils.lobby_players[group_name] = [
-            p for p in GameUtils.lobby_players[group_name] if p["id"] != user.id
-        ]
-        
-        # Broadcast the updated player list if there are remaining players
-        if GameUtils.lobby_players[group_name]:
-            GameUtils.broadcast_player_list(channel_layer, group_name)
-            logger.info(f"Updated player list after removal: {GameUtils.lobby_players[group_name]}")
-        else:
-            # Clean up the lobby if it becomes empty
-            del GameUtils.lobby_players[group_name]
-            logger.info(f"Lobby {group_name} has been deleted after becoming empty.")
-
-        # Remove the channel from the WebSocket group
-        try:
-            async_to_sync(channel_layer.group_discard)(group_name, channel_name)
-            logger.info(f"Channel {channel_name} has been removed from group {group_name}.")
-        except Exception as e:
-            logger.error(f"Failed to remove channel {channel_name} from group {group_name}: {e}")
-
-    @staticmethod
-    def validate_lobby(group_name: str) -> list:
-        """
-        Validates the existence of a lobby and ensures the player list is valid.
-
-        This method checks if a given lobby group exists and verifies that all players 
-        in the lobby have valid data, such as a non-empty "first_name" field.
-
-        Args:
-            group_name (str): The name of the lobby group to validate.
-
-        Returns:
-            list: A list of players in the lobby, each represented as a dictionary.
-
-        Raises:
-            ValueError: If the lobby does not exist in the GameUtils.lobby_players 
-                        or if the player data is invalid (e.g., missing "first_name").
-        """
-        # Step 1: Check if the specified lobby exists in the lobby_players dictionary.
-        if group_name not in GameUtils.lobby_players:
-            # Raise an error if the lobby group is not found.
-            raise ValueError(f"Lobby {group_name} does not exist.")
-
-        # Step 2: Retrieve the list of players in the specified lobby.
-        players = GameUtils.lobby_players[group_name]
-
-        # Step 3: Iterate through each player in the lobby to validate their data.
-        for player in players:
-            # Ensure the "first_name" key exists and is not empty.
-            if "first_name" not in player or not player["first_name"]:
-                # Raise an error if the player data is invalid.
-                raise ValueError(f"Invalid player data in the lobby: {player}")
-
-        # Step 4: Return the validated list of players.
-        return players
-    
+            
     @staticmethod
     def randomize_turn(players: list) -> tuple:
         """
@@ -233,6 +96,38 @@ class GameUtils:
 
         # Step 5: Return the starting turn and assigned roles.
         return starting_turn, player_x, player_o
+
+    @staticmethod
+    def create_game(player_x_id: int, player_o_id: int, starting_turn: str) -> TicTacToeGame:
+        """
+        Create a new Tic-Tac-Toe game instance.
+
+        Args:
+            player_x_id (int): The ID of the player assigned to "X".
+            player_o_id (int): The ID of the player assigned to "O".
+            starting_turn (str): "X" or "O" indicating which player starts.
+            
+        Returns:
+            TicTacToeGame: The newly created game instance.
+
+        Raises:
+            ValueError: If one or both player instances cannot be found in the database.
+        """
+        try:
+            player_x = CustomUser.objects.get(id=player_x_id)
+            player_o = CustomUser.objects.get(id=player_o_id)
+        except CustomUser.DoesNotExist as e:
+            raise ValueError(f"Player not found: {e}")
+        
+        game = TicTacToeGame.objects.create(
+            player_x=player_x,
+            player_o=player_o,
+            current_turn=starting_turn,
+            board_state=DEFAULT_BOARD_STATE,
+            is_ai_game=False 
+        )
+        
+        return game
 
     @staticmethod
     def initialize_game(game_id: int, player_x: dict, player_o: dict, starting_turn: str) -> TicTacToeGame:

@@ -17,13 +17,6 @@ class SharedUtils:
     """
     Utility class for shared functionality between ChatConsumer and GameConsumer.
     """
-    lobby_players = {}  # Shared dictionary for tracking players in lobbies.
-
-class SharedUtils:
-    """
-    Utility class for shared functionality between ChatConsumer and GameConsumer.
-    """
-    lobby_players = {}  # Shared dictionary for tracking players in lobbies.
 
     @staticmethod
     def authenticate_user(scope: dict):
@@ -101,7 +94,6 @@ class SharedUtils:
 
         logger.debug("Message validation passed.")
         return True
-
 
     @staticmethod
     def send_error(consumer, message: str, code: int = 4003):

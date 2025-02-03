@@ -4,10 +4,11 @@ from channels.generic.websocket import JsonWebsocketConsumer
 from .game_utils import GameUtils
 from .chat_utils import ChatUtils
 from .shared_utils_game_chat import SharedUtils
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth import get_user_model
 from typing import TypedDict, List
 
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 class ChatConsumer(JsonWebsocketConsumer):
@@ -33,7 +34,7 @@ class ChatConsumer(JsonWebsocketConsumer):
         Steps:
             1. Authenticate the user using the `SharedUtils.authenticate_user` helper function.
             2. Extract and validate the `lobby_group_name` from the WebSocket URL parameters.
-            3. Initialize the lobby state in `SharedUtils.lobby_players` if it doesn't already exist.
+            3. Initialize the lobby state in `ChatUtils.lobby_players` if it doesn't already exist.
             4. Prevent duplicate WebSocket connections by checking for the `channel_name` in the lobby's state.
             5. Add the WebSocket channel to the appropriate group using the `channel_layer`.
             6. Add the user to the lobby participant list to track active players.
@@ -61,12 +62,12 @@ class ChatConsumer(JsonWebsocketConsumer):
             return
 
         # Step 3: Initialize the lobby state if it doesn't exist
-        if self.lobby_group_name not in SharedUtils.lobby_players:
-            SharedUtils.lobby_players[self.lobby_group_name] = {"channels": set(), "players": []}
+        if self.lobby_group_name not in ChatUtils.lobby_players:
+            ChatUtils.lobby_players[self.lobby_group_name] = {"channels": set(), "players": []}
             logger.info(f"New chat lobby initialized: {self.lobby_group_name}")
 
         # Step 4: Prevent duplicate connections for the same user
-        existing_players = SharedUtils.lobby_players[self.lobby_group_name]["players"]
+        existing_players = ChatUtils.lobby_players[self.lobby_group_name]["players"]
         if self.user.id in [player["id"] for player in existing_players]:
             logger.warning(
                 f"Duplicate WebSocket connection detected for user {self.user.first_name} "
@@ -75,14 +76,13 @@ class ChatConsumer(JsonWebsocketConsumer):
             self.close(code=4004)
             return
 
-
         # Step 5: Add the WebSocket channel to the group
         try:
             async_to_sync(self.channel_layer.group_add)(
                 self.lobby_group_name,
                 self.channel_name
             )
-            SharedUtils.lobby_players[self.lobby_group_name]["channels"].add(self.channel_name)
+            ChatUtils.lobby_players[self.lobby_group_name]["channels"].add(self.channel_name)
             logger.info(f"WebSocket channel {self.channel_name} added to group {self.lobby_group_name}.")
         except Exception as e:
             logger.error(f"Error adding channel {self.channel_name} to group {self.lobby_group_name}: {e}")
@@ -90,18 +90,18 @@ class ChatConsumer(JsonWebsocketConsumer):
             return
 
         # Step 6: Add the user to the lobby participant list
-        SharedUtils.lobby_players[self.lobby_group_name]["players"] = [
-            player for player in SharedUtils.lobby_players[self.lobby_group_name]["players"]
+        ChatUtils.lobby_players[self.lobby_group_name]["players"] = [
+            player for player in ChatUtils.lobby_players[self.lobby_group_name]["players"]
             if player["id"] != self.user.id
         ]
-        SharedUtils.lobby_players[self.lobby_group_name]["players"].append({"id": self.user.id, "first_name": self.user.first_name})
+        ChatUtils.lobby_players[self.lobby_group_name]["players"].append({"id": self.user.id, "first_name": self.user.first_name})
 
         # Step 7: Broadcast the updated participant list to all clients
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
-                "type": "update_user_list",
-                "players": SharedUtils.lobby_players[self.lobby_group_name]["players"],
+                "type": "update_player_list",
+                "players": ChatUtils.lobby_players[self.lobby_group_name]["players"],
             },
         )
         logger.info(f"Updated Players list broadcasted for lobby {self.lobby_group_name}.")
@@ -159,11 +159,18 @@ class ChatConsumer(JsonWebsocketConsumer):
             if message_type == "chat_message":
                 self.handle_chat_message(content)  # Route to chat message handler.
                 
-            # Step 4: Foward start_game to GameConsumer.
+            elif message_type == "join_lobby":
+                self.handle_join_lobby()
+
             elif message_type == "start_game":
-                self.foward_to_game_consumer(content)
-                
-            # Step 5: Send an error response for unknown types
+                logger.info("Received 'start_game' request from client.")
+                self.handle_start_game()
+            
+            elif message_type == "leave_lobby":
+                logger.info("Received 'leave_lobby' request from client.")
+                self.handle_leave_lobby()
+            
+            # Step 4: Send an error response for unknown types
             else:
                 logger.warning(f"Unsupported message type received: {message_type}")
                 SharedUtils.send_error(self, "Invalid message type.")
@@ -171,8 +178,8 @@ class ChatConsumer(JsonWebsocketConsumer):
         except Exception as e:
             # Step 5: Log unexpected errors and send a generic error response.
             logger.error(f"Unexpected error in ChatConsumer. Content: {content}. Error: {e}")
-            SharedUtils.send_error(self, "An unexpected error occurred.")
-
+            SharedUtils.send_error(self, "An unexpected error occurred.")   
+            
     def handle_chat_message(self, content: dict) -> None:
         """
         Handle a chat message sent by the client and broadcast it to all players in the lobby.
@@ -251,7 +258,7 @@ class ChatConsumer(JsonWebsocketConsumer):
             # Handle unexpected errors.
             logger.error(f"Unexpected error in handle_chat_message: {e}")
             self.send_json({"type": "error", "message": "An unexpected error occurred."})
-
+    
     def chat_message(self, event: dict) -> None:
         """
         Send a chat message event to the WebSocket client.
@@ -295,73 +302,167 @@ class ChatConsumer(JsonWebsocketConsumer):
             "type": "chat_message",  # Message type for frontend handling.
             "message": message,  # The validated chat message payload.
         })
-
-    def disconnect(self, code: int) -> None:
+    
+    def handle_join_lobby(self, content: dict) -> None:
         """
-        Handle WebSocket disconnection for chat-related functionality.
-
-        This method ensures that when a WebSocket connection is disconnected, the associated
-        channel and user are removed from the lobby group. If the lobby becomes empty (no players
-        or channels remain), it cleans up the lobby entirely. It also handles errors gracefully
-        and logs detailed information for debugging.
-
-        Args:
-            code (int): The WebSocket close code indicating the reason for disconnection.
-
-        Steps:
-            1. Ensure `lobby_group_name` exists for the connection. If missing, log a warning and exit.
-            2. Attempt to remove the user and channel from the lobby group, updating the lobby state.
-            3. If the lobby has no players or channels remaining, delete it from the shared state.
-            4. Remove the WebSocket channel from the group using `channel_layer.group_discard`.
-            5. Log success or any errors encountered during cleanup.
+        Handle the join lobby message and confirm the user's addition to the lobby.
+        
+        Parameters:
+            content (dict): The message payload sent by the client.
         """
-        logger.debug(f"Disconnecting WebSocket for code: {code}, Channel: {self.channel_name}")
+        game_id = content.get("gameId")
+        if game_id != self.scope["url_route"]["kwargs"].get("lobby_name"):
+            self.send_json({"type": "error", "message": "Invalid game ID."})
+            return
+        
+        logger.info(f"User {self.user.first_name} attempting to join lobby: {self.lobby_group_name}")
+        
+        # Retrieve or validate the game instance
+        try:
+            game = GameUtils.get_game_instance(game_id=game_id)
+        except ValueError as e:
+            logger.error(e)
+            self.send_json({"type": "error", "message": str(e)})
+            return
+        
+        # Determine player role and assign if needed
+        player_role = GameUtils.assign_player_role(game=game, user=self.user)
+        
+        # Update the lobby players and avoid duplicates
+        ChatUtils.add_player_to_lobby(
+            user=self.user,
+            group_name=self.lobby_group_name,
+            channel_layer=self.channel_layer
+        )
+        
+        # Broadcast the updated player list to all clients in the lobby
+        ChatUtils.broadcast_player_list(
+            channel_layer=self.channel_layer,
+            group_name=self.lobby_group_name
+        )
+        
+        # Respond to the client with success
+        self.send_json({
+            "type": "join_lobby_success",
+            "message": f"Successfully joined lobby {self.lobby_group_name} as {player_role}.",
+            "player_role": player_role,
+        })
 
-        # Step 1: Ensure `lobby_group_name` exists
-        if not hasattr(self, "lobby_group_name") or not self.lobby_group_name:
-            logger.warning(
-                f"User disconnected before joining a chat lobby. Channel: {self.channel_name}"
-            )
+        logger.info(f"User {self.user.first_name} successfully joined lobby {self.lobby_group_name} as {player_role}.")
+
+    def handle_start_game(self) -> None:
+        """
+        Handle the game start event and notify both players in the lobby.
+
+        This method validates the lobby, ensures exactly two players are present, 
+        randomizes the starting turn, assigns player roles, and initializes the game.
+        """
+        logger.info(f"GameConsumer.handle_start_game triggered for lobby {self.lobby_group_name}")  
+        
+        # Step 1: Validate the lobby existence and player list
+        try:
+            players = ChatUtils.validate_lobby(group_name=self.lobby_group_name)
+        except ValueError as e:
+            logger.error(e)
+            self.send_json({"type": "error", "message": str(e)})
+            return
+        
+        # Step 2: Ensure there are exactly two players in the lobby
+        if len(players) != 2:
+            logger.warning(f"Game start failed: Invalid number of players in the {self.lobby_group_name}")
+            self.send_json({
+                "type": "error",
+                "message": "The game requires exactly two players to start."
+            })
             return
 
-        # Step 2: Attempt to remove the user from the lobby group and handle cleanup
+        # Step 3: Randomize the starting turn and assign player roles
+        starting_turn, player_x, player_o = GameUtils.randomize_turn(players=players)
+        
+        logger.info(
+            f"Game is starting in lobby {self.lobby_group_name}. "
+            f"Player X: {player_x['first_name']}, Player O: {player_o['first_name']}, Starting turn: {starting_turn}"
+        )
+        
+        # Step 4: Initialize the game instance with the validated players and starting turn
         try:
-            # Check if the lobby exists in the shared state
-            if self.lobby_group_name in SharedUtils.lobby_players:
-                # Remove the user from the players list
-                SharedUtils.lobby_players[self.lobby_group_name]["players"] = [
-                    player for player in SharedUtils.lobby_players[self.lobby_group_name]["players"]
-                    if player["id"] != self.user.id
-                ]
-                
-                # Remove the WebSocket channel from the channels set
-                SharedUtils.lobby_players[self.lobby_group_name]["channels"].discard(
-                    self.channel_name
-                )
-
-                # Step 3: Clean up the lobby if no players or channels remain
-                if not SharedUtils.lobby_players[self.lobby_group_name]["players"] and \
-                not SharedUtils.lobby_players[self.lobby_group_name]["channels"]:
-                    del SharedUtils.lobby_players[self.lobby_group_name]
-                    logger.info(f"Lobby {self.lobby_group_name} cleaned up as it is now empty.")
-        except Exception as e:
-            # Log any errors encountered during cleanup
-            logger.error(
-                f"Error during disconnection for channel {self.channel_name}. Error: {e}"
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            # Fetch the actual User instances from the database
+            player_x_instance = User.objects.get(id=player_x["id"])
+            player_o_instance = User.objects.get(id=player_o["id"])
+            
+            # Create the game
+            game = GameUtils.create_game(
+                player_x_id=player_x["id"],
+                player_o_id=player_o["id"],
+                starting_turn=starting_turn
             )
+            
+            logger.info(f"📢 Game created successfully with ID: {game.id}")
+            
+            # Step 5: Send acknowledgment to frontend
+            async_to_sync(self.channel_layer.group_send)(
+                self.lobby_group_name,  # 📡 Target WebSocket group (game lobby)
+                {
+                    "type": "game_start_acknowledgment",
+                    "message": "Game has started successfully!",
+                    "game_id": game.id,
+                    "current_turn": starting_turn,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to start the game: {e}")
+            self.send_json({"type": "error", "message": "Failed to start the game due to a server error."})
 
-        # Step 4: Remove the WebSocket channel from the group
+    def game_start_acknowledgment(self, event: dict) -> None:
+        """
+            Handle the game start acknoledgment message.
+        """
+        logger.info(f"📢 Broadcasting game start acknowledgment: {event}")
+        
+        self.send_json({
+            "type": "game_start_acknowledgment",
+            "message": event["message"],
+            "game_id": event["game_id"],
+            "current_turn": event["current_turn"],
+        })
+    
+    def handle_leave_lobby(self) -> None:
+    
+        """
+        Handle explicit leave lobby from the client.
+        """
+        logger.info(f"User {self.user.first_name} is leaving the lobby {self.lobby_group_name}")
         try:
-            async_to_sync(self.channel_layer.group_discard)(
-                self.lobby_group_name,
-                self.channel_name,
+            # Remove the player from the lobby
+            ChatUtils._remove_player_from_lobby(
+                user=self.user,
+                group_name=self.lobby_group_name,
+                channel_layer=self.channel_layer,
+                channel_name=self.channel_name
             )
-            logger.info(f"Channel {self.channel_name} removed from group {self.lobby_group_name}.")
-        except Exception as e:
-            # Log any errors encountered when discarding the channel
-            logger.error(f"Error removing channel {self.channel_name} from group {self.lobby_group_name}: {e}")
-
-    def update_user_list(self, event: dict) -> None:
+            
+            # Broadcast the updated player list to all clients in the lobby
+            self.update_player_list({
+                "players": ChatUtils.lobby_players.get(self.lobby_group_name, []),
+            })
+            
+            # Notify the user that they left successfully
+            self.send_json({
+                "type": "leave_lobby_success",
+                "message": "You have successfully left the lobby",
+            })
+            
+        except ValueError as e:
+            logger.error(e)
+            self.send_json({"type": "error", "message": str(e)})
+            
+        # Close the Websocket connection
+        self.close(code=1000)
+    
+    def update_player_list(self, event: dict) -> None:
         """
         Handle the "update_user_list" message type.
         
@@ -392,31 +493,63 @@ class ChatConsumer(JsonWebsocketConsumer):
 
         # Step 3: Send the updated player list to the WebSocket client
         self.send_json({
-            "type": "update_user_list",  # The message type for frontend handling
+            "type": "update_player_list",  # The message type for frontend handling
             "players": validated_players,  # The updated list of players in the lobby
         })
         
         # Step 4: Log the action for monitoring purposes
         logger.info(f"Sent updated user list to client: {validated_players}")
 
-    def foward_to_game_consumer(self, content: dict) -> None:
+    def disconnect(self, code: int) -> None:
         """
-        Foward the "start_game" message to GameConsumer.
-        
+        Handle WebSocket disconnection for chat-related functionality.
+
+        This method ensures that when a WebSocket connection is disconnected, the associated
+        channel and user are removed from the lobby group. If the lobby becomes empty (no players
+        or channels remain), it cleans up the lobby entirely. It also handles errors gracefully
+        and logs detailed information for debugging.
+
         Args:
-            content (dict): The Websocket message containing the "start_game"
-            
-        Returns:
-            None
+            code (int): The WebSocket close code indicating the reason for disconnection.
         """
-        logger.info(f"Forwarding start_game to GameConsumer for lobby: {self.lobby_group_name}")
-        
-        # Send the message to GameConsumer via Django Channels
-        async_to_sync(self.channel_layer.group_send)(
-            f"game_lobby_{self.scope['url_route']['kwargs']['lobby_name']}", # Target game group
-            {
-                "type": "start_game",
-                "initiator": self.user.first_name, # Include the player who started the game
-            }
-        )
-        
+        logger.debug(f"Disconnecting WebSocket for code: {code}, Channel: {self.channel_name}")
+
+        # Step 1: Ensure `lobby_group_name` exists
+        if not hasattr(self, "lobby_group_name") or not self.lobby_group_name:
+            logger.warning(
+                f"User disconnected before joining a chat lobby. Channel: {self.channel_name}"
+            )
+            return
+
+        # Step 2: Attempt to remove the user from the lobby group and handle cleanup
+        try:
+            # Check if the lobby exists in the shared state
+            if self.lobby_group_name in ChatUtils.lobby_players:
+                # Remove the user from the players list
+                ChatUtils.lobby_players[self.lobby_group_name]["players"] = [
+                    player for player in ChatUtils.lobby_players[self.lobby_group_name]["players"]
+                    if player["id"] != self.user.id
+                ]
+                
+                # Remove the WebSocket channel from the channels set
+                ChatUtils.lobby_players[self.lobby_group_name]["channels"].discard(self.channel_name)
+
+                # Step 3: Clean up the lobby if no players or channels remain
+                if not ChatUtils.lobby_players[self.lobby_group_name]["players"] and \
+                not ChatUtils.lobby_players[self.lobby_group_name]["channels"]:
+                    del ChatUtils.lobby_players[self.lobby_group_name]
+                    logger.info(f"Lobby {self.lobby_group_name} cleaned up as it is now empty.")
+        except Exception as e:
+            # Log any errors encountered during cleanup
+            logger.error(f"Error during disconnection for channel {self.channel_name}. Error: {e}")
+
+        # Step 4: Remove the WebSocket channel from the group
+        try:
+            async_to_sync(self.channel_layer.group_discard)(
+                self.lobby_group_name,
+                self.channel_name,
+            )
+            logger.info(f"Channel {self.channel_name} removed from group {self.lobby_group_name}.")
+        except Exception as e:
+            # Log any errors encountered when discarding the channel
+            logger.error(f"Error removing channel {self.channel_name} from group {self.lobby_group_name}: {e}")
