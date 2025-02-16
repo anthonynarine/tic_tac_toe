@@ -3,7 +3,6 @@ import GameLoader from "../../utils/gameLoader/Gameloader";
 import GameBoard from "./GameBoard";
 import GameResult from "./GameResult";
 import GameManager from "./GameManager";
-import { GameWebSocketProvider } from "../websocket/GameWebSocketProvider";
 import { useParams } from "react-router-dom";
 
 /**
@@ -104,18 +103,3 @@ export const GamePage = () => {
         </GameManager>
     );
 };
-
-/**
- * Game Component
- *
- * This component wraps the `GamePage` with the `WebSocketProvider` to enable real-time updates.
- * The WebSocket connection is scoped to the current game ID.
- *
- * @returns {JSX.Element} The game component with WebSocket support.
- */
-export const Game = () => (
-    <GameWebSocketProvider gameId={useParams().id}>
-        <GamePage />
-    </GameWebSocketProvider>
-);
-

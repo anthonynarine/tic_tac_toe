@@ -1,11 +1,11 @@
 import React from "react";
-import useGameServices from "../hooks/useGameServices";
+import useGameCreation from "../hooks/useGameCreation";
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../../utils/toast/Toast";
 import "./HomePage.css";
 
 const Home = () => {
-  const { createNewGame } = useGameServices();
+  const { createNewGame } = useGameCreation();
   const navigate = useNavigate();
 
   /**

@@ -23,7 +23,6 @@ function App() {
         <>
             <ToastContainer />
             <UserProvider>
-                <GameWebSocketProvider>
                     <LobbyProvider>
                         <Navbar />
                         <div className="main-content">
@@ -35,9 +34,11 @@ function App() {
                                 <Route
                                     path="/games/:id"
                                     element={
-                                        <GameProvider>
-                                            <GamePage />
-                                        </GameProvider>
+                                        <GameWebSocketProvider>
+                                            <GameProvider>
+                                                <GamePage />
+                                            </GameProvider>
+                                        </GameWebSocketProvider>
                                     }
                                 />
                                 {/* Wrap Lobby route with GameProvider */}
@@ -53,7 +54,6 @@ function App() {
                             </Routes>
                         </div>
                     </LobbyProvider>
-                </GameWebSocketProvider>
             </UserProvider>
         </>
     );

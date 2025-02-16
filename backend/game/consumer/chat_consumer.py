@@ -400,7 +400,7 @@ class ChatConsumer(JsonWebsocketConsumer):
                 starting_turn=starting_turn
             )
             
-            logger.info(f"📢 Game created successfully with ID: {game.id}")
+            logger.info(f" Game created successfully with ID: {game.id}")
             
             # Step 5: Send acknowledgment to frontend
             async_to_sync(self.channel_layer.group_send)(
@@ -420,7 +420,7 @@ class ChatConsumer(JsonWebsocketConsumer):
         """
             Handle the game start acknoledgment message.
         """
-        logger.info(f"📢 Broadcasting game start acknowledgment: {event}")
+        logger.info(f" Broadcasting game start acknowledgment: {event}")
         
         self.send_json({
             "type": "game_start_acknowledgment",

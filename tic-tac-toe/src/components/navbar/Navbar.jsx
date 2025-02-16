@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { FaBars, FaTimes, } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import "./Navbar.css";
 import { PiGameControllerThin } from "react-icons/pi";
 import { CiLogin, CiLogout } from "react-icons/ci";
 
 import { useAuth } from "../hooks/useAuth";
 import { useUserContext } from "../context/userContext";
-import useGameServices from "../hooks/useGameServices";
+import useGameCreation from "../hooks/useGameCreation";
 
 import { LiaUserNinjaSolid } from "react-icons/lia";
 import { CiHome } from "react-icons/ci";
@@ -16,10 +17,10 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false); // For mobile menu toggle
   const [dropdownOpen, setDropdownOpen] = useState(false); // For game dropdown
 
-  const { createNewGame } = useGameServices();
+  const { createNewGame } = useGameCreation();
   const { isLoggedIn, user } = useUserContext();
   const { logout } = useAuth();
-
+  const navigate = useNavigate();
   // Toggle Mobile Menu
   const toggleMenu = () => {
     setIsOpen(!isOpen);
@@ -30,14 +31,30 @@ const Navbar = () => {
     setDropdownOpen(!dropdownOpen);
   };
 
-  const startMultiplayerGame = () => {
-    createNewGame(user?.first_name || "Player", false);
-    setDropdownOpen(false);
+  const startMultiplayerGame = async () => {
+    try {
+      const newGame = await createNewGame(user?.first_name || "Player", false);
+      if (newGame){
+        navigate(`/lobby/${newGame.id}`);
+      }
+    } catch (error) {
+      console.log("error", error)
+    } finally {
+      setDropdownOpen(false)
+    }
   };
 
-  const startAIGame = () => {
-    createNewGame(user?.first_name || "Player", true);
-    setDropdownOpen(false);
+  const startAIGame = async () => {
+    try {
+      const newGame = await createNewGame(user?.first_name || "Player", true);
+      if (newGame) {
+        navigate(`/games/${newGame.id}`); 
+      } 
+    } catch (error) {
+      console.log("error", error);
+    } finally {
+      setDropdownOpen(false);
+    }
   };
 
   return (

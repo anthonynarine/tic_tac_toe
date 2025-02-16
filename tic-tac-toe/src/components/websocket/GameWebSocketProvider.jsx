@@ -26,7 +26,11 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (!effectiveGameId) return;
+        if (!effectiveGameId){
+            console.error("Effective game ID is undefiend")
+            return;
+        }
+        console.log("Attempting game WebSocket connection with gameId:", effectiveGameId);
 
         const token = localStorage.getItem("access_token");
         if (!token) {
