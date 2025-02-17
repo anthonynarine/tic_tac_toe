@@ -13,7 +13,7 @@ class GameUtils:
     """
     Utility class for managing game-specific operations, such as player lists and broadcasting updates.
     """
-    lobby_players = {}  # Tracks players in each game lobby
+    game_lobby_players = {}  # Tracks players in each game lobby
     
     @staticmethod
     def get_game_instance(game_id: int):
@@ -167,6 +167,46 @@ class GameUtils:
         # Step 3: Return the updated game instance
         return game
 
+    @staticmethod
+    def add_player_to_game_lobby(user, group_name: str, channel_layer, player_role: str = None) -> None:
+        """
+        Add a player to the game lobby and broadcast the updated player list.
+
+        Args:
+            user (CustomUser): The authenticated user.
+            group_name (str): The name of the game lobby group.
+            channel_layer (BaseChannelLayer): The channel layer used for broadcasting.
+            player_role (Optional[str]): The player's role (e.g., "X" or "O"), if applicable.
+
+        Returns:
+            None
+        """
+        # Step 1: Create the player's dictionary.
+        player = {"id": user.id, "first_name": user.first_name, "role": player_role}
+
+        # Step 2: Initialize the game lobby if it doesn't exist.
+        if group_name not in GameUtils.game_lobby_players:
+            GameUtils.game_lobby_players[group_name] = []
+            logger.info(f"Initialized new game lobby: {group_name}")
+
+        # Step 3: Remove duplicate entry for this user.
+        GameUtils.game_lobby_players[group_name] = [
+            p for p in GameUtils.game_lobby_players[group_name] if p["id"] != user.id
+        ]
+
+        # Step 4: Add the player to the game lobby.
+        GameUtils.game_lobby_players[group_name].append(player)
+        logger.info(f"Added player to game lobby {group_name}: {player}")
+
+        # Step 5: Broadcast the updated player list to all consumers in the group.
+        async_to_sync(channel_layer.group_send)(
+            group_name,
+            {
+                "type": "update_player_list",  # This method should be defined in your consumer.
+                "players": GameUtils.game_lobby_players[group_name],
+            }
+        )
+    
     @staticmethod
     def get_ai_user() -> CustomUser:
         """

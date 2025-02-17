@@ -31,7 +31,7 @@ class GameConsumer(JsonWebsocketConsumer):
         self.game_id = self.scope["url_route"].get("kwargs", {}).get("game_id")
         self.lobby_group_name = f"game_lobby_{self.game_id}"  # Derive lobby group name.
         
-        logger.info(f"🔌 GameConsumer WebSocket connecting for group: {self.lobby_group_name}")
+        logger.info(f"GameConsumer WebSocket connecting for group: {self.lobby_group_name}")
 
         # Step 2: Validate the game ID.
         if not self.game_id:
@@ -45,6 +45,9 @@ class GameConsumer(JsonWebsocketConsumer):
             self.send_json({"type": "error", "message": "Unauthenticated user. Please log in."})
             self.close(code=4001)  # Close with a specific error code for authentication failure.
             return
+        
+        # Ensure slef.user is set.
+        self.user = self.scope["user"]
 
         # Step 4: Add the WebSocket channel to the game lobby group.
         async_to_sync(self.channel_layer.group_add)(
@@ -57,7 +60,7 @@ class GameConsumer(JsonWebsocketConsumer):
         self.accept()
 
         # Step 6: Update the player list for the game lobby.
-        GameUtils.add_player_to_lobby(
+        GameUtils.add_player_to_game_lobby(
             self.scope["user"], self.lobby_group_name, self.channel_layer
         )
         logger.info(f"Player added to game lobby {self.lobby_group_name}")
@@ -85,7 +88,7 @@ class GameConsumer(JsonWebsocketConsumer):
             Exception: Catches and logs any unexpected errors during message processing.
                     Sends an error response to the client in case of such errors.
         """
-        logger.info(f"📩 GameConsumer received message: {content}")  
+        logger.info(f"GameConsumer received message: {content}")  
         
         # Step 1: Validate the incoming message structure.
         if not SharedUtils.validate_message(content):
@@ -102,7 +105,7 @@ class GameConsumer(JsonWebsocketConsumer):
                 # Add the user to the game lobby.
                 self.handle_join_lobby(content)
             elif message_type == "start_game":
-                logger.info(f"✅ GameConsumer received start_game for lobby: {self.lobby_group_name}")
+                logger.info(f"GameConsumer received start_game for lobby: {self.lobby_group_name}")
                 # Validate and start the game.
                 self.handle_start_game()
             elif message_type == "move":
@@ -176,7 +179,7 @@ class GameConsumer(JsonWebsocketConsumer):
         Raises:
             ValueError: If the lobby does not exist or if there is invalid player data.
         """
-        logger.info(f"🚀 GameConsumer.handle_start_game triggered for lobby {self.lobby_group_name}")  
+        logger.info(f" GameConsumer.handle_start_game triggered for lobby {self.lobby_group_name}")  
         
         # Step 1: Validate the lobby existence and player list
         try:
@@ -199,7 +202,7 @@ class GameConsumer(JsonWebsocketConsumer):
         starting_turn, player_x, player_o = GameUtils.randomize_turn(players=players)
         
         logger.info(
-            f"✅ Game is starting in lobby {self.lobby_group_name}. "
+            f" Game is starting in lobby {self.lobby_group_name}. "
             f"Player X: {player_x['first_name']}, Player O: {player_o['first_name']}, Starting turn: {starting_turn}"
         )
         
@@ -211,8 +214,8 @@ class GameConsumer(JsonWebsocketConsumer):
                 player_o=player_o,
                 starting_turn=starting_turn,
             )
-            # ✅ Log before sending acknowledgment
-            logger.info(f"📢 Sending game_start_acknowledgment for game {game.id}...")
+            # ✅Log before sending acknowledgment
+            logger.info(f" Sending game_start_acknowledgment for game {game.id}...")
             
             # Step 5: Send acknowledgment to frontend
             async_to_sync(self.channel_layer.group_send)(
@@ -232,7 +235,7 @@ class GameConsumer(JsonWebsocketConsumer):
         """
             Handle the game start acknoledgment message.
         """
-        logger.info(f"📢 Broadcasting game start acknowledgment: {event}")
+        logger.info(f" Broadcasting game start acknowledgment: {event}")
         
         self.send_json({
             "type": "game_start_acknowledgment",
