@@ -112,17 +112,16 @@ export const ChatWebsocketProvider = ({ children, lobbyName }) => {
             }
 
             if (socketRef.current) {
-<<<<<<< HEAD
                 const state = socketRef.current.readyState;
                 if (state === WebSocket.CONNECTING) {
                     console.log("WebSocket still connecting. Skipping immediate cleanup.");
                 } else if (state === WebSocket.OPEN || state === WebSocket.CLOSING) {
                     console.log("Closing WebSocket for cleanup.");
-=======
+
                 console.log("Cleaning up WebSocket for lobby:", lobbyName);
                 if (socketRef.current?.readyState === WebSocket.OPEN) {
                     console.log("Closing open Websocket")
->>>>>>> 903d9d044f4f97693c3bcf81d042369cde8ddd8b
+
                     socketRef.current.close();
                 } else {
                     console.log("Websocket was not open during cleanup")

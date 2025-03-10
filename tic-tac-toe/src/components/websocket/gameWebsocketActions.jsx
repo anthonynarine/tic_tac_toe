@@ -20,7 +20,7 @@ const gameWebsocketActions = (dispatch, navigate) => ({
      * Handles WebSocket message for updating the player list.
      * Interacts with: `PLAYER_LIST` in the `lobbyReducer`.
      */
-    player_list: (data) => {
+    update_player_list: (data) => {
         console.log("Player list update received:", data.players);
         dispatch({ type: "PLAYER_LIST", payload: data.players });
     },

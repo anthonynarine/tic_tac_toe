@@ -48,7 +48,7 @@ def game_update_signal(sender, instance, created, **kwargs):
     try:
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f"game_{instance.id}",
+            f"game_lobby_{instance.id}",
             payload
         )
         logger.info(f"Game update broadcasted successfully for game ID {instance.id}")

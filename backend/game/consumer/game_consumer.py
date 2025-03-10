@@ -305,6 +305,37 @@ class GameConsumer(JsonWebsocketConsumer):
                 "message": str(e) if str(e) else "Invalid move due to a validation error."
             })
 
+    def update_player_list(self, event: dict) -> None:
+        """
+        Handles the update_player_list event for the game lobby
+        
+
+        Args:
+            event (dict): Expected to contain:
+            {
+                "type": "update_player_list",
+                "players": [
+                    {"id": <int>, "first_name": <str>, "role": <str>},
+                    ...
+                ]
+            }
+        Returns:
+            None
+        """
+        players = event.get("players", [])
+        validated_players = [
+            player for player in players
+            if isinstance(player.get("id"), int) and isinstance(player.get("first_name"), str)
+        ]
+        logger.debug(f"GameConsumer processing update_player_list event: {validated_players}")
+        
+        # Send the updated player list (including the role) to the client.
+        self.send_json({
+            "type": "update_player_list",
+            "players": validated_players
+        })
+        logger.info(f"GameConsumer sent updated player list: {validated_players}")
+        
     def game_update(self, event: dict) -> None:
         """
         Broadcast the updated game state to all connected clients.

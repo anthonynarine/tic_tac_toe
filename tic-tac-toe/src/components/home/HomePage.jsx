@@ -15,7 +15,7 @@ const Home = () => {
    */
   const handleCreateGame = async (isAIGame) => {
     try {
-      const newGame = await createNewGame(null, isAIGame);
+      const newGame = await createNewGame(isAIGame);
 
       if (newGame) {
         if (isAIGame) {

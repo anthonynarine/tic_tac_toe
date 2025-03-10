@@ -19,6 +19,7 @@ export const INITIAL_STATE = {
     winningCombination: [],
     isAI: false,
     playerRole: null,
+    players: [],
 };
 
 // Reducer function
@@ -119,6 +120,13 @@ export const gameReducer = (state, action) => {
 
         case "RESET_GAME_STATE": {
             return { ...INITIAL_STATE };
+        }
+
+        case "PLAYER_LIST": {
+            return {
+                ...state,
+                players: action.payload,
+            };
         }
 
         default: {

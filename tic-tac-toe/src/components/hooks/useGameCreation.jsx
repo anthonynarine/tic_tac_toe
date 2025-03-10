@@ -11,7 +11,7 @@ const useGameCreation = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const { authAxios } = useAuthAxios();
-    console.log("authAxios:", authAxios);
+    // console.log("authAxios:", authAxios);
 
     const createNewGame = useCallback(
         async (isAIGame = false) => {
