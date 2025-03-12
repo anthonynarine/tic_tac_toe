@@ -11,7 +11,7 @@ import { ResultModal } from "../reslutModal/ResultModal";
  * - onNewGameClicked (function): Handler to start a new game.
  * - onCompleteGame (function): Handler to complete the game.
  */
-const GameResult = ({ isGameOver, winner, onNewGameClicked, onCompleteGame }) => {
+const GameResult = ({ isGameOver, winner, onNewGameClicked }) => {
 
     // Debugging logs
     // console.log("GameResult Props:", { isGameOver, winner, onNewGameClicked, onCompleteGame, game });
@@ -21,7 +21,6 @@ const GameResult = ({ isGameOver, winner, onNewGameClicked, onCompleteGame }) =>
             isGameOver={isGameOver}
             winner={winner}
             onNewGameClicked={onNewGameClicked}
-            onCompleteGame={onCompleteGame}
         />
     );
 };
