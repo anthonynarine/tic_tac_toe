@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
 import useGameServices from "../hooks/useGameServices";
 import { showToast } from "../../utils/toast/Toast";
@@ -64,6 +64,8 @@ const GameManager = ({ gameId, children }) => {
     }, [gameId, dispatch]);
 
     // Finalize game when it's over
+    const finalizeCalledRef = useRef(false);
+
     useEffect(() => {
         const { isGameOver, winner, isCompleted } = state; // Destructure state values at the start
     
@@ -73,7 +75,8 @@ const GameManager = ({ gameId, children }) => {
         // console.log("State.winner:", winner);
         // console.log("State.isCompleted:", isCompleted);
     
-        if (isGameOver && winner && !isCompleted) {
+        if (isGameOver && winner && !isCompleted && !finalizeCalledRef.current) {
+            finalizeCalledRef.current = true; // Mark that we've called finalize game
             console.log("Conditions met. Calling finalizeGame...");
             finalizeGame(gameId, winner, isCompleted);
         } else {

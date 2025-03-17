@@ -1,7 +1,10 @@
 import logging
+from turtle import st
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.core.exceptions import ValidationError
+
+from backend import game
 from .shared_utils_game_chat import SharedUtils
 from .game_utils import GameUtils
 
@@ -111,6 +114,12 @@ class GameConsumer(JsonWebsocketConsumer):
             elif message_type == "move":
                 # Validate and process the player's move.
                 self.handle_move(content)
+            elif message_type == "rematch_request":
+                self.handle_rematch_request(),
+            elif message_type == "rematch_accept":
+                self.handle_rematch_accept()
+            elif message_type == "rematch_accept":
+                self.handle_rematch_accept
             else:
                 # Send an error response for unsupported message types.
                 SharedUtils.send_error(self, "Invalid message type.")
@@ -408,6 +417,108 @@ class GameConsumer(JsonWebsocketConsumer):
             logger.error(f"Error during game update: {e}")
             self.send_json({"type": "error", "message": "An error occurred during the game update."})
 
+    def handle_rematch_request(self) -> None:
+        """
+            Broadcast a "rematch_offer" to the other player in the same game lobby
+            indicating that self.user wants a rematch.
+        """
+        logger.info(f"User {self.user.first_name} is requesting a rematch")
+        
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "rematch_offer", # handler below
+                "from_user": self.user.first_name
+            }
+        )
+        
+    def rematch_offer(self, event: dict) -> None:
+        """
+        called when someone in the group triggers "rematch_offer".
+        Broadcast a message to all clients so the other players see a "rematch_offer"
+        """
+        from_user = event.get("from_user", "Unknown")
+        self.send_json({
+            "type": "rematch_offer",
+            "message": f"{from_user} wants a rematch!",
+        })
+        
+    def handle_rematch_accept(self) -> None:
+        """
+        Handles when the second player accepts a rematch. 
+        A new game will be created and ID boradcsted
+        """
+        logger.info(f"User {self.user.first_name} accepted a rematch in {self.lobby_group_name}")
+        
+        # 1) retrieve the old game instance
+        try:
+            old_game = GameUtils.get_game_instance(game_id=self.game_id)
+        except ValidationError as e:
+            logger.error(f"Rematch accept failed: {e}")
+            SharedUtils.send_error(self, str(e))
+            return
+        
+        # 2) Identify the old players
+        old_x = old_game.player_x
+        old_o = old_game.player_o
+        
+        # Safty checks
+        if not old_x or old_o:
+            logger.warning("Rematch accept failed: Missing a plyaer from the old game.")
+            SharedUtils.send_error(self, "Cannot rematch because one of the players is missing")
+            return
+        
+        # 3) Build a small list of the old players 
+        #    so we can pass it to "randomize_turn"
+        #    each entry will be a dict with "id" and "first_name"
+        players = [
+            {"id": old_x.id, "first_name": old_x.first_name},
+            {"id": old_o.id, "first_name": old_o.first_name},
+            
+        ]
+        
+        try:
+            starting_turn, player_x_dict, player_o_dict = GameUtils.randomize_turn(players=players)
+            
+            # 4) Create a new game
+            new_game = GameUtils.create_game(
+                player_o_id=player_o_dict["id"],
+                player_x_id=player_x_dict["id"],
+                starting_turn=starting_turn,
+            )
+            logger.info(f"New rematch game created with ID{new_game.id}")
+        
+        except ValueError as e:
+            logger.error(f"Rematch creation failed: {e}")
+            SharedUtils.send_error(self, str(e))
+            return
+        
+        # 5) Broadcast the new Game ID to everone in the group
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "rematch_start", # Handler below
+                "new_game_id": new_game.id,
+                
+            }
+        )
+        
+    def rematch_start(self, event: dict) -> None:
+        """
+        Notify both players of the tnew game ID so the can navigate there.
+        """
+        new_game_id = event.get("new_game_id")
+        logger.info(f"Broadcasting rematch_start for the new game {new_game_id}")
+        
+        # Send a JSON message to *this* client
+        self.send_json({
+            "type": "rematch_start",
+            "new_game_id": new_game_id,
+            "message": f"A new rematch game has been created with ID {new_game_id}"
+        })
+        
+        
+        
     def disconnect(self, code: int) -> None:
         """
         Handle WebSocket disconnection for game-related functionality.

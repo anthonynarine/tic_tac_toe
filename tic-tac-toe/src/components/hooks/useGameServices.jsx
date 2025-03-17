@@ -211,16 +211,25 @@ const useGameServices = () => {
                 winner, 
             });
 
-            console.log("Complete Game Response:", response.data); // Log response for debugging
-            return response.data; // Return the backend response data for further processing
+            // Server returns { message: "...", game: {...} }
+            // Just need the updated game object:
+            const updateGame = response.data.game;
+            console.log("Complete Game Response:", response.data.game); // Log response for debugging
+            return updateGame; 
         } catch (error) {
+            if (
+                error.response?.status === 400 &&
+                error.response?.data?.detail === "Game is already completed."
+            ) {
+                dispatch({ type: "MARK_COMPLETED"});
+            }
             setError(extractErrorMessage(error)); // Set the error message in the state
             console.error("Error completing the game:", error); // Log the error for debugging
             return null; // Return null if the request fails
         } finally {
             stopLoading(); // Stop the loading state
         }
-    }, [authAxios]); // Include state.winner as a dependency
+    }, [authAxios, dispatch]); // Include state.winner as a dependency
 
     /**
      * Finalizes the game by checking if it's completed and updating the state.

@@ -122,6 +122,14 @@ export const gameReducer = (state, action) => {
             return { ...INITIAL_STATE };
         }
 
+        case "MARK_COMPLETED": {
+            return {
+                ...state,
+                isGameOver: true,
+                isCompleted: true,
+            };
+        }
+
         case "PLAYER_LIST": {
             return {
                 ...state,

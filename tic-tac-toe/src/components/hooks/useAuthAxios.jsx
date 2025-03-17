@@ -139,7 +139,7 @@ const useAuthAxios = () => {
             }
         }
 
-        handleAuthError();
+        
         return Promise.reject(error);
     };
 
