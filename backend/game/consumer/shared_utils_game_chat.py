@@ -44,56 +44,64 @@ class SharedUtils:
     @staticmethod
     def validate_message(content: dict) -> bool:
         """
-        Validate the incoming WebSocket message content.
+        Validate the incoming WebSocket message content to ensure it conforms to expected format and types.
 
-        Parameters:
-            content (dict): The WebSocket message payload to validate.
+        Args:
+            content (dict): The WebSocket message payload.
 
         Returns:
-            bool: True if the message is valid, False otherwise.
+            bool: True if valid, False otherwise.
         """
         logger.debug(f"Validating message: {content}")
 
-        # Step 1: Check if the content is a dictionary
+        # Step 1: Ensure the message is a dictionary
         if not isinstance(content, dict):
-            logger.warning(f"Invalid message format received: Expected a JSON object, got {type(content).__name__}.")
+            logger.warning(f"Invalid format: Expected dict, got {type(content).__name__}")
             return False
 
-        # Step 2: Always require the "type" field
-        if "type" not in content:
-            logger.warning(f"Message missing required 'type' field. Received: {content}")
+        # Step 2: Require the "type" field
+        message_type = content.get("type")
+        if message_type is None:
+            logger.warning(f"Missing 'type' field in message: {content}")
             return False
 
-        # Step 3: Validate that "type" is a string
-        if not isinstance(content["type"], str):
-            logger.warning(f"Invalid 'type' field: Expected a string, got {type(content['type']).__name__}.")
+        # Step 3: Type must be a string
+        if not isinstance(message_type, str):
+            logger.warning(f"'type' field must be a string, got {type(message_type).__name__}")
             return False
 
-        # Step 4: Define all valid WebSocket message types (from Game and Chat Consumers)
-        valid_types = (
-            "chat_message",  # User sends a chat message
-            "update_user_list",  # Server updates lobby user list
-            "start_game",  # A player starts the game
-            "leave_lobby",  # A player leaves the game
-            "game_update",  # Server sends updated game state
-            "game_start_acknowledgment",  # Server confirms game has started
-            "connection_success",  # WebSocket connection is established
-            "player_list",  # Update player list in the lobby
-            "error"  # Error messages from the server
-        )
+        # Step 4: Normalize the type for consistent validation
+        message_type = message_type.lower()
 
-        # Step 5: If the message type is "chat_message", require a "message" field
-        if content["type"] == "chat_message" and "message" not in content:
-            logger.warning(f"Chat messages require a 'message' field. Received: {content}")
+        # Step 5: Define allowed WebSocket message types (from Game and Chat Consumers)
+        valid_types = {
+            "chat_message",
+            "update_user_list",
+            "start_game",
+            "leave_lobby",
+            "game_update",
+            "game_start_acknowledgment",
+            "connection_success",
+            "player_list",
+            "rematch_request",
+            "rematch_accept",
+            "rematch_decline",
+            "error",
+        }
+
+        # Step 6: Extra validation for chat messages
+        if message_type == "chat_message" and "message" not in content:
+            logger.warning(f"'chat_message' must include a 'message' field: {content}")
             return False
 
-        # Step 6: Ensure the message type is valid
-        if content["type"] not in valid_types:
-            logger.warning(f"Unsupported message type: {content['type']}. Valid types: {valid_types}")
+        # Step 7: Ensure it's a valid message type
+        if message_type not in valid_types:
+            logger.warning(f"Unsupported message type: {message_type}. Valid types: {valid_types}")
             return False
 
         logger.debug("Message validation passed.")
         return True
+
 
     @staticmethod
     def send_error(consumer, message: str, code: int = 4003):

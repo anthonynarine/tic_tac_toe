@@ -28,11 +28,12 @@ export const GamePage = () => {
                 handleCellClick,
                 playAgainAI,
                 finalizeGame,
+                requestRematch,
             }) => {
                 console.log("Updated state in GamePage:", state);
 
                 // Destructure the relevant state variables
-                const { game, isGameOver, winner, winningCombination, cellValues } = state;
+                const { game, isGameOver, winner, winningCombination, cellValues, isAI } = state;
 
                 /**
                  * Determine the player's role in the game.
@@ -54,6 +55,14 @@ export const GamePage = () => {
 
                 console.log("Game State:", game);
                 console.log("Board Disabled:", isDisabled);
+
+                const handleNewGameClicked = () => {
+                    if (state.isAI) {
+                        playAgainAI();
+                    } else {
+                        requestRematch()
+                    }
+                }
 
                 return (
                     <div id="game">
@@ -87,10 +96,9 @@ export const GamePage = () => {
                                 {/* Render the result modal if the game is over */}
                                 <GameResult
                                     isGameOver={isGameOver}
+                                    isAI={isAI}
                                     winner={winner}
-                                    onNewGameClicked={
-                                        state.isAI ? playAgainAI : null // Handle AI or multiplayer logic
-                                    }
+                                    onNewGameClicked={handleNewGameClicked  }
                                     onCompleteGame={() =>
                                         finalizeGame(gameId, winner, state.isCompleted)
                                     }

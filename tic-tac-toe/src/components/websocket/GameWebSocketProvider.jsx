@@ -48,6 +48,7 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
             showToast("success", "Successfully connected to the game WebSocket.");
         };
 
+        // Handles incoming ws messages
         gameWebSocket.onmessage = (event) => {
             const data = JSON.parse(event.data);
             console.log("WebSocket message received:", data);
@@ -60,10 +61,13 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
             }
         };
 
-        gameWebSocket.onclose = () => {
-            console.log("WebSocket disconnected");
+        gameWebSocket.onclose = (event) => {
+            console.warn("WebSocket disconnected unexpectedly!", event);
+            console.log("WebSocket readyState:", socketRef.current?.readyState);
+            console.log("WebSocket disconnected with code:", event.code, "Reason:", event.reason);
+            
             setIsConnected(false);
-            socketRef.current = null; // Clear the reference
+            // socketRef.current = null; // Clear the reference
         };
 
         gameWebSocket.onerror = (error) => {
@@ -78,14 +82,27 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
         };
     }, [effectiveGameId, navigate]);
 
+    // use to send messages to the ws server from anywere in react
     const sendMessage = (message) => {
-        if (socketRef.current && isConnected) {
-            socketRef.current.send(JSON.stringify(message));
-            console.log("Message sent:", message);
+        const socket = socketRef.current;
+    
+        // Step 1: Check if the socket exists and is open
+        const isSocketOpen = socket && socket.readyState === WebSocket.OPEN;
+    
+        console.log("[sendMessage] isConnected state:", isConnected);
+        console.log("[sendMessage] socketRef exists:", !!socket);
+        console.log("[sendMessage] socket.readyState:", socket?.readyState);
+    
+        // Step 2: If socket is ready, send the message
+        if (isSocketOpen) {
+            socket.send(JSON.stringify(message));
+            console.log("[sendMessage] Message sent:", message);
         } else {
-            console.error("Cannot send message: WebSocket is not connected");
+            console.error("[sendMessage] Cannot send message: WebSocket is not connected or open.");
+            // Optional: Retry logic or reconnection handler
         }
     };
+    
 
     const contextValue = {
         state,        // Game state managed by useReducer

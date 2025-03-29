@@ -207,7 +207,7 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         # Step 2: Prevent duplicate completion
         if game.is_completed:
             logger.info(f"Game {game.id} is already completed. Skipping update.")
-            return Response({"detail": "Game is already completed."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Game is already completed."}, status=status.HTTP_200_OK)
 
         # Step 3: Validate the winner marker
         winner_marker = request.data.get("winner")

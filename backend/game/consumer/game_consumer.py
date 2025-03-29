@@ -4,7 +4,7 @@ from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.core.exceptions import ValidationError
 
-from backend import game
+
 from .shared_utils_game_chat import SharedUtils
 from .game_utils import GameUtils
 
@@ -98,6 +98,20 @@ class GameConsumer(JsonWebsocketConsumer):
             # Close the connection if the message is invalid.
             self.close(code=4003)
             return
+        
+        # Step 1.5: Ensure self.game is initialized before using it
+        if not hasattr(self, "game"):
+            try:
+                self.game = GameUtils.get_game_instance(game_id=self.game_id)
+                logger.debug(f"GameConsumer loaded game instance: ID={self.game.id}, is_completed={self.game.is_completed}")
+            except Exception as e:
+                logger.error(f"Failed to fetch game instance in receive_json: {e}")
+                SharedUtils.send_error(self, "Unable to fetch game instance.")
+                return
+        
+        if self.game.is_completed:
+            logger.warning(f"Game {self.game_id} is already completed. Checking if WebSocket is still active.")
+            
 
         # Step 2: Extract and normalize the message type.
         message_type = content.get("type").lower()
@@ -118,8 +132,8 @@ class GameConsumer(JsonWebsocketConsumer):
                 self.handle_rematch_request(),
             elif message_type == "rematch_accept":
                 self.handle_rematch_accept()
-            elif message_type == "rematch_accept":
-                self.handle_rematch_accept
+            elif message_type == "rematch_decline":
+                self.handle_rematch_decline()
             else:
                 # Send an error response for unsupported message types.
                 SharedUtils.send_error(self, "Invalid message type.")
@@ -177,14 +191,18 @@ class GameConsumer(JsonWebsocketConsumer):
     def handle_start_game(self) -> None:
         
         """
-        Handle the game start event and notify both players in the lobby.
+        Handles the game start event and notifies both players in the lobby.
 
-        This method validates the lobby, ensures exactly two players are present, 
-        randomizes the starting turn, assigns player roles, and initializes the game.
+        This method:
+        - Validates the existence of the lobby and the player list.
+        - Ensures exactly two players are present before starting.
+        - Randomizes the starting turn and assigns player roles (X or O).
+        - Initializes the game instance with the assigned players and starting turn.
+        - Sends a game start acknowledgment to all players in the WebSocket group.
 
         Parameters:
-            self: The instance of the WebSocket consumer calling this method.
-        
+            self (GameConsumer): The instance of the WebSocket consumer.
+
         Raises:
             ValueError: If the lobby does not exist or if there is invalid player data.
         """
@@ -347,29 +365,45 @@ class GameConsumer(JsonWebsocketConsumer):
         
     def game_update(self, event: dict) -> None:
         """
-        Broadcast the updated game state to all connected clients.
-        
+        Broadcasts the updated game state to all connected clients.
+
+        This method ensures that the game state update is valid before sending it
+        to all players. If the game is AI-based, it verifies the AI user.
+
         Parameters:
-            event(dict): The message payload containing the updated game state.
-                        Expected keys: "board_state, "current_turn", "winner".
+            event (dict): The message payload containing the updated game state.
+                        Expected keys:
+                        - "board_state" (list): Current state of the board.
+                        - "current_turn" (str): The player ('X' or 'O') whose turn it is.
+                        - "winner" (str or None): The winner of the game (if any).
+
+        Behavior:
+            - Validates that the required keys exist in the event payload.
+            - Retrieves the game instance.
+            - If AI-based, verifies that the AI user exists.
+            - Determines the player's role (X or O).
+            - Prepares detailed player information.
+            - Broadcasts the updated game state to all connected clients.
+            - Logs critical errors if something goes wrong.
         """
         logger.info(f"Received game update event: {event}")
-        
+
         try:
-            # Step 1: Validate required keys in the event playload
+            # Step 1: Validate required keys in the event payload
             required_keys = ["board_state", "current_turn", "winner"]
             if not all(key in event for key in required_keys):
-                logger.error(f"Missing keys in event:: {event}")
+                logger.error(f"Missing keys in event: {event}")
                 self.send_json({"type": "error", "message": "Invalid game update payload."})
                 return
-            
-            # Step 2 Retrieve the game instance
+
+            # Step 2: Retrieve the game instance
             try:
                 game = GameUtils.get_game_instance(self.game_id)
             except ValueError as e:
+                logger.error(f"Game instance retrieval failed: {e}")
                 self.send_json({"type": "error", "message": str(e)})
                 return
-            
+
             # Step 3: Retrieve the AI user if the game is AI-based
             ai_user = None
             if game.is_ai_game:
@@ -378,7 +412,7 @@ class GameConsumer(JsonWebsocketConsumer):
                     logger.critical("AI user (ai@tictactoe.com) is missing. Please run migrations.")
                     self.send_json({"type": "error", "message": "AI user missing."})
                     return
-                        
+
             # Step 4: Determine the user's role in the game
             player_role = GameUtils.determine_player_role(user=self.user, game=game)
 
@@ -395,10 +429,9 @@ class GameConsumer(JsonWebsocketConsumer):
                 ),
             }
 
-            logger.debug(f"Player X Info: {player_o_info}"),
+            logger.debug(f"Player X Info: {player_x_info}")
             logger.debug(f"Player O Info: {player_o_info}")
 
-            # Step 6: Broadcast the game update to all clients
             # Step 6: Broadcast the game update to all clients
             self.send_json({
                 "type": "game_update",
@@ -406,12 +439,14 @@ class GameConsumer(JsonWebsocketConsumer):
                 "board_state": event["board_state"],
                 "current_turn": event["current_turn"],
                 "winner": event["winner"],
+                "is_completed": game.is_completed,
                 "player_role": player_role,
                 "player_x": player_x_info,
                 "player_o": player_o_info,
             })
+            
             logger.info("Game update broadcasted successfully.")
-            logger.info(f"Broadcasting game update: Board State={game.board_state}, Current Turn={game.current_turn}")
+            logger.info(f"Broadcasting game update: Board State={event['board_state']}, Current Turn={event['current_turn']}")
 
         except Exception as e:
             logger.error(f"Error during game update: {e}")
@@ -419,18 +454,29 @@ class GameConsumer(JsonWebsocketConsumer):
 
     def handle_rematch_request(self) -> None:
         """
-            Broadcast a "rematch_offer" to the other player in the same game lobby
-            indicating that self.user wants a rematch.
+        Broadcast a "rematch_offer" to the other player in the same game lobby
+        indicating that self.user wants a rematch.
         """
         logger.info(f"User {self.user.first_name} is requesting a rematch")
-        
+
+        # Step 1: Ensure self.game is initialized to avoid AttributeError
+        if not hasattr(self, "game"):
+            try:
+                self.game = GameUtils.get_game_instance(self.game_id)
+            except Exception as e:
+                logger.error(f"[Rematch Request] Failed to fetch game instance: {e}")
+                SharedUtils.send_error(self, "Failed to find current game.")
+                return
+
+        # Step 2: Broadcast the rematch_offer to the group
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
-                "type": "rematch_offer", # handler below
+                "type": "rematch_offer",  # handler method below
                 "from_user": self.user.first_name
             }
         )
+
         
     def rematch_offer(self, event: dict) -> None:
         """
@@ -463,7 +509,7 @@ class GameConsumer(JsonWebsocketConsumer):
         old_o = old_game.player_o
         
         # Safty checks
-        if not old_x or old_o:
+        if not old_x or not old_o:
             logger.warning("Rematch accept failed: Missing a plyaer from the old game.")
             SharedUtils.send_error(self, "Cannot rematch because one of the players is missing")
             return
@@ -517,35 +563,58 @@ class GameConsumer(JsonWebsocketConsumer):
             "message": f"A new rematch game has been created with ID {new_game_id}"
         })
         
-        
-        
     def disconnect(self, code: int) -> None:
         """
-        Handle WebSocket disconnection for game-related functionality.
+        Handles WebSocket disconnection for a game session.
+
+        This method removes the user from the WebSocket group (`lobby_group_name`)
+        when they leave the game. However, if the game is completed, the user remains
+        in the WebSocket group to allow for a rematch request.
 
         Parameters:
-            code (int): The WebSocket close code.
+            code (int): The WebSocket close code indicating the reason for disconnection.
+
+        Behavior:
+            - If the player disconnects before joining a game, logs a warning and exits.
+            - If the player is in an active game, removes them from the game lobby.
+            - If the game is already completed, keeps them in the WebSocket group
+            so they can request a rematch.
+            - Logs the disconnection event.
         """
         if not hasattr(self, "lobby_group_name"):
             logger.warning("Game user disconnected before joining a game lobby")
-            return
+            return  # Exit early since they were never in a lobby
 
         try:
+                    # Step 1: Always log current group state
+            logger.debug(f"[WS-DISCONNECT] Checking lobby group: {self.lobby_group_name}")
+
+            # Step 1: Retrieve the latest game state to ensure it's updated
+            game = GameUtils.get_game_instance(self.game_id)  # Ensure correct completion state
+            
+            if game.is_completed:
+                logger.info(f"[WS-DISCONNECT] Game {game.id} is completed. Keeping user {self.user.first_name} in the group for rematch.")
+                return  # Do not remove from WebSocket group
+
+            # Step 2: Only remove the player if the game is NOT completed
             if self.lobby_group_name in GameUtils.lobby_players:
+                logger.info(f"[WS-DISCONNECT] Removing user {self.user.first_name} from lobby group {self.lobby_group_name}")
+                
                 GameUtils._remove_player_from_lobby(
                     user=self.user,
                     group_name=self.lobby_group_name,
                     channel_layer=self.channel_layer,
                     channel_name=self.channel_name,
                 )
-        except Exception as e:
-            logger.error(f"Error during game disconnection: {e}")
 
-        async_to_sync(self.channel_layer.group_discard)(
-            self.lobby_group_name,
-            self.channel_name,
-        )
-        logger.info(f"Game user {self.user.first_name} disconnected from game lobby {self.lobby_group_name}")
+                async_to_sync(self.channel_layer.group_discard)(
+                    self.lobby_group_name,
+                    self.channel_name,
+                )
+                logger.info(f"[WS-DISCONNECT] User {self.user.first_name} removed from lobby group {self.lobby_group_name}")
+
+        except Exception as e:
+            logger.error(f"[WS-DISCONNECT] Error during disconnect for user {self.user.first_name}: {e}")
 
 
 

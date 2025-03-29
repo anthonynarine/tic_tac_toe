@@ -4,9 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { AiFillHome } from "react-icons/ai"; // Import the home icon
 import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
 
-export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
+export const ResultModal = ({ isGameOver, winner, onNewGameClicked, isAI }) => {
   const navigate = useNavigate(); // Hook for navigation
-  const { dispatch } = useGameWebSocketContext();
+  const { dispatch, sendMessage } = useGameWebSocketContext();
 
   const resultModalClasses = classNames({
     "modal-open": isGameOver,
@@ -16,10 +16,14 @@ export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
   // console.log("Modal Props:", { isGameOver, winner, game });
   // console.log("onNewGameClicked in ResultModal:", onNewGameClicked);
 
-
   // Determine the result message
   const resultMessage =
     winner === "D" ? "It's a draw!" : `${winner} Wins`; // Display result message
+
+  const handleRematchRequest = () => {
+    console.log("Requesting a rematch via WebSocket")
+    sendMessage({ type: "rematch_request"});
+  }
 
   return (
     <div id="modal-overlay" className={resultModalClasses}>
@@ -31,6 +35,8 @@ export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
         </div>
         <div id="new-game-container">
           {/* Play Again Button */}
+          {isAI ? (
+
           <button
             className="modal-button play-again-button"
             onClick={() => {
@@ -44,6 +50,13 @@ export const ResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
           >
             Play Again
           </button>
+          ) : (
+            <button className="modal-buttion play-again-button" 
+            onClick={handleRematchRequest}
+            >
+              Rematch
+            </button>
+          )}
           {/* Home Button */}
           <button
             className="modal-button home-button"

@@ -67,6 +67,35 @@ const gameWebsocketActions = (dispatch, navigate) => ({
      * Does not interact with a reducer.
      */
     error: (data) => showToast("error", data.message || "An error occurred"),
+
+    /**
+     * Handle a "rematch_offer" message fromt he server
+     * Anoter player wants a rematch.
+     * 
+     */
+    rematch_request: (data) => {
+        console.log("Received a rematch request:", data);
+        dispatch({
+            type: "REMATCH_OFFER",
+            playload: {
+                fromUser: data.from_user || "Unknows",
+                message: data.message
+            },
+        });
+    },
+
+        /**
+     * Handle a "rematch_start" message from the server.
+     * The server includes new_game_id, so we can navigate to that new game.
+     */
+    rematch_start: (data) => {
+        console.log("Rematch start with new game ID:", data.new_game_id);
+        // You could show a toast or jump directly to the new game route:
+        showToast("success", data.message);
+        navigate(`/games/${data.new_game_id}`);
+    },
+
+
 });
 
 export default gameWebsocketActions;
