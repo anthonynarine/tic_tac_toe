@@ -20,6 +20,8 @@ export const INITIAL_STATE = {
     isAI: false,
     playerRole: null,
     players: [],
+    rematchMessage: "",            
+    isRematchOfferVisible: false,
 };
 
 // Reducer function
@@ -29,6 +31,7 @@ export const gameReducer = (state, action) => {
     }
 
     switch (action.type) {
+        // Set the full game state after fetching or starting a new game
         case "SET_GAME": {
             const {
                 board_state,
@@ -56,6 +59,7 @@ export const gameReducer = (state, action) => {
             };
         }
 
+        // Update the game state after a move is made
         case "MAKE_MOVE": {
             const {
                 board_state,
@@ -82,7 +86,8 @@ export const gameReducer = (state, action) => {
                 playerRole: player_role || state.playerRole,
             };
         }
-
+            
+        // Apply updated game state from a WebSocket broadcast
         case "UPDATE_GAME_STATE": {
             const {
                 board_state,
@@ -108,6 +113,7 @@ export const gameReducer = (state, action) => {
             };
         }
 
+        // Reset everything and optionally prefill the board
         case "RESET_GAME": {
             const { board_state = "_".repeat(9) } = action.payload;
 
@@ -117,11 +123,13 @@ export const gameReducer = (state, action) => {
                 cellValues: board_state.split("").map((cell) => (cell === "_" ? "" : cell)),
             };
         }
-
+        
+        // Full hard reset of the game reducer state
         case "RESET_GAME_STATE": {
             return { ...INITIAL_STATE };
         }
 
+        // Mark the game as completed (used post-finalization)
         case "MARK_COMPLETED": {
             return {
                 ...state,
@@ -130,12 +138,21 @@ export const gameReducer = (state, action) => {
             };
         }
 
+        // Update the list of connected players (WebSocket)
         case "PLAYER_LIST": {
             return {
                 ...state,
                 players: action.payload,
             };
         }
+        
+        // Show the rematch modal with message from opponent
+        case "SHOW_REMATCH_MODAL":
+            return {
+                ...state,
+                rematchMessage: action.payload,
+                isRematchOfferVisible: true,
+            };
 
         default: {
             console.warn(`Unknown action type: ${action.type}`);

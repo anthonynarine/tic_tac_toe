@@ -1,29 +1,25 @@
 import "./ResultModal.css";
 import classNames from "classnames";
 import { useNavigate } from "react-router-dom";
-import { AiFillHome } from "react-icons/ai"; // Import the home icon
+import { AiFillHome } from "react-icons/ai";
 import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
 
 export const ResultModal = ({ isGameOver, winner, onNewGameClicked, isAI }) => {
-  const navigate = useNavigate(); // Hook for navigation
-  const { dispatch, sendMessage } = useGameWebSocketContext();
+  const navigate = useNavigate();
+  const { dispatch, sendMessage, state } = useGameWebSocketContext();
+  const { isRematchOfferVisible, rematchMessage } = state;
 
   const resultModalClasses = classNames({
     "modal-open": isGameOver,
   });
 
-  // Debug logs
-  // console.log("Modal Props:", { isGameOver, winner, game });
-  // console.log("onNewGameClicked in ResultModal:", onNewGameClicked);
-
-  // Determine the result message
   const resultMessage =
-    winner === "D" ? "It's a draw!" : `${winner} Wins`; // Display result message
+    winner === "D" ? "It's a draw!" : `${winner} Wins`;
 
   const handleRematchRequest = () => {
-    console.log("Requesting a rematch via WebSocket")
-    sendMessage({ type: "rematch_request"});
-  }
+    console.log("Requesting a rematch via WebSocket");
+    sendMessage({ type: "rematch_request" });
+  };
 
   return (
     <div id="modal-overlay" className={resultModalClasses}>
@@ -34,40 +30,64 @@ export const ResultModal = ({ isGameOver, winner, onNewGameClicked, isAI }) => {
           </div>
         </div>
         <div id="new-game-container">
-          {/* Play Again Button */}
+          {/* Play Again or Rematch Button */}
           {isAI ? (
-
-          <button
-            className="modal-button play-again-button"
-            onClick={() => {
-              console.log("Play Again button clicked");
-              if (onNewGameClicked) {
-                onNewGameClicked(); // Ensure the function is called if it's defined
-              } else {
-                console.warn("onNewGameClicked is not defined");
-              }
-            }}
-          >
-            Play Again
-          </button>
+            <button
+              className="modal-button play-again-button"
+              onClick={() => {
+                console.log("Play Again button clicked");
+                if (onNewGameClicked) {
+                  onNewGameClicked();
+                } else {
+                  console.warn("onNewGameClicked is not defined");
+                }
+              }}
+            >
+              Play Again
+            </button>
           ) : (
-            <button className="modal-buttion play-again-button" 
-            onClick={handleRematchRequest}
+            <button
+              className="modal-button play-again-button"
+              onClick={handleRematchRequest}
             >
               Rematch
             </button>
           )}
+
           {/* Home Button */}
           <button
             className="modal-button home-button"
             onClick={() => {
-              dispatch({ type: "RESET_GAME_STATE" }); // Reset the game state
-              navigate("/"); // Navigate to the homepage
+              dispatch({ type: "RESET_GAME_STATE" });
+              navigate("/");
             }}
           >
-            <AiFillHome className="home-icon" /> {/* Add the home icon */}
+            <AiFillHome className="home-icon" />
             Home
           </button>
+
+          {isRematchOfferVisible && (
+            <div className="rematch-offer-container">
+              <p>{rematchMessage}</p>
+              <div className="rematch-buttons">
+                <button
+                  className="modal-button play-again-button"
+                  onClick={() => sendMessage({ type: "rematch_accept" })}
+                >
+                  Accept
+                </button>
+                <button
+                  className="modal-button"
+                  onClick={() => {
+                    dispatch({ type: "RESET_GAME_STATE" });
+                    navigate("/");
+                  }}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -476,8 +476,7 @@ class GameConsumer(JsonWebsocketConsumer):
                 "from_user": self.user.first_name
             }
         )
-
-        
+    
     def rematch_offer(self, event: dict) -> None:
         """
         called when someone in the group triggers "rematch_offer".

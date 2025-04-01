@@ -84,6 +84,11 @@ const gameWebsocketActions = (dispatch, navigate) => ({
         });
     },
 
+    rematch_offer: (data) => {
+        console.log("Rematch offer received:", data);
+        dispatch({ type: "SHOW_REMATCH_MODAL", payload: data.message })
+    },
+
         /**
      * Handle a "rematch_start" message from the server.
      * The server includes new_game_id, so we can navigate to that new game.
