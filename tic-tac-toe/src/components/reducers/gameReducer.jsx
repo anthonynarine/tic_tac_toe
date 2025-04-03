@@ -22,6 +22,9 @@ export const INITIAL_STATE = {
     players: [],
     rematchMessage: "",            
     isRematchOfferVisible: false,
+    rematchRequestBy: null,
+    rematchPending: false,
+
 };
 
 // Reducer function
@@ -153,6 +156,15 @@ export const gameReducer = (state, action) => {
                 rematchMessage: action.payload,
                 isRematchOfferVisible: true,
             };
+        
+        case "HIDE_REMATCH_MODAL":
+            return {
+                ...state,
+                rematchMessage: "",
+                isRematchOfferVisible: false, 
+                rematchRequestBy: null,
+                rematchPending: false,
+            }
 
         default: {
             console.warn(`Unknown action type: ${action.type}`);
