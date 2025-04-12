@@ -1,27 +1,26 @@
-import { ResultModal } from "../reslutModal/ResultModal";
+import { AIResultModal } from "../reslutModal/AIResultModal";
+import { MultiplayerResultModal } from "../reslutModal/MultiplayerResultModal";
 
 /**
  * GameResult Component
- * 
- * Manages the display of the game result, including options to replay or complete the game.
- * 
+ *
+ * Responsible for rendering the correct result modal based on game mode.
+ *
  * Props:
  * - isGameOver (boolean): Indicates if the game is over.
- * - winner (string|null): The winner of the game (if any).
- * - onNewGameClicked (function): Handler to start a new game.
- * - onCompleteGame (function): Handler to complete the game.
+ * - winner (string|null): The winner of the game.
+ * - onNewGameClicked (function): Handler for starting a new game.
+ * - isAI (boolean): Whether the current game is against an AI.
  */
-const GameResult = ({ isGameOver, winner, onNewGameClicked }) => {
-
-    // Debugging logs
-    // console.log("GameResult Props:", { isGameOver, winner, onNewGameClicked, onCompleteGame, game });
-
-    return (
-        <ResultModal
-            isGameOver={isGameOver}
-            winner={winner}
-            onNewGameClicked={onNewGameClicked}
+const GameResult = ({ isGameOver, winner, onNewGameClicked, isAI }) => {
+    return isAI ? (
+        <AIResultModal
+        isGameOver={isGameOver}
+        winner={winner}
+        onNewGameClicked={onNewGameClicked}
         />
+    ) : (
+        <MultiplayerResultModal isGameOver={isGameOver} winner={winner} />
     );
 };
 

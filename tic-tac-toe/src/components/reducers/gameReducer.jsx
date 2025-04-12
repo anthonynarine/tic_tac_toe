@@ -24,6 +24,7 @@ export const INITIAL_STATE = {
     isRematchOfferVisible: false,
     rematchRequestBy: null,
     rematchPending: false,
+    rawRematchOffer: null,
 
 };
 
@@ -99,12 +100,14 @@ export const gameReducer = (state, action) => {
                 is_completed = false,
                 winning_combination = [],
                 player_role,
+                player_x,
+                player_o,
                 ...restGame
             } = action.payload;
 
             return {
                 ...state,
-                game: { ...state.game, ...restGame, board_state, current_turn, winner },
+                game: { ...state.game, ...restGame, board_state, current_turn, winner, player_x, player_o },
                 cellValues: board_state.split("").map((cell) => (cell === "_" ? "" : cell)),
                 xIsNext: current_turn === "X",
                 isGameOver: !!winner,
@@ -148,13 +151,35 @@ export const gameReducer = (state, action) => {
                 players: action.payload,
             };
         }
-        
-        // Show the rematch modal with message from opponent
-        case "SHOW_REMATCH_MODAL":
+
+        case "SET_REMATCH_PENDING":
             return {
                 ...state,
-                rematchMessage: action.payload,
-                isRematchOfferVisible: true,
+                rematchPending: action.payload
+        }
+        
+        // Show the rematch modal with message from opponent
+        case "SHOW_REMATCH_MODAL":{
+            const {
+                message = "",
+                rematchRequestedBy = null,
+                isRematchOfferVisible = true,
+                rematchPending = true,
+            } = action.payload
+
+            return {
+                ...state,
+                rematchMessage: message,
+                isRematchOfferVisible,
+                rematchRequestedBy,
+                rematchPending,
+            };
+        }
+
+        case "RECEIVE_RAW_REMATCH_OFFER":
+            return {
+                ...state,
+                rawRematchOffer: action.payload,
             };
         
         case "HIDE_REMATCH_MODAL":

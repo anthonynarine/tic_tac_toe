@@ -1,4 +1,5 @@
 import logging
+from operator import truediv
 from turtle import st
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
@@ -467,26 +468,65 @@ class GameConsumer(JsonWebsocketConsumer):
                 logger.error(f"[Rematch Request] Failed to fetch game instance: {e}")
                 SharedUtils.send_error(self, "Failed to find current game.")
                 return
+            
+        # Step # 2: Determine Player role ("X" or "O")
+        try:
+            player_role = GameUtils.determine_player_role(user=self.user, game=self.game)
+        except Exception as e:
+            logger.error(f"Failed to determine player role for rematch: {e}")
+            SharedUtils.send_error(self, "Unable to determine player role.")
+            return
 
-        # Step 2: Broadcast the rematch_offer to the group
+        # Step 3: Broadcast the rematch offer with player role
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
-                "type": "rematch_offer",  # handler method below
-                "from_user": self.user.first_name
+                "type": "rematch_offer",
+                "from_user": self.user.first_name,
+                "rematchRequestedBy": player_role,  # ✅ sends "X" or "O"
+                "isRematchOfferVisible": True,
+                "rematchPending": True
             }
         )
+
+        logger.info(f"Broadcasted rematch_offer from {self.user.first_name} as {player_role}")
+
     
     def rematch_offer(self, event: dict) -> None:
         """
-        called when someone in the group triggers "rematch_offer".
-        Broadcast a message to all clients so the other players see a "rematch_offer"
+        Called when someone in the group triggers "rematch_offer".
+        Broadcast a message to all clients so the other players see a "rematch_offer".
         """
-        from_user = event.get("from_user", "Unknown")
+
+        # Step 1: Safely initialize the game if not already done
+        if not hasattr(self, "game"):
+            try:
+                self.game = GameUtils.get_game_instance(self.game_id)
+            except Exception as e:
+                logger.error(f"[rematch_offer] Could not fetch game instance: {e}")
+                SharedUtils.send_error(self, "Could not find game.")
+                return
+
+        # Step 2: Determine the player's role ("X" or "O")
+        try:
+            player_role = GameUtils.determine_player_role(self.user, self.game)
+        except Exception as e:
+            logger.error(f"[rematch_offer] Failed to determine player role: {e}")
+            SharedUtils.send_error(self, "Could not determine player role.")
+            return
+
+        # Step 3: Broadcast the message
         self.send_json({
             "type": "rematch_offer",
-            "message": f"{from_user} wants a rematch!",
+            "message": f"{self.user.first_name} wants a rematch!",
+            "rematchRequestedBy": player_role,  # ✅ "X" or "O"
+            "isRematchOfferVisible": True,
+            "rematchPending": True,
         })
+
+        logger.info(f"Broadcasted rematch_offer from {self.user.first_name} as {player_role}")
+
+
         
     def handle_rematch_accept(self) -> None:
         """

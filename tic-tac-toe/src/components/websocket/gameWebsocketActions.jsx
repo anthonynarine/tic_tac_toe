@@ -9,7 +9,7 @@ import { showToast } from "../../utils/toast/Toast";
  * @param {function} navigate - The navigate function from react-router-dom.
  * @returns {Object} - Object containing WebSocket message handlers.
  */
-const gameWebsocketActions = (dispatch, navigate) => ({
+const gameWebsocketActions = (dispatch, navigate, state) => ({
     /**
      * Handles WebSocket message for connection success.
      * Does not interact with a reducer.
@@ -30,31 +30,36 @@ const gameWebsocketActions = (dispatch, navigate) => ({
      * Interacts with: `UPDATE_GAME_STATE` in the `gameReducer`.
      */
     game_update: (data) => {
+
         console.log("Game update received:", data);
-
+    
         if (!data.board_state || !data.current_turn) {
-            showToast("error", "Invalid game update data received.");
-            return;
+        showToast("error", "Invalid game update data received.");
+        return;
         }
-
+    
         dispatch({
-            type: "UPDATE_GAME_STATE",
+        type: "UPDATE_GAME_STATE",
             payload: {
                 board_state: data.board_state,
                 current_turn: data.current_turn,
                 winner: data.winner,
                 player_x: data.player_x || { id: null, first_name: "Waiting..." },
                 player_o: data.player_o || { id: null, first_name: "Waiting..." },
+                is_completed: data.is_completed ?? false,
+                winning_combination: data.winning_combination || [],
+                player_role: data.player_role, 
                 game_id: data.game_id,
             },
         });
-
+    
         if (data.game_id) {
-            navigate(`/games/${data.game_id}`);
+        navigate(`/games/${data.game_id}`);
         } else {
-            showToast("error", "Game ID is missing in game update.");
+        showToast("error", "Game ID is missing in game update.");
         }
     },
+    
 
     /**
      * Handles WebSocket message for game start acknowledgment.
@@ -85,9 +90,17 @@ const gameWebsocketActions = (dispatch, navigate) => ({
     },
 
     rematch_offer: (data) => {
+    
         console.log("Rematch offer received:", data);
-        dispatch({ type: "SHOW_REMATCH_MODAL", payload: data.message })
+    
+        // Step 1: Store the offer in state temporarily.
+        dispatch({
+        type: "RECEIVE_RAW_REMATCH_OFFER",
+        payload: data,
+        });
     },
+    
+    
 
         /**
      * Handle a "rematch_start" message from the server.
