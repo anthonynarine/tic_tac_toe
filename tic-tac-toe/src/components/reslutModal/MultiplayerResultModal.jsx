@@ -1,11 +1,24 @@
-import React, { useEffect } from "react";
-import "./ResultModal.css";
-import classNames from "classnames";
+// File: src/components/MultiplayerResultModal.jsx
+
+import React, { useEffect, useMemo } from "react";
+import "./MultiplayerResultModal.css";
 import { AiFillHome } from "react-icons/ai";
 import { useNavigate } from "react-router-dom";
 import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
 import { useCountdown } from "../hooks/useCountdown";
 
+/**
+ * MultiplayerResultModal
+ *
+ * Displays the game result and manages the rematch UI flow:
+ * - Shows winner or draw result.
+ * - Allows sending/accepting/declining rematch offers.
+ * - Automatically handles new game starts and modal resets.
+ *
+ * Props:
+ * @param {boolean} isGameOver - Whether the game has ended.
+ * @param {string} winner - The winner ("X", "O", or "D" for draw).
+ */
 export const MultiplayerResultModal = ({ isGameOver, winner }) => {
     const navigate = useNavigate();
     const { dispatch, sendMessage, state } = useGameWebSocketContext();
@@ -13,57 +26,86 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
     const {
         isRematchOfferVisible,
         rematchMessage,
-        rematchRequestBy,
         playerRole,
         rematchPending,
         game,
         rawRematchOffer,
     } = state;
 
-    // Dynamically assign modal-open class based on modal visibility triggers
-    const resultModalClasses = classNames({
-        "modal-open": isGameOver || isRematchOfferVisible,
-    });
+    // -----------------------
+    // Step 1: Determine Player Role
+    // -----------------------
+    const currentPlayerRole = useMemo(() => {
+        if (playerRole) return playerRole;
+        if (state.user?.first_name === game?.player_x?.first_name) return "X";
+        if (state.user?.first_name === game?.player_o?.first_name) return "O";
+        return null;
+    }, [playerRole, game, state.user]);
 
-    // Use countdown for the requesting player
-    const countdown = useCountdown(10, rematchPending, () => {
-        dispatch({ type: "HIDE_REMATCH_MODAL" });
-    });
+    // -----------------------
+    // Step 2: Handle Raw Rematch Offer
+    // -----------------------
+    useEffect(() => {
+        if (!rawRematchOffer || !currentPlayerRole) return;
 
-    /**
-     * Initiate rematch request via WebSocket.
-     */
-    const handleRematchRequest = () => {
-        sendMessage({ type: "rematch_request" });
+        const { message, rematchRequestedBy } = rawRematchOffer;
+
         dispatch({
         type: "SHOW_REMATCH_MODAL",
         payload: {
-            message: "Waiting for opponent...",
-            rematchRequestBy: playerRole,
+            message,
+            rematchRequestedBy,
             isRematchOfferVisible: true,
-            rematchPending: true,
+            rematchPending: rematchRequestedBy === currentPlayerRole,
         },
         });
-    };
 
-    /** Accept the rematch offer. */
+        dispatch({ type: "RECEIVE_RAW_REMATCH_OFFER", payload: null });
+    }, [rawRematchOffer, currentPlayerRole, dispatch]);
+
+    // -----------------------
+    // Step 3: Auto-Hide Modal When New Game Starts
+    // -----------------------
+    useEffect(() => {
+        if (!state.isCompleted) {
+        dispatch({ type: "HIDE_REMATCH_MODAL" });
+        }
+    }, [state.isCompleted, dispatch]);
+
+    // -----------------------
+    // Step 4: Determine If Current User is the Rematch Requester
+    // -----------------------
+    const isRequester = useMemo(() => {
+        return currentPlayerRole === state.rematchRequestedBy;
+    }, [currentPlayerRole, state.rematchRequestedBy]);
+
+    // -----------------------
+    // Step 5: Countdown for Rematch Requester
+    // -----------------------
+    const countdown = useCountdown(10, isRequester, () => {
+        dispatch({ type: "HIDE_REMATCH_MODAL" });
+    });
+
+    // -----------------------
+    // Step 6: Button Handlers
+    // -----------------------
+    const handleRematchRequest = () => sendMessage({ type: "rematch_request" });
+
     const handleAccept = () => sendMessage({ type: "rematch_accept" });
 
-    /** Decline rematch offer and reset state. */
     const handleDecline = () => {
         dispatch({ type: "HIDE_REMATCH_MODAL" });
         sendMessage({ type: "rematch_decline" });
     };
 
-    /** Reset state and return to homepage. */
     const handleGoHome = () => {
         dispatch({ type: "RESET_GAME_STATE" });
         navigate("/");
     };
 
-    /**
-     * Compute result title based on winner and player names.
-     */
+    // -----------------------
+    // Step 7: Prepare Result Message
+    // -----------------------
     const resultMessage = (() => {
         if (winner === "D") return "It's a draw!";
         const winningPlayer =
@@ -75,67 +117,51 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
         return winningPlayer ? `${winningPlayer} Wins` : `${winner} Wins`;
     })();
 
-    // useEffect to handle rawRematchOffer when playerRole is available
-    useEffect(() => {
+    // -----------------------
+    // Step 8: Determine Modal Visibility
+    // -----------------------
+    const resultModalClasses =
+        isGameOver || isRematchOfferVisible ? "modal-open" : "";
 
-        const offer = state.rawRematchOffer;
-        const playerRole = state.playerRole;
-        
-        if (offer && playerRole) {
-            const isRequester = offer.rematchRequestedBy === playerRole;
-        
-            dispatch({
-                type: "SHOW_REMATCH_MODAL",
-                payload: {
-                message: offer.message ?? "",
-                rematchRequestedBy: offer.rematchRequestedBy ?? null,
-                isRematchOfferVisible: true,
-                rematchPending: isRequester,  // <- this is what's not working correctly
-                },
-            });
-        
-            dispatch({ type: "RECEIVE_RAW_REMATCH_OFFER", payload: null });
-            }
-    }, [state.rawRematchOffer, state.playerRole]);
-    
-    
-
+    // -----------------------
+    // Step 9: Render Modal UI
+    // -----------------------
     return (
-        // Main overlay shown when modal is active
         <div id="modal-overlay" className={resultModalClasses}>
-        {/* Container for modal content */}
         <div id="game-result-modal">
-            {/* Display winner/draw message */}
-            <div id="result-container">
+            {/* Winner / Draw Message */}
             <div id="winner-container">
-                <span>{resultMessage}</span>
-            </div>
+            <span>{resultMessage}</span>
             </div>
 
-            {/* Button area for actions */}
+            {/* Rematch Offer UI */}
             <div id="new-game-container">
-            {/* If a rematch offer is visible */}
             {isRematchOfferVisible ? (
-                rematchRequestBy && rematchRequestBy !== playerRole ? (
-                // 👤 Opponent sees message + Accept/Decline
+                isRequester ? (
+                // Requester sees countdown
+                <p className="rematch-text">{`${rematchMessage} Waiting... ${countdown}s`}</p>
+                ) : (
+                // Receiver sees Accept/Decline buttons
                 <>
                     <p className="rematch-text">{rematchMessage}</p>
-                    <button className="modal-button play-again-button" onClick={handleAccept}>
-                    Accept
+                    <div className="rematch-buttons">
+                    <button
+                        className="modal-button play-again-button"
+                        onClick={handleAccept}
+                    >
+                        Accept
                     </button>
                     <button
-                    className="modal-button home-button"
-                    onClick={handleDecline}
+                        className="modal-button decline-button"
+                        onClick={handleDecline}
                     >
-                    Decline
+                        Decline
                     </button>
+                    </div>
                 </>
-                ) : (
-                // ✅ Requesting player sees countdown only
-                <p className="rematch-text">{`${rematchMessage} Waiting... ${countdown}s`}</p>
                 )
             ) : (
-                // 🕹 No rematch yet - show rematch request button
+                // No offer yet: show "Request Rematch" button
                 <button
                 className="modal-button play-again-button"
                 onClick={handleRematchRequest}
@@ -144,7 +170,7 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
                 </button>
             )}
 
-            {/* 🏠 Always show Home button */}
+            {/* Home Button */}
             <button className="modal-button home-button" onClick={handleGoHome}>
                 <AiFillHome className="home-icon" />
                 Home

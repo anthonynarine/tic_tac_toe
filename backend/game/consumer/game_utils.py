@@ -1,6 +1,6 @@
 
 import random
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from channels.layers import BaseChannelLayer
 from game.models import TicTacToeGame, DEFAULT_BOARD_STATE
 from users.models import CustomUser
@@ -31,6 +31,23 @@ class GameUtils:
         except TicTacToeGame.DoesNotExist:
             raise ValueError(f"Game with ID {game_id} does not exist")
         
+    @staticmethod
+    async def async_get_game_intance(game_id: int):
+        """
+        Async version: Retrieve or validate the game instance asynchronosly. 
+
+        Returns:
+            TicTacToeGame: The game instance
+        
+        Raises:
+            ValueError: If the game does not exist. 
+        """
+        try:
+            # Use sync_to_sync wrapper on normal get
+            return await sync_to_async(TicTacToeGame.objects.get)(id=game_id)
+        except TicTacToeGame.DoesNotExist:
+            raise ValueError(f"Game with ID {game_id} does not exist")
+    
     @staticmethod
     def assign_player_role(game, user):
         """
@@ -240,3 +257,4 @@ class GameUtils:
         elif user == game.player_o:
             return "O"
         return "Spectator"
+    

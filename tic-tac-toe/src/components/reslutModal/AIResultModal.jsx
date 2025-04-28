@@ -1,49 +1,41 @@
-/**
- * AIResultModal.jsx
- *
- * Displays game results for AI matches. Includes play again and home buttons.
- *
- * Props:
- *   @param {boolean} isGameOver - Whether the game has ended.
- *   @param {string} winner - The winner of the game ("X", "O", or "D" for draw).
- *   @param {function} onNewGameClicked - Callback to trigger a new game.
- *
- * Internal Behavior:
- * - Displays a modal with the result (win/loss/draw).
- * - Shows "Play Again" and "Home" buttons for user interaction.
- */
+// File: src/components/AIResultModal.jsx
 
-import "./ResultModal.css";
+import "./AIResultModal.css";
 import classNames from "classnames";
 import { AiFillHome } from "react-icons/ai";
 import { useNavigate } from "react-router-dom";
 
+/**
+ * AIResultModal
+ *
+ * Displays game results for AI matches. Includes play again and home buttons.
+ *
+ * Props:
+ * @param {boolean} isGameOver - Whether the game has ended.
+ * @param {string} winner - The winner of the game ("X", "O", or "D" for draw).
+ * @param {function} onNewGameClicked - Callback to trigger a new game.
+ */
 export const AIResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
   const navigate = useNavigate();
 
-  // Dynamically assign modal-open class only if game is over
+  // Step 1: Determine the modal open class
   const resultModalClasses = classNames({
     "modal-open": isGameOver,
   });
 
-  // Determine the result message to display
-  const resultMessage = winner === "D" ? "It's a draw!" : `${winner} Wins`;
+  // Step 2: Determine the result message
+  const resultMessage = winner === "D" ? "It's a Draw!" : `${winner} Wins`;
 
   return (
-    // Main overlay that dims the background when modal is open
     <div id="modal-overlay" className={resultModalClasses}>
-      {/* Modal content container */}
       <div id="game-result-modal">
-        {/* Winner message display */}
-        <div id="result-container">
-          <div id="winner-container">
-            <span>{resultMessage}</span>
-          </div>
+        {/* Step 3: Winner text */}
+        <div id="winner-container">
+          <span>{resultMessage}</span>
         </div>
 
-        {/* Container for interaction buttons */}
-        <div id="new-game-container">
-          {/* Button to start a new game against AI */}
+        {/* Step 4: Buttons */}
+        <div className="ai-buttons-container">
           <button
             className="modal-button play-again-button"
             onClick={onNewGameClicked}
@@ -51,7 +43,6 @@ export const AIResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
             Play Again
           </button>
 
-          {/* Button to return to the homepage */}
           <button
             className="modal-button home-button"
             onClick={() => navigate("/")}

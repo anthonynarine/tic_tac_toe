@@ -1,41 +1,57 @@
 /**
+ * gameReducer.jsx
+ *
  * Description:
- * This file defines the initial state and the reducer logic for managing the Tic Tac Toe game state.
- * - `INITIAL_STATE`: Represents the default state of the game board, turn tracking, and game status.
- * - `gameReducer`: A reducer function used to handle state transitions for various actions (e.g., setting up the game, making moves, resetting).
- * 
- * The reducer processes actions to update the game state in a predictable and controlled manner. 
- * It is primarily used with React's `useReducer` hook in the game context.
+ * This file defines the initial game state and reducer function for managing the
+ * Tic Tac Toe game state, player list, WebSocket updates, and rematch offer flows.
+ *
+ * The reducer is primarily used with React's `useReducer` hook inside the game context provider
+ * to ensure predictable state transitions.
+ *
+ * Organization:
+ * - Game Setup Actions (SET_GAME, MAKE_MOVE, UPDATE_GAME_STATE)
+ * - Game Reset Actions (RESET_GAME, RESET_GAME_STATE, MARK_COMPLETED)
+ * - Player Management (PLAYER_LIST)
+ * - Rematch Offer Flow (SHOW_REMATCH_MODAL, RECEIVE_RAW_REMATCH_OFFER, HIDE_REMATCH_MODAL, LOCK_REMATCH_BUTTON)
+ * - Miscellaneous (default)
  */
 
-/// Initial State for the game
+/// --------------------
+/// Initial State
+/// --------------------
 export const INITIAL_STATE = {
-    cellValues: Array(9).fill(""),
-    xIsNext: true,
-    isGameOver: false,
-    isCompleted: false,
-    numOfTurnsLeft: 9,
-    winner: null,
-    winningCombination: [],
-    isAI: false,
-    playerRole: null,
-    players: [],
-    rematchMessage: "",            
-    isRematchOfferVisible: false,
-    rematchRequestBy: null,
-    rematchPending: false,
-    rawRematchOffer: null,
-
+    cellValues: Array(9).fill(null), // 3x3 Board initialized as empty
+    xIsNext: true, // Tracks whose turn it is (X starts first)
+    isGameOver: false, // True when game finishes
+    isCompleted: false, // True when game is completed (even if no winner)
+    numOfTurnsLeft: 9, // Countdown for available turns
+    winner: null, // 'X', 'O', or 'D' for draw
+    winningCombination: [], // Array of winning cell indices
+    isAI: false, // Whether playing against AI
+    playerRole: null, // Current player's role ('X' or 'O')
+    players: [], // Connected players (WebSocket)
+    rematchMessage: "", // Rematch modal message
+    isRematchOfferVisible: false, // Whether rematch modal is visible
+    rematchRequestedBy: null, // Role who initiated rematch request
+    rematchPending: false, // True if waiting for response
+    rawRematchOffer: null, // Raw WebSocket rematch offer payload
+    rematchButtonLocked: false, // Prevent spamming rematch button
 };
 
-// Reducer function
+/// --------------------
+/// Reducer Function
+/// --------------------
 export const gameReducer = (state, action) => {
     if (process.env.NODE_ENV === "development") {
         console.log(`Reducer action received: ${action.type}`, action.payload);
     }
 
     switch (action.type) {
-        // Set the full game state after fetching or starting a new game
+
+        // --------------------
+        // Game Setup Actions
+        // --------------------
+
         case "SET_GAME": {
             const {
                 board_state,
@@ -45,12 +61,12 @@ export const gameReducer = (state, action) => {
                 is_completed = false,
                 winning_combination = [],
                 player_role,
-                ...restGame // Capture other game fields (e.g., `id`, `player_x`, etc.)
+                ...restGame
             } = action.payload;
 
             return {
                 ...state,
-                game: { ...restGame, board_state, current_turn, winner }, // Store the full game object
+                game: { ...restGame, board_state, current_turn, winner },
                 cellValues: board_state.split("").map((cell) => (cell === "_" ? "" : cell)),
                 xIsNext: current_turn === "X",
                 isGameOver: !!winner || is_completed,
@@ -59,11 +75,10 @@ export const gameReducer = (state, action) => {
                 winningCombination: winning_combination,
                 numOfTurnsLeft: board_state.split("").filter((cell) => cell === "_").length,
                 isAI: is_ai_game,
-                playerRole: player_role || restGame.playerRole
+                playerRole: player_role || restGame.playerRole,
             };
         }
 
-        // Update the game state after a move is made
         case "MAKE_MOVE": {
             const {
                 board_state,
@@ -78,7 +93,7 @@ export const gameReducer = (state, action) => {
 
             return {
                 ...state,
-                game: { ...state.game, ...restGame, board_state, current_turn, winner }, // Update game object
+                game: { ...state.game, ...restGame, board_state, current_turn, winner },
                 cellValues: board_state.split("").map((cell) => (cell === "_" ? "" : cell)),
                 xIsNext: current_turn === "X",
                 isGameOver: !!winner,
@@ -90,8 +105,7 @@ export const gameReducer = (state, action) => {
                 playerRole: player_role || state.playerRole,
             };
         }
-            
-        // Apply updated game state from a WebSocket broadcast
+
         case "UPDATE_GAME_STATE": {
             const {
                 board_state,
@@ -119,23 +133,25 @@ export const gameReducer = (state, action) => {
             };
         }
 
-        // Reset everything and optionally prefill the board
+        // --------------------
+        // Game Reset Actions
+        // --------------------
+
         case "RESET_GAME": {
             const { board_state = "_".repeat(9) } = action.payload;
 
             return {
                 ...INITIAL_STATE,
-                game: {}, // Reset the game object
+                game: {},
                 cellValues: board_state.split("").map((cell) => (cell === "_" ? "" : cell)),
             };
         }
-        
-        // Full hard reset of the game reducer state
+
         case "RESET_GAME_STATE": {
             return { ...INITIAL_STATE };
         }
 
-        // Mark the game as completed (used post-finalization)
+
         case "MARK_COMPLETED": {
             return {
                 ...state,
@@ -144,7 +160,10 @@ export const gameReducer = (state, action) => {
             };
         }
 
-        // Update the list of connected players (WebSocket)
+        // --------------------
+        // Player Management
+        // --------------------
+
         case "PLAYER_LIST": {
             return {
                 ...state,
@@ -152,44 +171,58 @@ export const gameReducer = (state, action) => {
             };
         }
 
-        case "SET_REMATCH_PENDING":
-            return {
-                ...state,
-                rematchPending: action.payload
-        }
-        
-        // Show the rematch modal with message from opponent
-        case "SHOW_REMATCH_MODAL":{
+        // --------------------
+        // Rematch Offer Flow
+        // --------------------
+
+        case "SHOW_REMATCH_MODAL": {
             const {
                 message = "",
                 rematchRequestedBy = null,
                 isRematchOfferVisible = true,
-                rematchPending = true,
-            } = action.payload
-
+                rematchPending = false,
+            } = action.payload || {};
+        
             return {
                 ...state,
                 rematchMessage: message,
-                isRematchOfferVisible,
                 rematchRequestedBy,
+                isRematchOfferVisible,
                 rematchPending,
             };
         }
+        
 
-        case "RECEIVE_RAW_REMATCH_OFFER":
+        case "RECEIVE_RAW_REMATCH_OFFER": {
+            if (!action.payload) return state;
+        
             return {
                 ...state,
                 rawRematchOffer: action.payload,
             };
+        }        
         
-        case "HIDE_REMATCH_MODAL":
+
+        case "LOCK_REMATCH_BUTTON": {
+            return {
+                ...state,
+                rematchButtonLocked: true,
+            };
+        }
+
+        case "HIDE_REMATCH_MODAL": {
             return {
                 ...state,
                 rematchMessage: "",
-                isRematchOfferVisible: false, 
-                rematchRequestBy: null,
+                isRematchOfferVisible: false,
+                rematchRequestedBy: null,
                 rematchPending: false,
-            }
+            };
+        }
+
+        // --------------------
+        // Default (Error Handling)
+        // --------------------
 
         default: {
             console.warn(`Unknown action type: ${action.type}`);

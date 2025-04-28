@@ -60,21 +60,32 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="navbar-content">
-        <div className="navbar-brand">
+
+        {/* Brand / Home */}
+        <div className="navbar-brand" onClick={() => navigate("/")}>
           <CiHome className="game-icon" />
-          {/* <img src={logored} alt="Tic Tac Toe Logo" className="app-logo" /> */}
         </div>
 
+        {/* Game Dropdown */}
         <div className="game-icon-container" onClick={toggleDropdown}>
           <PiGameControllerThin className="game-icon" />
           {dropdownOpen && (
             <div className="dropdown-menu">
-              <button onClick={startMultiplayerGame}>Multiplayer</button>
-              <button onClick={startAIGame}>Play vs AI</button>
+              {isLoggedIn ? (
+                <>
+                  <button onClick={startMultiplayerGame}>Multiplayer</button>
+                  <button onClick={startAIGame}>Play vs AI</button>
+                </>
+              ) : (
+                <button onClick={() => navigate("/login")}>
+                  Login 
+                </button>
+              )}
             </div>
           )}
         </div>
 
+        {/* Navbar Links */}
         <div className={`navbar-links ${isOpen ? "active" : ""}`}>
           <ul>
             {!isLoggedIn ? (
@@ -100,9 +111,11 @@ const Navbar = () => {
           </ul>
         </div>
 
+        {/* Mobile Menu Toggle */}
         <div className="navbar-toggle" onClick={toggleMenu}>
           {isOpen ? <FaTimes /> : <FaBars />}
         </div>
+
       </div>
     </nav>
   );

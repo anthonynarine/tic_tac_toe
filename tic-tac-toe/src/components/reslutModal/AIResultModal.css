@@ -1,0 +1,101 @@
+    /* Modal Overlay */
+    #modal-overlay {
+        display: none;
+        justify-content: center;
+        align-items: center;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        pointer-events: none;
+    }
+    
+    #modal-overlay.modal-open {
+        display: grid;
+        pointer-events: all;
+    }
+    
+    /* Modal Box */
+    #game-result-modal {
+        margin: auto;
+        padding: 30px;
+        background: #f3f0f0;
+        border-radius: 15px;
+        max-width: 400px;
+        min-width: 250px;
+        text-align: center;
+        box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.4);
+        animation: dripIn 1.5s ease-out;
+    }
+    
+    /* Winner Text */
+    #winner-container {
+        margin-bottom: 20px;
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #333;
+    }
+    
+    /* Flex Buttons */
+    .ai-buttons-container {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+    }
+    
+    /* General Button */
+    .modal-button {
+        padding: 10px 20px;
+        font-size: 1rem;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        color: white;
+        transition: background-color 0.3s ease;
+    }
+    
+    /* Play Again Button */
+    .play-again-button {
+        background-color: #22c55e;
+    }
+    
+    .play-again-button:hover {
+        background-color: #16a34a;
+    }
+    
+    /* Home Button */
+    .home-button {
+        background-color: #1D9BF0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .home-button:hover {
+        background-color: #015ec1;
+    }
+    
+    /* Home Icon */
+    .home-icon {
+        margin-right: 8px;
+        font-size: 1.2rem;
+    }
+    
+    /* Modal Animation */
+    @keyframes dripIn {
+        0% {
+        transform: translateY(-200%);
+        opacity: 0;
+        }
+        50% {
+        transform: translateY(10%);
+        opacity: 0.7;
+        }
+        100% {
+        transform: translateY(0);
+        opacity: 1;
+        }
+    }
+  

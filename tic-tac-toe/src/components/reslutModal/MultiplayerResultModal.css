@@ -1,0 +1,109 @@
+    /* Multiplayer Modal Container */
+    #game-result-modal {
+        margin: auto;
+        padding: 30px;
+        background: #f3f0f0;
+        color: #333;
+        border-radius: 20px;
+        max-width: 400px;
+        min-width: 280px;
+        text-align: center;
+        box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.4);
+        position: relative;
+        border: 1px solid white;
+        animation: dripIn 0.6s ease-out;
+    }
+    
+    /* Winner Text */
+    #winner-container {
+        margin-bottom: 20px;
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #1d9bf0; /* Electric Blue */
+    }
+    
+    /* Buttons Container */
+    #new-game-container {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+    }
+    
+    /* Modal Buttons */
+    .modal-button {
+        font-size: 1rem;
+        padding: 12px 20px;
+        border-radius: 10px;
+        border: none;
+        cursor: pointer;
+        color: white;
+        font-weight: 600;
+        box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.2);
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+    
+    /* Rematch Button (Play Again) */
+    .modal-button.play-again-button {
+        background-color: #1d9bf0;
+    }
+    
+    .modal-button.play-again-button:hover {
+        background-color: #015ec1;
+        transform: translateY(-2px);
+    }
+    
+    /* Decline Button */
+    .modal-button.decline-button {
+        background-color: #ef4444; /* Red */
+    }
+    
+    .modal-button.decline-button:hover {
+        background-color: #dc2626;
+        transform: translateY(-2px);
+    }
+    
+    /* Home Button */
+    .modal-button.home-button {
+        background-color: #1d9bf0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-button.home-button:hover {
+        background-color: #015ec1;
+        transform: translateY(-2px);
+    }
+    
+    /* Rematch Message Text */
+    .rematch-text {
+        font-size: 1rem;
+        font-weight: 500;
+        color: #333;
+        margin-bottom: 12px;
+    }
+    
+    /* Home Icon Spacing */
+    .home-icon {
+        margin-right: 8px;
+        font-size: 1.2rem;
+    }
+    
+    /* Animations */
+    @keyframes dripIn {
+        0% {
+        transform: translateY(-200%);
+        opacity: 0;
+        }
+        50% {
+        transform: translateY(10%);
+        opacity: 0.7;
+        }
+        100% {
+        transform: translateY(0);
+        opacity: 1;
+        }
+    }
+    

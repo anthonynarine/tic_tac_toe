@@ -73,11 +73,17 @@
   font-weight: 500;
   cursor: pointer;
   border-radius: 0.25rem;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
+
 .dropdown-menu button:hover {
-  background-color: #1a91da;
+  background-color: #000000; /* Keep background dark on hover */
+  color: white;
+  box-shadow: 
+    0 0 5px rgba(255, 255, 255, 0.5),
+    0 0 10px rgba(255, 255, 255, 0.4),
+    0 0 15px rgba(255, 255, 255, 0.3);
 }
 
 /* Navbar Links */

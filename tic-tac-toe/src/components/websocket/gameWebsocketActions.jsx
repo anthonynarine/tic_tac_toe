@@ -9,7 +9,7 @@ import { showToast } from "../../utils/toast/Toast";
  * @param {function} navigate - The navigate function from react-router-dom.
  * @returns {Object} - Object containing WebSocket message handlers.
  */
-const gameWebsocketActions = (dispatch, navigate, state) => ({
+const gameWebsocketActions = (dispatch, navigate, gameId) => ({
     /**
      * Handles WebSocket message for connection success.
      * Does not interact with a reducer.
@@ -90,13 +90,24 @@ const gameWebsocketActions = (dispatch, navigate, state) => ({
     },
 
     rematch_offer: (data) => {
+        if (data.game_id !== gameId) {
+            console.warn("Ignoring stale rematch_offer for old game:", data.game_id);
+            return;
+        }
     
         console.log("Rematch offer received:", data);
     
         // Step 1: Store the offer in state temporarily.
+        dispatch({ type: "RECEIVE_RAW_REMATCH_OFFER", payload: data, });
+
         dispatch({
-        type: "RECEIVE_RAW_REMATCH_OFFER",
-        payload: data,
+            type: "SHOW_REMATCH_MODAL",
+            payload: {
+                message: data.message,
+                rematchRequestedBy: data.rematchRequestedBy,
+                isRematchOfferVisible: data.isRematchOfferVisible,
+                rematchPending: data.rematchPending,
+            },
         });
     },
     
@@ -108,11 +119,15 @@ const gameWebsocketActions = (dispatch, navigate, state) => ({
      */
     rematch_start: (data) => {
         console.log("Rematch start with new game ID:", data.new_game_id);
-        // You could show a toast or jump directly to the new game route:
-        showToast("success", data.message);
-        navigate(`/games/${data.new_game_id}`);
+    
+        dispatch({ type: "HIDE_REMATCH_MODAL" });
+    
+        Promise.resolve().then(() => {
+            navigate(`/games/${data.new_game_id}`);
+        });
     },
-
+    
+        
 
 });
 

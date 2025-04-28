@@ -110,3 +110,12 @@ class SharedUtils:
         """
         consumer.send_json({"type": "error", "message": message})
         consumer.close(code=code)
+        
+    @staticmethod
+    async def async_send_error(consumer, message: str, code: int = 4003):
+        """
+        Asynchronously send an error message and close the WebSocket connection.
+        """
+        await consumer.send_json({"type": "error", "message": message})
+        await consumer.close(code=code)
+

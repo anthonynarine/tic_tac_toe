@@ -51,9 +51,10 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
         // Handles incoming ws messages
         gameWebSocket.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            if (!data) return;
             console.log("WebSocket message received:", data);
 
-            const actions = gameWebsocketActions(dispatch, navigate);
+            const actions = gameWebsocketActions(dispatch, navigate, effectiveGameId);
             if (actions[data.type]) {
                 actions[data.type](data);
             } else {

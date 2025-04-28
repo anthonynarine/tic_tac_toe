@@ -102,3 +102,36 @@
   color: black; /* Optional: Change text color on hover */
   transform: translateY(-3px); /* Slight hover effect */
 }
+
+/* Keyframes for white pulsing glow */
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 247, 245, 0.7), 0 0 30px rgba(255, 255, 255, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Illuminated black button that pulses white */
+.login-play-button {
+  padding: 1.2rem 2.5rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  background-color: black;
+  color: white;
+  border: 2px solid white; /* Solid white border */
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: pulse-glow 2.5s infinite ease-in-out; /* 👈 Add pulsing */
+}
+
+.login-play-button:hover {
+  background-color: #0d0d0d; /* slightly lighter black on hover */
+  transform: translateY(-4px) scale(1.05); /* slight lift */
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.8), 0 0 35px rgba(255, 255, 255, 0.6);
+}
