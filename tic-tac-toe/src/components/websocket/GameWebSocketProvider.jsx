@@ -4,6 +4,7 @@ import { GameWebSocketContext } from "./GameWebsocketContext";
 import { showToast } from "../../utils/toast/Toast";
 import gameWebsocketActions from "./gameWebsocketActions";
 import { gameReducer, INITIAL_STATE } from "../reducers/gameReducer";
+import config from "../../config";
 
 /**
  * GameWebSocketProvider
@@ -38,7 +39,7 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
             return;
         }
 
-        const gameWebSocketUrl = `ws://localhost:8000/ws/game/${effectiveGameId}/?token=${token}`;
+        const gameWebSocketUrl = `${config.websocketBaseUrl}/game/${effectiveGameId}/?token=${token}`;
         const gameWebSocket = new WebSocket(gameWebSocketUrl);
         socketRef.current = gameWebSocket;
 

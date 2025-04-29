@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import Cookies from "js-cookie";
 import axios from "axios";
+import config from "../../config";
 
 const useAuthAxios = () => {
     const navigate = useNavigate();
@@ -12,7 +13,7 @@ const useAuthAxios = () => {
 
     // Create the Axios instance
     const authAxios = axios.create({
-        baseURL: isProduction ? process.env.REACT_APP_PROD_URL : process.env.REACT_APP_DEV_URL,
+        baseURL: config.apiBaseUrl,
         withCredentials: true, // Always true, for both environments
     });
 

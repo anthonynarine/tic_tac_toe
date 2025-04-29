@@ -1,4 +1,5 @@
 import os
+import dj_database_url 
 from datetime import timedelta
 from pathlib import Path
 from decouple import config
@@ -14,10 +15,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = [
-    'localhost', 
+    'localhost',
     '127.0.0.1',
     'tic-tac-toe-server-66c5e15cb1f1.herokuapp.com',
-    ]
+    'onevone.net',
+    'www.onevone.net',
+    'gorgeous-pothos-e03300.netlify.app',  # optional for old Netlify URL access
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -54,9 +58,12 @@ MIDDLEWARE = [
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # React local development
-    "https://your-frontend-domain.com",  # Update on deployment
+    "http://localhost:3000",
+    "https://onevone.net",
+    "https://www.onevone.net",
+    "https://gorgeous-pothos-e03300.netlify.app",
 ]
+
 CORS_ALLOW_CREDENTIALS = True  # Allow credentials (cookies) in cross-origin requests
 
 # URL configuration
@@ -84,12 +91,17 @@ WSGI_APPLICATION = "ttt_core.wsgi.application"
 ASGI_APPLICATION = "ttt_core.asgi.application"
 
 # Database configuration
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if os.environ.get("DATABASE_URL"):
+    DATABASES = {
+        'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / "db.sqlite3",
+        }
+    }
 
 # Authentication settings
 AUTH_USER_MODEL = 'users.CustomUser'
@@ -137,8 +149,9 @@ USE_TZ = True
 
 # CSRF and session cookies
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',  # Local development domain
-    'https://your-production-domain.com',  # Production frontend domain
+    'http://localhost:3000',
+    'https://onevone.net',
+    'https://www.onevone.net',
 ]
 
 if DEBUG:

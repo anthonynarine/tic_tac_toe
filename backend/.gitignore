@@ -1,0 +1,25 @@
+# ===== Python Virtual Environment =====
+ttt_venv/
+venv/
+env/
+
+# ===== Python Bytecode / Cache =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.cache/
+
+# ===== Django Files =====
+db.sqlite3
+media/
+staticfiles/
+local_settings.py
+
+# ===== Environment Variables =====
+.env
+
+# ===== Logs =====
+*.log
+debug.log

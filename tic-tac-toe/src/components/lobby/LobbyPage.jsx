@@ -5,6 +5,8 @@ import { useUserContext } from "../context/userContext";
 import { showToast } from "../../utils/toast/Toast";
 import { CiCirclePlus } from "react-icons/ci";
 import "./lobby.css";
+import config from "../../config";
+import Cookies from "js-cookie"
 
 /**
  * Lobby Component
@@ -34,7 +36,14 @@ const LobbyPage = () => {
      * Establish WebSocket connection for the lobby.
      */
     useEffect(() => {
-        const token = localStorage.getItem("access_token");
+        const isProduction = process.env.NODE_ENV === "production";
+
+        const token = isProduction
+            ? Cookies.get("access_token")
+            : localStorage.getItem("access_token");
+
+    console.log("WebSocket token:", token);  // Debugging
+    
         if (!token) {
             showToast("error", "You must be logged in to join the lobby.");
             navigate("/login");
@@ -42,7 +51,7 @@ const LobbyPage = () => {
         }
 
         const webSocket = new WebSocket(
-            `ws://localhost:8000/ws/chat/${gameId}/?token=${token}`
+            `${config.websocketBaseUrl}/chat/${gameId}/?token=${token}`
         );
 
         webSocket.onopen = () => console.log("WebSocket connected.");

@@ -1,6 +1,5 @@
 import logging
 from operator import truediv
-from turtle import st
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.core.exceptions import ValidationError
