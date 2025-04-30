@@ -36,37 +36,33 @@ const LobbyPage = () => {
      * Establish WebSocket connection for the lobby.
      */
     useEffect(() => {
-        const isProduction = process.env.NODE_ENV === "production";
-
-        const token = isProduction
-            ? Cookies.get("access_token")
-            : localStorage.getItem("access_token");
-
-    console.log("WebSocket token:", token);  // Debugging
+        const token = config.getAccessToken();
+    
+        console.log("WebSocket token:", token);
     
         if (!token) {
             showToast("error", "You must be logged in to join the lobby.");
             navigate("/login");
             return;
         }
-
+    
         const webSocket = new WebSocket(
             `${config.websocketBaseUrl}/chat/${gameId}/?token=${token}`
         );
-
+    
         webSocket.onopen = () => console.log("WebSocket connected.");
         webSocket.onmessage = (event) => handleWebSocketMessage(event);
         webSocket.onclose = () => console.log("WebSocket disconnected.");
-        webSocket.onerror = (error) =>
-            console.error("WebSocket encountered an error:", error);
-
+        webSocket.onerror = (error) => console.error("WebSocket encountered an error:", error);
+    
         setSocket(webSocket);
-
+    
         return () => {
             console.log("Cleaning up WebSocket connection...");
             webSocket.close();
         };
     }, [gameId, navigate]);
+    
 
     /**
      * Handles WebSocket messages.
