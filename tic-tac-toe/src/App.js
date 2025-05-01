@@ -9,8 +9,8 @@ import LoginPage from "./components/user/LoginPage";
 import RegistrationPage from "./components/user/RegisterPage";
 import { GamePage } from "./components/game/Gamepage";
 import ToastTestPage from "./utils/toast/ToastTestPage";
-import Lobby from "./components/lobby/Lobby";
 import LobbyPage from "./components/lobby/Lobbypage";
+import TechnicalPaper from "./components/technical-paper/TechnicalPaper";
 
 import { UserProvider } from "./components/context/userContext";
 import { GameProvider } from "./components/context/gameContext";
@@ -51,6 +51,7 @@ function App() {
                                     }
                                 />
                                 <Route path="/toast-test-page" element={<ToastTestPage />} />
+                                <Route path="/technical-paper" element={<TechnicalPaper />} />
                             </Routes>
                         </div>
                     </LobbyProvider>

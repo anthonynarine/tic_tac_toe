@@ -1,0 +1,76 @@
+/* ==========================
+   Technical Paper - Refined Theme
+   ========================== */
+
+   :root {
+    --bg-color: #0d1117;
+    --panel-color: #1c1c1c;
+    --highlight: #f0a500;
+    --text-color: #e4e4e4;
+    --heading-color: #ffffff;
+    --font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  }
+  
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: var(--font);
+    margin: 0;
+    padding: 0;
+    line-height: 1.7;
+  }
+  
+  .tech-paper-container {
+    max-width: 850px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  
+  .tech-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    text-align: center;
+    color: var(--heading-color);
+    margin-bottom: 2rem;
+  }
+  
+  .tech-section {
+    background-color: var(--panel-color);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-left: 5px solid var(--highlight);
+    border-radius: 6px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+  }
+  
+  .tech-subtitle {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--highlight);
+  }
+  
+  .tech-paragraph {
+    margin: 0.5rem 0;
+    font-size: 1rem;
+    color: var(--text-color);
+  }
+  
+  .tech-list {
+    padding-left: 1.25rem;
+    margin: 0.5rem 0;
+  }
+  
+  .tech-list li {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+    color: var(--text-color);
+  }
+  
+  .tech-footer {
+    text-align: center;
+    margin-top: 3rem;
+    font-size: 0.95rem;
+    color: #999;
+  }
+  

@@ -5,6 +5,7 @@ import { showToast } from "../../utils/toast/Toast";
 import gameWebsocketActions from "./gameWebsocketActions";
 import { gameReducer, INITIAL_STATE } from "../reducers/gameReducer";
 import config from "../../config";
+import Cookies from "js-cookie"
 
 /**
  * GameWebSocketProvider
@@ -33,7 +34,10 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
         }
         console.log("Attempting game WebSocket connection with gameId:", effectiveGameId);
 
-        const token = localStorage.getItem("access_token");
+        const token = process.env.NODE_ENV === "production"
+        ? Cookies.get("access_token")
+        : localStorage.getItem("access_token");
+    
         if (!token) {
             console.error("Access token not found. Cannot initialize WebSocket.");
             return;
