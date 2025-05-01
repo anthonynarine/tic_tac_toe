@@ -9,7 +9,7 @@ import LoginPage from "./components/user/LoginPage";
 import RegistrationPage from "./components/user/RegisterPage";
 import { GamePage } from "./components/game/Gamepage";
 import ToastTestPage from "./utils/toast/ToastTestPage";
-import LobbyPage from "./components/lobby/Lobbypage";
+import LobbyPage from "./components/lobby/LobbyPage";
 import TechnicalPaper from "./components/technical-paper/TechnicalPaper";
 
 import { UserProvider } from "./components/context/userContext";
