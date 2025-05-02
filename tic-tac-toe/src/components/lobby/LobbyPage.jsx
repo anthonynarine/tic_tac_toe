@@ -36,13 +36,13 @@ const LobbyPage = () => {
      * Establish WebSocket connection for the lobby.
      */
     useEffect(() => {
-        const token = config.getAccessToken();
-    
-        console.log("WebSocket token:", token);
-    
+
+        const token = process.env.NODE_ENV === "production"
+            ? Cookies.get("access_token")
+            : localStorage.getItem("access_token");
+        
         if (!token) {
-            showToast("error", "You must be logged in to join the lobby.");
-            navigate("/login");
+            console.error("Access token not found. Cannot initialize WebSocket.");
             return;
         }
     

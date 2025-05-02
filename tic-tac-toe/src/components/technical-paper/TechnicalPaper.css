@@ -1,5 +1,5 @@
 /* ==========================
-   Technical Paper - Refined Theme with Sidebar
+   Technical Paper - Responsive Theme
    ========================== */
 
    :root {
@@ -15,30 +15,33 @@
     scroll-behavior: smooth;
   }
   
-  body {
+  body, html {
     background-color: var(--bg-color);
     color: var(--text-color);
     font-family: var(--font);
     margin: 0;
     padding: 0;
     line-height: 1.7;
+    overflow-x: hidden;
   }
   
   .tech-layout {
     display: flex;
+    flex-direction: column;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem 1rem;
+    padding: 1rem;
   }
   
   .tech-sidebar {
+    display: none;
     width: 220px;
     padding-right: 2rem;
     position: sticky;
-    top: 7rem;
+    top: 7.5rem;
     height: fit-content;
     align-self: flex-start;
-    display: none;
+    margin-top: 7.9rem;
   }
   
   .tech-sidebar ul {
@@ -62,19 +65,15 @@
     color: #1C9BEF;
   }
   
-  @media screen and (min-width: 1024px) {
-    .tech-sidebar {
-      display: block;
-    }
-  }
-  
   .tech-paper-container {
     flex: 1;
+    width: 100%;
     max-width: 850px;
     background-color: #0e1117;
     border-radius: 12px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
     padding: 2rem;
+    margin-top: 8rem;
   }
   
   .tech-title {
@@ -144,6 +143,43 @@
     to {
       transform: translateY(0);
       opacity: 1;
+    }
+  }
+  
+  /* ==========================
+     Responsive Layout
+     ========================== */
+  
+  @media screen and (min-width: 1024px) {
+    .tech-layout {
+      flex-direction: row;
+    }
+  
+    .tech-sidebar {
+      display: block;
+    }
+  }
+  
+  @media screen and (max-width: 768px) {
+    .tech-title {
+      font-size: 2rem;
+    }
+  
+    .tech-subtitle {
+      font-size: 1.25rem;
+    }
+  
+    .tech-paragraph,
+    .tech-list li {
+      font-size: 1rem;
+    }
+  
+    .tech-paper-container {
+      padding: 1rem;
+    }
+  
+    .tech-sidebar {
+      display: none;
     }
   }
   
