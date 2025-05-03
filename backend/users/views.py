@@ -136,3 +136,16 @@ class FriendshipViewset(viewsets.ModelViewSet):
             return Response({"message": "Friend request accepted."})
         except Friendship.DoesNotExist:
             return Response({"error": "Friend request not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+    @action(detail=True, methods=["delete"])
+    def decline(self, request, pk=None):
+        """
+        Declines (deletes) a pending friend request if the current user is the recipient.
+        """
+        try:
+            friendship = Friendship.objects.get(id=pk, to_user=request.user, is_accepted=False)
+            friendship.delete()
+            return Response({"message": "Friend request declined."}, status=204)
+        except Friendship.DoesNotExist:
+            return Response({"error": "Pending friend request not found."}, status=404)
+

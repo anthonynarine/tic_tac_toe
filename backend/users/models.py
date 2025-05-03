@@ -1,16 +1,16 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 from yaml import serialize
 
-from backend.game import serializers
 from .manager import CustomUserManager
 from .image_validators import validate_icon_image_size, validate_image_file_extension
 from .image_path import avatar_upload_path, default_avatar
 from .resize_img import resize_image
 from django.contrib.auth import get_user_model
 
-User = get_user_model()  # Needed for the Friendship model below
+User = settings.AUTH_USER_MODEL
 
 
 class CustomUser(AbstractUser):
