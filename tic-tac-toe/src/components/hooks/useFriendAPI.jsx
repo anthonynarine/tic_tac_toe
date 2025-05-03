@@ -45,6 +45,14 @@ const useFriendAPI = () => {
          * @returns {Promise} - Axios response confirming the request was accepted.
          */
         acceptRequest: (id) => authAxios.post(`/users/friends/${id}/accept/`),
+
+        /**
+        * Decline a pending friend request by its ID.
+        *
+        * @param {number} id - The ID of the friendship request to decline.
+        * @returns {Promise} - Axios response after deletion.
+        */
+      declineRequest: (id) => authAxios.delete(`/users/friends/${id}/decline/`),
     };
 };
 

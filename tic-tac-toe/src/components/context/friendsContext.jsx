@@ -14,12 +14,12 @@ export const useFriends = () => {
 };
 
 
-// Wrap the app globally or locally in this provider to expose friend stat and actins.
+// Wrap the app globally or locally in this provider to expose friend state and actions.
 export const FriendsProvider = ({ children }) => {
     const [state, dispatch] = useReducer(friendReducer, INITIAL_FRIEND_STATE);
 
     // API methods from custom hook (authAxios-backed)
-    const { fetchFriends, fetchPending, sendRequest, acceptRequest } = useFriendAPI();
+    const { fetchFriends, fetchPending, sendRequest, acceptRequest, declineRequest } = useFriendAPI();
 
     // Fetches both accepted friends and pending requests in parallel.
    // Updates context state accordingly.
@@ -44,6 +44,16 @@ export const FriendsProvider = ({ children }) => {
         }
     }, [fetchFriends, fetchPending]);
 
+    const handleDeclineRequest = useCallback(async (id) => {
+            try {
+            await declineRequest(id);
+            await loadFriendData();  // Refresh list after decline
+            } catch (error) {
+            console.error("Failed to decline friend request:", error);
+            }
+        }, [declineRequest, loadFriendData]);
+        
+
     // Load friend data on mount. 
     useEffect(() => {
         loadFriendData()
@@ -53,10 +63,13 @@ export const FriendsProvider = ({ children }) => {
         ...state,
         refreshFriends: loadFriendData,
         sendRequest,
-        acceptRequest
+        acceptRequest,
+        declineRequest: handleDeclineRequest, // Wrapped to refresh list
     };
 
     return (
-        <FriendsContext.Provider value={value}> {children} </FriendsContext.Provider>
+        <FriendsContext.Provider value={value}>
+            {children}
+        </FriendsContext.Provider>
     )
 };
