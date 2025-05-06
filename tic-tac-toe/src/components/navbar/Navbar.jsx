@@ -111,14 +111,16 @@ const Navbar = () => {
                   </li>
                   <li>
                     <button onClick={() => navigate("/profile")} title="Profile" className="nav-button">
-                      <LiaUserNinjaSolid className="nav-icon" />
+                      {/* <LiaUserNinjaSolid className="nav-icon" /> */}
+                      <span className="nav-label glow-pulse">{user?.first_name}</span>
+
                     </button>
                   </li>
                   <li>
-                    <button onClick={() => setSidebarOpen(true)} title="Friends" className="nav-button">
-                      <PiUsersThree className="nav-icon" />
-                    </button>
-                  </li>
+                  <button onClick={() => setSidebarOpen(true)} title="Friends" className="nav-button">
+                    <span className="nav-label glow-pulse">Social</span>
+                  </button>
+                </li>
                 </>
               )}
             </ul>
