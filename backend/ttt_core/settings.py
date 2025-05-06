@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework_simplejwt",
     "channels",
+    "django_extensions",
 
     # Project-Specific Apps
     "game",

@@ -31,12 +31,13 @@ const useFriendAPI = () => {
         fetchPending: () => authAxios.get("/users/friends/pending/"),
 
         /**
-         * Send a friend request to another user.
+         * Send a friend request to another user by email.
          *
-         * @param {number} to_user - The user ID of the recipient.
+         * @param {string} email - The email of the recipient.
          * @returns {Promise} - Axios response confirming the request was created.
          */
-        sendRequest: (to_user) => authAxios.post("/users/friends/", { to_user }),
+        sendRequest: (email) => authAxios.post("/users/friends/", { to_user_email: email }),
+
 
         /**
          * Accept a pending friend request by its ID.

@@ -3,7 +3,7 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, Arial, sans-serif;
-  background-color: #000000; /* Similar dark background */
+  background-color: #f9f3f3; /* Similar dark background */
   color: #333; /* Neutral text color */
 
 }
@@ -15,7 +15,7 @@ body {
 :root {
   --background-light-color: #57ebd7;
   --background-dark-color: black; /* Similar to Twitter's dark mode */
-  --content-background-color: #fff6be;
+  --content-background-color: #f5ffbe;
   --primary-color: white;
   --accent-color: #FD0;
   --box-shadow-color: rgba(0, 0, 0, 0.75);
@@ -37,6 +37,7 @@ body {
   margin: 0 auto;
   width: 100%;
   padding: 0 1rem;
+  position: relative;
 }
 
 
@@ -95,4 +96,8 @@ button:hover {
       0 0 10px rgba(255, 255, 255, 0.4),
       0 0 20px rgba(255, 255, 255, 0.2);
   }
+}
+
+html, body {
+  background-color: black !important;
 }

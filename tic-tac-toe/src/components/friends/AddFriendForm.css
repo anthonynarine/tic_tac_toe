@@ -1,0 +1,76 @@
+
+.friends-sidebar__add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.friends-sidebar__label {
+  font-size: 0.85rem;
+  color: #ccc;
+  font-weight: 500;
+}
+
+.friends-sidebar__input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.friends-sidebar__input {
+  flex: 1;
+  background-color: #111;
+  color: white;
+  border: 1px solid #444;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.friends-sidebar__input::placeholder {
+  color: #777;
+}
+
+.add-btn {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  font-weight: bold;
+  background-color: black;
+  color: white;
+  border: 2px solid white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: pulse-glow 2.5s infinite ease-in-out;
+}
+
+.add-btn:hover {
+  background-color: #0d0d0d;
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 30px rgba(255, 255, 255, 0.6);
+}
+
+/* @keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  }
+} */
+
+.feedback {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.feedback.success {
+  color: #4ade80;
+}
+
+.feedback.error {
+  color: #f87171;
+}

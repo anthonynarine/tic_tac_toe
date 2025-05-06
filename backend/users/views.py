@@ -7,6 +7,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from .models import CustomUser, Friendship
 from .serializers import UserSerializer, FriendshipSerializer
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 
 class UserViewset(viewsets.ModelViewSet):
     """
@@ -74,26 +78,6 @@ class FriendshipViewset(viewsets.ModelViewSet):
         return (Friendship.objects
                 .filter(models.Q(from_user=user) | models.Q(to_user=user))
                 .distinct())
-
-    def perform_create(self, serializer):
-        """
-        Sends a friend request from the authenticated user to another user.
-        Prevents duplicate or reversed requests.
-        """
-        from_user = self.request.user
-        to_user = serializer.validated_data.get("to_user")
-
-        if from_user == to_user:
-            raise serializers.ValidationError("You cannot send a friend request to yourself.")
-
-        # Prevent duplicate or reversed friend requests
-        if Friendship.objects.filter(
-            models.Q(from_user=from_user, to_user=to_user) |
-            models.Q(from_user=to_user, to_user=from_user)
-        ).exists():
-            raise serializers.ValidationError("Friend request already exists.")
-
-        serializer.save(from_user=from_user)
 
     @action(detail=False, methods=["get"])
     def friends(self, request):

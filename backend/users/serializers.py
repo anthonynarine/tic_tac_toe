@@ -1,6 +1,7 @@
 from pyexpat import model
 from rest_framework import serializers
 from .models import CustomUser, Friendship
+from django.db import models
 
 class UserSerializer(serializers.ModelSerializer):
     """
@@ -37,6 +38,7 @@ class UserSerializer(serializers.ModelSerializer):
         return user
     
 class FriendshipSerializer(serializers.ModelSerializer):
+    to_user_email = serializers.EmailField(write_only=True)
     from_user_name = serializers.CharField(source="from_user.first_name", read_only=True)
     to_user_name = serializers.CharField(source="to_user.first_name", read_only=True)
 
@@ -45,28 +47,36 @@ class FriendshipSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "from_user",
-            "to_user",
+            "to_user_email",
             "from_user_name",
             "to_user_name",
             "is_accepted",
             "created_at"
         ]
-        read_only_fields = ["from_user", "is_accepted", "created_at"]
+        read_only_fields = ["id", "from_user", "is_accepted", "created_at"]
+        
+    def create(self, validated_data):
+        request = self.context["request"]
+        from_user = request.user
+        to_email = validated_data.pop("to_user_email")
 
-    def validate(self, data):
-        request_user = self.context["request"].user
-        to_user = data["to_user"]
+        if from_user.email == to_email:
+            raise serializers.ValidationError("You cannot send a friend request to yourself.")
 
-        if request_user == to_user:
-            raise serializers.ValidationError("You cannot add yourself as a friend.")
+        try:
+            to_user = CustomUser.objects.get(email=to_email)
+        except CustomUser.DoesNotExist:
+            raise serializers.ValidationError("User not found.")
 
-        if Friendship.objects.filter(from_user=request_user, to_user=to_user).exists():
-            raise serializers.ValidationError("Friend request already sent.")
+        # Prevent duplicates
+        if Friendship.objects.filter(
+            models.Q(from_user=from_user, to_user=to_user) |
+            models.Q(from_user=to_user, to_user=from_user)
+        ).exists():
+            raise serializers.ValidationError("Friend request already exists.")
 
-        if Friendship.objects.filter(from_user=to_user, to_user=request_user).exists():
-            raise serializers.ValidationError("This user already sent you a request.")
+        return Friendship.objects.create(from_user=from_user, to_user=to_user)
 
-        return data
 
         
 
