@@ -1,0 +1,25 @@
+
+
+const FriendsList = ({ friends, currentUserId }) => {
+    if (!friends || friends.length === 0) {
+        return <li className="friends-sidebar_empty">Online {friends.length}</li>;
+    };
+
+                        console.log("Friendship object:", friend);
+
+    return (
+        <>
+            {friends.map((friend) => {
+                
+                console.log("Friendship object:", friend);
+
+                const isCurrentUserFrom = friend.from_user === currentUserId;
+                const name = isCurrentUserFrom ? friend.to_user_name : friend.from_user_name;
+                const isOnline = isCurrentUserFrom
+                ? friend.to_user_is_online
+                : friend.from_user_is_online;
+    
+            })}
+        </>
+    )
+}
