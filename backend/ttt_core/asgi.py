@@ -1,7 +1,5 @@
 import os
 import logging
-import os
-import logging
 
 # Configure logging for the ASGI server
 logging.basicConfig(level=logging.DEBUG)
