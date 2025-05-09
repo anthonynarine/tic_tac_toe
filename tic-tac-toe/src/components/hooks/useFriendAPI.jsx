@@ -18,7 +18,7 @@ const useFriendAPI = () => {
          * Fetch all accepted friends of the current user.
          * @returns {Promise} - Axios response containing the list of friends. 
          */
-        fetchFriends: () => authAxios.get("/users/friends/friends/"),
+        fetchFriends: () => authAxios.get("/friends/friends/"),
 
         /**
          * Fetch pending friend requests.
@@ -28,7 +28,7 @@ const useFriendAPI = () => {
          *
          * @returns {Promise} - Axios response with sent and received pending requests.
          */
-        fetchPending: () => authAxios.get("/users/friends/pending/"),
+        fetchPending: () => authAxios.get("/friends/pending/"),
 
         /**
          * Send a friend request to another user by email.
@@ -36,7 +36,7 @@ const useFriendAPI = () => {
          * @param {string} email - The email of the recipient.
          * @returns {Promise} - Axios response confirming the request was created.
          */
-        sendRequest: (email) => authAxios.post("/users/friends/", { to_user_email: email }),
+        sendRequest: (email) => authAxios.post("/friends/", { to_user_email: email }),
 
 
         /**
@@ -45,7 +45,7 @@ const useFriendAPI = () => {
          * @param {number} id - The ID of the friendship record to accept.
          * @returns {Promise} - Axios response confirming the request was accepted.
          */
-        acceptRequest: (id) => authAxios.post(`/users/friends/${id}/accept/`),
+        acceptRequest: (id) => authAxios.post(`/friends/${id}/accept/`),
 
         /**
         * Decline a pending friend request by its ID.
@@ -53,7 +53,7 @@ const useFriendAPI = () => {
         * @param {number} id - The ID of the friendship request to decline.
         * @returns {Promise} - Axios response after deletion.
         */
-      declineRequest: (id) => authAxios.delete(`/users/friends/${id}/decline/`),
+      declineRequest: (id) => authAxios.delete(`/friends/${id}/decline/`),
     };
 };
 
