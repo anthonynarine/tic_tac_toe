@@ -1,9 +1,9 @@
 import logging
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
-from .game_utils import GameUtils
-from .chat_utils import ChatUtils
-from .shared_utils_game_chat import SharedUtils
+from ..utils.game_utils import GameUtils
+from ..utils.chat_utils import ChatUtils
+from ..utils.shared_utils_game_chat import SharedUtils
 from django.contrib.auth import get_user_model
 from typing import TypedDict, List
 

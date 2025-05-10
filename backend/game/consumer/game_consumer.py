@@ -6,8 +6,8 @@ from django.core.exceptions import ValidationError
 from asgiref.sync import async_to_sync
 
 
-from .shared_utils_game_chat import SharedUtils
-from .game_utils import GameUtils
+from ..utils.shared_utils_game_chat import SharedUtils
+from ..utils.game_utils import GameUtils
 
 logger = logging.getLogger(__name__)
 
