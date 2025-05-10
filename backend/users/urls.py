@@ -3,6 +3,6 @@ from .views import UserViewset, FriendshipViewset
 
 router = DefaultRouter()
 router.register('friends', FriendshipViewset, basename='friendship')
-router.register('', UserViewset, basename='user')
+router.register('users', UserViewset, basename='user')
 
 urlpatterns = router.urls

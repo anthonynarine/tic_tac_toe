@@ -1,3 +1,4 @@
+
 import os
 import logging
 
@@ -9,27 +10,26 @@ logger = logging.getLogger(__name__)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ttt_core.settings")
 logger.debug(f"DJANGO_SETTINGS_MODULE: {os.environ.get('DJANGO_SETTINGS_MODULE')}")
 
-# Import Django's ASGI application handler
-from django.core.asgi import get_asgi_application
+# Import Django's WSGI application and wrap it for ASGI
+from asgiref.wsgi import WsgiToAsgi
+from django.core.wsgi import get_wsgi_application
+
+# Wrap WSGI app for ASGI-compatible HTTP interface
+django_wsgi_app = get_wsgi_application()
+django_asgi_app = WsgiToAsgi(django_wsgi_app)
+
+# Import WebSocket middleware and routing
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
-
-# Initialize the Django ASGI application early to ensure apps are loaded
-django_asgi_app = get_asgi_application()
-
-# Import WebSocket middleware and routing after Django initialization
 from game.middleware import JWTWebSocketMiddleware
 import game.routing
 
-# Define the ASGI application with support for HTTP and WebSocket protocols
+# Define ASGI application with HTTP and WebSocket support
 application = ProtocolTypeRouter({
-    # Route HTTP traffic to Django's ASGI application
     "http": django_asgi_app,
-
-    # Route WebSocket traffic through middleware and URL routing
-    "websocket": AllowedHostsOriginValidator(  # Ensure WebSocket requests originate from allowed hosts
-        JWTWebSocketMiddleware(  # Add custom middleware to handle JWT authentication
-            URLRouter(game.routing.websocket_urlpatterns)  # Define WebSocket routes
+    "websocket": AllowedHostsOriginValidator(
+        JWTWebSocketMiddleware(
+            URLRouter(game.routing.websocket_urlpatterns)
         )
     ),
 })

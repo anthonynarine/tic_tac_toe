@@ -10,7 +10,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     
     # Users app URLs
-    path("api/users/", include("users.urls")),  # No need to add a trailing slash here
+    path("api/", include("users.urls")),  # No need to add a trailing slash here
 
     # Game app URLs
     path("api/games/", include("game.urls")),  # No need to add a trailing slash here
