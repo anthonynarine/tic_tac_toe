@@ -6,7 +6,7 @@ from ..utils.chat_utils import ChatUtils
 from ..utils.shared_utils_game_chat import SharedUtils
 from django.contrib.auth import get_user_model
 from typing import TypedDict, List
-from ..utils.redis_chat_lobby_manager import RedisChatLobbyManager
+
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -20,8 +20,8 @@ class ChatConsumer(JsonWebsocketConsumer):
         """
         Handle WebSocket connection for the game lobby.
 
-        This method manages the initialization of a WebSocket connection for a chat lobby.
-        It authenticates the user, validates the lobby name, adds the WebSocket 
+        This method manages the initialization of a WebSocket connection for a game 
+        lobby. It authenticates the user, validates the lobby name, adds the WebSocket 
         channel to the appropriate group, tracks participants, and broadcasts updates 
         to all connected clients.
 
@@ -34,7 +34,7 @@ class ChatConsumer(JsonWebsocketConsumer):
         Steps:
             1. Authenticate the user using the `SharedUtils.authenticate_user` helper function.
             2. Extract and validate the `lobby_group_name` from the WebSocket URL parameters.
-            3. Initialize the Redis-backed lobby manager to manage persistent state.
+            3. Initialize the lobby state in `ChatUtils.lobby_players` if it doesn't already exist.
             4. Prevent duplicate WebSocket connections by checking for the `channel_name` in the lobby's state.
             5. Add the WebSocket channel to the appropriate group using the `channel_layer`.
             6. Add the user to the lobby participant list to track active players.
@@ -60,16 +60,15 @@ class ChatConsumer(JsonWebsocketConsumer):
             self.send_json({"type": "error", "message": "Missing lobby_name in URL."})
             self.close(code=4002)  # Close the connection with a validation error code
             return
-        
-        # Step 3: Initialize Redis lobby manager
-        self.lobby_manager = RedisChatLobbyManager()
+
+        # Step 3: Initialize the lobby state if it doesn't exist
+        if self.lobby_group_name not in ChatUtils.lobby_players:
+            ChatUtils.lobby_players[self.lobby_group_name] = {"channels": set(), "players": []}
+            logger.info(f"New chat lobby initialized: {self.lobby_group_name}")
 
         # Step 4: Prevent duplicate connections for the same user
-        from typing import Any
-
-        players: list[dict[str, Any]] = self.lobby_manager.get_players(self.lobby_group_name)
-        logger.debug(f"Current players in Redis lobby {self.lobby_group_name}: {players}")
-        if self.user.id in [player["id"] for player in players]:
+        existing_players = ChatUtils.lobby_players[self.lobby_group_name]["players"]
+        if self.user.id in [player["id"] for player in existing_players]:
             logger.warning(
                 f"Duplicate WebSocket connection detected for user {self.user.first_name} "
                 f"(ID: {self.user.id}) in lobby {self.lobby_group_name}. Closing connection."
@@ -78,18 +77,34 @@ class ChatConsumer(JsonWebsocketConsumer):
             return
 
         # Step 5: Add the WebSocket channel to the group
-        async_to_sync(self.channel_layer.group_add)(
-            self.lobby_group_name,
-            self.channel_name
-        )
+        try:
+            async_to_sync(self.channel_layer.group_add)(
+                self.lobby_group_name,
+                self.channel_name
+            )
+            ChatUtils.lobby_players[self.lobby_group_name]["channels"].add(self.channel_name)
+            logger.info(f"WebSocket channel {self.channel_name} added to group {self.lobby_group_name}.")
+        except Exception as e:
+            logger.error(f"Error adding channel {self.channel_name} to group {self.lobby_group_name}: {e}")
+            self.close(code=5000)  # Close the connection with a server error code
+            return
 
-        # Step 6: Add this user and channel to Redis lobby tracking
-        self.lobby_manager.add_channel(self.lobby_group_name, self.channel_name)
-        self.lobby_manager.add_player(self.lobby_group_name, self.user)
-        
-        # Step 7: Broadcast updated player list
-        self.lobby_manager.broadcast_player_list(self.channel_layer, self.lobby_group_name)
-        logger.debug(f"Broadcasted player list for lobby {self.lobby_group_name}")
+        # Step 6: Add the user to the lobby participant list
+        ChatUtils.lobby_players[self.lobby_group_name]["players"] = [
+            player for player in ChatUtils.lobby_players[self.lobby_group_name]["players"]
+            if player["id"] != self.user.id
+        ]
+        ChatUtils.lobby_players[self.lobby_group_name]["players"].append({"id": self.user.id, "first_name": self.user.first_name})
+
+        # Step 7: Broadcast the updated participant list to all clients
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "update_player_list",
+                "players": ChatUtils.lobby_players[self.lobby_group_name]["players"],
+            },
+        )
+        logger.info(f"Updated Players list broadcasted for lobby {self.lobby_group_name}.")
 
         # Step 8: Accept the WebSocket connection and send success message
         self.accept()
@@ -415,43 +430,38 @@ class ChatConsumer(JsonWebsocketConsumer):
         })
     
     def handle_leave_lobby(self) -> None:
+    
         """
-        Handle explicit leave lobby request from the client.
-
-        This method mirrors disconnect logic:
-        - Removes the user from Redis player hash
-        - Removes the WebSocket channel from Redis set
-        - Cleans up if the lobby is empty
-        - Broadcasts updated player list
-        - Sends success message to the user
-        - Closes the WebSocket connection
+        Handle explicit leave lobby from the client.
         """
         logger.info(f"User {self.user.first_name} is leaving the lobby {self.lobby_group_name}")
-
         try:
-            # Step 1: Remove player and channel from Redis
-            self.lobby_manager.remove_player(self.lobby_group_name, self.user)
-            self.lobby_manager.remove_channel(self.lobby_group_name, self.channel_name)
-
-            # Step 2: Clean up empty lobby keys
-            self.lobby_manager.clear_lobby_if_empty(self.lobby_group_name)
-
-            # Step 3: Broadcast updated player list
-            self.lobby_manager.broadcast_player_list(self.channel_layer, self.lobby_group_name)
-
-            # Step 4: Notify the user that they left successfully
+            # Remove the player from the lobby
+            ChatUtils._remove_player_from_lobby(
+                user=self.user,
+                group_name=self.lobby_group_name,
+                channel_layer=self.channel_layer,
+                channel_name=self.channel_name
+            )
+            
+            # Broadcast the updated player list to all clients in the lobby
+            self.update_player_list({
+                "players": ChatUtils.lobby_players.get(self.lobby_group_name, []),
+            })
+            
+            # Notify the user that they left successfully
             self.send_json({
                 "type": "leave_lobby_success",
                 "message": "You have successfully left the lobby",
             })
-
-        except Exception as e:
-            logger.error(f"Error handling leave_lobby for user {self.user.first_name}: {e}")
-            self.send_json({"type": "error", "message": "Failed to leave the lobby."})
-
-        # Step 5: Close the WebSocket connection
+            
+        except ValueError as e:
+            logger.error(e)
+            self.send_json({"type": "error", "message": str(e)})
+            
+        # Close the Websocket connection
         self.close(code=1000)
-
+    
     def update_player_list(self, event: dict) -> None:
         """
         Handle the "update_user_list" message type.
@@ -494,45 +504,52 @@ class ChatConsumer(JsonWebsocketConsumer):
         """
         Handle WebSocket disconnection for chat-related functionality.
 
-        This method ensures cleanup of Redis-stored lobby state, including:
-        - Removing the user from the lobby player hash
-        - Removing the WebSocket channel from the channel set
-        - Cleaning up the Redis keys if the lobby becomes empty
-        - Removing the socket from Django Channels group
+        This method ensures that when a WebSocket connection is disconnected, the associated
+        channel and user are removed from the lobby group. If the lobby becomes empty (no players
+        or channels remain), it cleans up the lobby entirely. It also handles errors gracefully
+        and logs detailed information for debugging.
 
         Args:
-            code (int): WebSocket close code
+            code (int): The WebSocket close code indicating the reason for disconnection.
         """
         logger.debug(f"Disconnecting WebSocket for code: {code}, Channel: {self.channel_name}")
 
-        # Step 1: Guard clause for early disconnects (e.g., handshake never completed)
+        # Step 1: Ensure `lobby_group_name` exists
         if not hasattr(self, "lobby_group_name") or not self.lobby_group_name:
             logger.warning(
                 f"User disconnected before joining a chat lobby. Channel: {self.channel_name}"
             )
             return
 
+        # Step 2: Attempt to remove the user from the lobby group and handle cleanup
         try:
-            # Step 2: Remove user and channel from Redis
-            self.lobby_manager.remove_player(self.lobby_group_name, self.user)
-            self.lobby_manager.remove_channel(self.lobby_group_name, self.channel_name)
-            logger.info(f"User {self.user.first_name} disconnected from lobby {self.lobby_group_name}")
+            # Check if the lobby exists in the shared state
+            if self.lobby_group_name in ChatUtils.lobby_players:
+                # Remove the user from the players list
+                ChatUtils.lobby_players[self.lobby_group_name]["players"] = [
+                    player for player in ChatUtils.lobby_players[self.lobby_group_name]["players"]
+                    if player["id"] != self.user.id
+                ]
+                
+                # Remove the WebSocket channel from the channels set
+                ChatUtils.lobby_players[self.lobby_group_name]["channels"].discard(self.channel_name)
 
-            # Step 3: Clean up lobby if it's now empty
-            self.lobby_manager.clear_lobby_if_empty(self.lobby_group_name)
-
-            # Step 4: Broadcast updated player list to clients
-            self.lobby_manager.broadcast_player_list(self.channel_layer, self.lobby_group_name)
-
+                # Step 3: Clean up the lobby if no players or channels remain
+                if not ChatUtils.lobby_players[self.lobby_group_name]["players"] and \
+                not ChatUtils.lobby_players[self.lobby_group_name]["channels"]:
+                    del ChatUtils.lobby_players[self.lobby_group_name]
+                    logger.info(f"Lobby {self.lobby_group_name} cleaned up as it is now empty.")
         except Exception as e:
-            logger.error(f"Error during disconnection for user {self.user.first_name}: {e}")
+            # Log any errors encountered during cleanup
+            logger.error(f"Error during disconnection for channel {self.channel_name}. Error: {e}")
 
-        # Step 5: Always remove from Django Channels group
+        # Step 4: Remove the WebSocket channel from the group
         try:
             async_to_sync(self.channel_layer.group_discard)(
                 self.lobby_group_name,
                 self.channel_name,
             )
-            logger.debug(f"Channel {self.channel_name} removed from group {self.lobby_group_name}")
+            logger.info(f"Channel {self.channel_name} removed from group {self.lobby_group_name}.")
         except Exception as e:
-            logger.error(f"Error removing channel from group: {e}")
+            # Log any errors encountered when discarding the channel
+            logger.error(f"Error removing channel {self.channel_name} from group {self.lobby_group_name}: {e}")

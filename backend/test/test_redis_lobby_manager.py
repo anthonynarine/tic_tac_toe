@@ -8,7 +8,7 @@ import pytest
 import fakeredis
 from unittest.mock import patch, MagicMock
 from users.models import CustomUser
-from game.utils.redis_lobby_manager import RedisLobbyManager
+from backend.game.utils.redis_chat_lobby_manager import RedisLobbyManager
 
 
 @pytest.fixture

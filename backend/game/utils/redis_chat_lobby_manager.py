@@ -6,7 +6,7 @@ from users.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
-class RedisLobbyManager:
+class RedisChatLobbyManager:
     """
     RedisLobbyManager handles WebSocket lobby state persistence using Redis.
 
