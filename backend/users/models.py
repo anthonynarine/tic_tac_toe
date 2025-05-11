@@ -130,7 +130,18 @@ class Friendship(models.Model):
         verbose_name = "Friendship"
         verbose_name_plural = "Friendships"
         ordering = ["-created_at"]
+    
+    def get_other_user(self, current_user):
+        """
+        Returns the friend (not the current user) from this friendship.
+        """
+        if self.from_user == current_user:
+            return self.to_user
+        elif self.to_user == current_user:
+            return self.from_user
+        return None  # In case of data inconsistency
 
+        
     def __str__(self):
         return f"{self.from_user.email} → {self.to_user.email} | Accepted: {self.is_accepted}"
     

@@ -346,7 +346,7 @@ class ChatConsumer(JsonWebsocketConsumer):
         
         # Step 1: Validate the lobby existence and player list
         try:
-            players = ChatUtils.validate_lobby(group_name=self.lobby_group_name)
+            players = self.lobby_manager.get_players(self.lobby_group_name)
         except ValueError as e:
             logger.error(e)
             self.send_json({"type": "error", "message": str(e)})

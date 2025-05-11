@@ -39,8 +39,15 @@ class UserSerializer(serializers.ModelSerializer):
     
 class FriendshipSerializer(serializers.ModelSerializer):
     to_user_email = serializers.EmailField(write_only=True)
+
+    # Legacy fields (still used for pending request UI)
     from_user_name = serializers.CharField(source="from_user.first_name", read_only=True)
     to_user_name = serializers.CharField(source="to_user.first_name", read_only=True)
+
+    # New fields using get_other_user()
+    friend_id = serializers.SerializerMethodField()
+    friend_name = serializers.SerializerMethodField()
+    friend_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Friendship
@@ -50,11 +57,29 @@ class FriendshipSerializer(serializers.ModelSerializer):
             "to_user_email",
             "from_user_name",
             "to_user_name",
+            "friend_id",
+            "friend_name",
+            "friend_status",
             "is_accepted",
             "created_at"
         ]
         read_only_fields = ["id", "from_user", "is_accepted", "created_at"]
-        
+
+    def get_friend_id(self, obj):
+        current_user = self.context["request"].user
+        other = obj.get_other_user(current_user)
+        return other.id if other else None
+
+    def get_friend_name(self, obj):
+        current_user = self.context["request"].user
+        other = obj.get_other_user(current_user)
+        return other.first_name if other else "Unknown"
+
+    def get_friend_status(self, obj):
+        current_user = self.context["request"].user
+        other = obj.get_other_user(current_user)
+        return other.status == "online" if other else False
+
     def create(self, validated_data):
         request = self.context["request"]
         from_user = request.user
@@ -68,7 +93,6 @@ class FriendshipSerializer(serializers.ModelSerializer):
         except CustomUser.DoesNotExist:
             raise serializers.ValidationError("User not found.")
 
-        # Prevent duplicates
         if Friendship.objects.filter(
             models.Q(from_user=from_user, to_user=to_user) |
             models.Q(from_user=to_user, to_user=from_user)
@@ -76,6 +100,7 @@ class FriendshipSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Friend request already exists.")
 
         return Friendship.objects.create(from_user=from_user, to_user=to_user)
+
 
 
         

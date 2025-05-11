@@ -83,7 +83,7 @@ class RedisChatLobbyManager:
         """
         key = self._players_key(lobby_id)
         self.redis.hdel(key, user.id)
-        logger.info(f"🧹 Removed player {user.first_name} from Redis lobby {lobby_id}")
+        logger.info(f"Removed player {user.first_name} from Redis lobby {lobby_id}")
 
     def get_players(self, lobby_id: str) -> list[dict]:
         """

@@ -186,7 +186,6 @@ class RedisGameLobbyManager:
         result = self.redis.get(self._rematch_key(game_id))
         return result if result else None
 
-
     def clear_game_lobby_state(self, game_id: str) -> None:
         """
         Clears all Redis keys related to the given game lobby.
