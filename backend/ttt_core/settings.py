@@ -1,8 +1,10 @@
 import os
 import dj_database_url 
+from django_redis import get_redis_connection
 from datetime import timedelta
 from pathlib import Path
 from decouple import config
+
 from .logging_conf import julia_fiesta_logs
 
 # Initialize logging configuration
@@ -181,6 +183,16 @@ CHANNEL_LAYERS = {
             "hosts": [config("REDIS_URL", default="redis://localhost:6379")],  # Fallback for dev
         },
     },
+}
+
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",  # REQUIRED for get_redis_connection
+        "LOCATION": config("REDIS_URL", default="redis://127.0.0.1:6379/1"),  # works with Heroku + dev
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",  # optional but recommended
+        }
+    }
 }
 
 

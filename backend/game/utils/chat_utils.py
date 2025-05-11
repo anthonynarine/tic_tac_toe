@@ -74,38 +74,3 @@ class ChatUtils:
         except Exception as e:
             logger.error(f"Failed to broadcast chat message: {e}")
             raise
-
-        """
-        Validates the existence of a lobby and ensures the player list is valid.
-
-        This method checks if a given lobby group exists and verifies that all players 
-        in the lobby have valid data, such as a non-empty "first_name" field.
-
-        Args:
-            group_name (str): The name of the lobby group to validate.
-
-        Returns:
-            list: A list of players in the lobby, each represented as a dictionary.
-
-        Raises:
-            ValueError: If the lobby does not exist in the GameUtils.lobby_players 
-                        or if the player data is invalid (e.g., missing "first_name").
-        """
-        # Step 1: Check if the specified lobby exists in the lobby_players dictionary.
-        if group_name not in ChatUtils.lobby_players:
-            # Raise an error if the lobby group is not found.
-            raise ValueError(f"Lobby {group_name} does not exist.")
-
-        # Step 2: Retrieve the list of players in the specified lobby.
-        players = ChatUtils.lobby_players[group_name].get("players", [])
-
-
-        # Step 3: Iterate through each player in the lobby to validate their data.
-        for player in players:
-            # Ensure the "first_name" key exists and is not empty.
-            if "first_name" not in player or not player["first_name"]:
-                # Raise an error if the player data is invalid.
-                raise ValueError(f"Invalid player data in the lobby: {player}")
-
-        # Step 4: Return the validated list of players.
-        return players
