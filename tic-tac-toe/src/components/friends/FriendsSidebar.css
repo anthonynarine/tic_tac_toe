@@ -1,155 +1,178 @@
 :root {
-    --navbar-height: 96px;
-  }
-  
-  /* === Sidebar Container === */
+  --navbar-height: 96px;
+}
+
+/* === Sidebar Container === */
+.friends-sidebar {
+  position: fixed;
+  top: var(--navbar-height);
+  right: 0;
+  width: 18rem;
+  height: calc(100vh - var(--navbar-height));
+  background-color: #000;
+  color: #fff;
+  z-index: 50;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #C0C0C0;
+  box-shadow: -2px 0 5px rgba(255, 255, 255, 0.05);
+}
+
+.friends-sidebar.open {
+  transform: translateX(0);
+}
+
+/* === Sticky Header === */
+.friends-sidebar__header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #000;
+  padding: 1rem;
+  border-bottom: 1px solid #555;
+  z-index: 10;
+}
+
+.friends-sidebar__title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #1DA1F2;
+}
+
+.friends-sidebar__close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #ccc;
+  cursor: pointer;
+  appearance: none;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.friends-sidebar__close:hover {
+  color: #fff;
+}
+
+/* === Scrollable Body === */
+.friends-sidebar__content {
+  padding: 1rem;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+/* === Sections === */
+.friends-sidebar__section {
+  margin-bottom: 2rem;
+  border-top: 1px solid #444;
+  padding-top: 1rem;
+}
+
+.friends-sidebar__section ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+
+.friends-sidebar__section h3 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: #e5e5e5;
+}
+
+/* === Friend Entry Row === */
+.friends-sidebar__friend {
+  margin-bottom: 0.75rem;
+  padding-left: 0.75rem;
+  color: #f5f5f5;
+}
+
+.friend-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.status-dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+}
+
+.status-dot.online {
+  background-color: #4ade80;
+}
+
+.status-dot.offline {
+  background-color: #6b7280;
+}
+
+.friend-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.friend-name {
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.friend-status-text {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+/* === Requests === */
+.friends-sidebar__request {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.friends-sidebar__actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.accept-btn,
+.decline-btn {
+  border: none;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.accept-btn {
+  background-color: #16a34a;
+  color: #fefefe;
+}
+
+.decline-btn {
+  background-color: #dc2626;
+  color: #fefefe;
+}
+
+.accept-btn:hover,
+.decline-btn:hover {
+  opacity: 0.9;
+}
+
+.friends-sidebar__empty {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+/* === Mobile Support === */
+@media (max-width: 768px) {
   .friends-sidebar {
-    position: fixed;
-    top: var(--navbar-height);
-    right: 0;
-    width: 18rem;
-    height: calc(100vh - var(--navbar-height));
-    background-color: #000; /* Pure black background */
-    color: #fff;
-    z-index: 50;
-    transform: translateX(100%);
-    transition: transform 0.3s ease-in-out;
-    display: flex;
-    flex-direction: column;
-    border-left: 1px solid #C0C0C0; /* Vertical white divider */
-    box-shadow: -2px 0 5px rgba(255, 255, 255, 0.05);
+    width: 100%;
   }
-  
-  .friends-sidebar.open {
-    transform: translateX(0);
-  }
-  
-  /* === Sticky Header === */
-  .friends-sidebar__header {
-    position: sticky;
-    top: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: #000;
-    padding: 1rem;
-    border-bottom: 1px solid #555;
-    z-index: 10;
-  }
-  
-  .friends-sidebar__title {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #1DA1F2;
-  }
-  
-  .friends-sidebar__close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: #ccc;
-    cursor: pointer;
-    outline: none;
-    appearance: none;       /* ✅ Prevents native styling in Safari */
-    -webkit-appearance: none; /* ✅ Same for WebKit */
-  }
-  
-  .friends-sidebar__close:focus,
-  .friends-sidebar__close:active {
-    outline: none;
-    box-shadow: none;
-    background-color: transparent;
-  }
-  
-  .friends-sidebar__close:hover {
-    color: #fff;
-    background-color: transparent; /* ✅ Prevents button "glow" */
-  }
-  
-  /* === Scrollable Body === */
-  .friends-sidebar__content {
-    padding: 1rem;
-    overflow-y: auto;
-    flex-grow: 1;
-  }
-  
-  /* === Sections === */
-  .friends-sidebar__section {
-    margin-bottom: 2rem;
-    border-top: 1px solid #444;
-    padding-top: 1rem;
-  }
-  
-  .friends-sidebar__section h3 {
-    font-size: 1rem;
-    margin-bottom: 0.5rem;
-    color: #e5e5e5;
-  }
-  
-  /* === Friend and Request Rows === */
-  .friends-sidebar__friend,
-  .friends-sidebar__request {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    color: #f5f5f5;
-  }
-  
-  /* === Request Actions === */
-  .friends-sidebar__actions {
-    display: flex;
-    gap: 0.25rem;
-  }
-  
-  .accept-btn,
-  .decline-btn {
-    border: none;
-    font-size: 0.75rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-  }
-  
-  .accept-btn {
-    background-color: #16a34a;
-    color: #fefefe;
-  }
-  
-  .decline-btn {
-    background-color: #dc2626;
-    color: #fefefe;
-  }
-  
-  .accept-btn:hover,
-  .decline-btn:hover {
-    opacity: 0.9;
-  }
-  
-  .accept-btn:focus,
-  .decline-btn:focus {
-    outline: 2px solid #ffffff33;
-  }
-  
-  .friends-sidebar__empty {
-    font-size: 0.85rem;
-    color: #888;
-  }
-  
-  .online {
-    font-size: 0.75rem;
-    color: #4ade80;
-  }
-  
-  .offline {
-    font-size: 0.75rem;
-    color: #6b7280;
-  }
-  
-  /* === Mobile Support === */
-  @media (max-width: 768px) {
-    .friends-sidebar {
-      width: 100%;
-    }
-  }
+}

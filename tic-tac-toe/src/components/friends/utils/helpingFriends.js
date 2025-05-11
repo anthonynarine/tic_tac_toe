@@ -1,13 +1,14 @@
+export function groupFriendsByStatus(friends) {
+    const online = [];
+    const offline = [];
 
-export function getOnlineFriendsExcludingCurrentUser(friends, currentUserId) {
-    return friends
-    .filter((friend) => {
-        const isCurrentUserFrom = friend.from_user === currentUserId;
-        const otherUserId = isCurrentUserFrom ? friend.to_user : friend.from_user;
+    friends.forEach((friend) => {
+        if (friend.friend_status) {
+        online.push(friend);
+        } else {
+        offline.push(friend);
+        }
+    });
 
-
-
-
-        const
-    })
+    return { online, offline };
 }

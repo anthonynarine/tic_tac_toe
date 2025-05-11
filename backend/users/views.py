@@ -89,7 +89,9 @@ class FriendshipViewset(viewsets.ModelViewSet):
             models.Q(from_user=user) | models.Q(to_user=user),
             is_accepted=True
         ).distinct()
-        return Response(FriendshipSerializer(friendships, many=True).data)
+        serializer = FriendshipSerializer(friendships, many=True, context={"request": request})
+        return Response(serializer.data)
+
 
     @action(detail=False, methods=["get"])
     def pending(self, request):
@@ -101,10 +103,12 @@ class FriendshipViewset(viewsets.ModelViewSet):
         user = request.user
         sent = Friendship.objects.filter(from_user=user, is_accepted=False)
         received = Friendship.objects.filter(to_user=user, is_accepted=False)
+        
         return Response({
-            "sent_requests": FriendshipSerializer(sent, many=True).data,
-            "received_requests": FriendshipSerializer(received, many=True).data,
+            "sent_requests": FriendshipSerializer(sent, many=True, context={"request": request}).data,
+            "received_requests": FriendshipSerializer(received, many=True, context={"request": request}).data,
         })
+
 
     @action(detail=True, methods=["post"])
     def accept(self, request, pk=None):
