@@ -8,7 +8,7 @@ import pytest
 import fakeredis
 from unittest.mock import patch, MagicMock
 from users.models import CustomUser
-from backend.game.utils.redis_chat_lobby_manager import RedisLobbyManager
+from game.utils.redis_chat_lobby_manager import RedisChatLobbyManager
 
 
 @pytest.fixture
@@ -18,8 +18,8 @@ def redis_client():
 
 @pytest.fixture
 def lobby_manager(redis_client):
-    with patch("game.utils.redis_lobby_manager.get_redis_connection", return_value=redis_client):
-        yield RedisLobbyManager()
+    with patch("game.utils.redis_chat_lobby_manager.get_redis_connection", return_value=redis_client):
+        yield RedisChatLobbyManager()
 
 
 @pytest.fixture
