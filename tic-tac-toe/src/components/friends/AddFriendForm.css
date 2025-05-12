@@ -62,15 +62,23 @@
   }
 } */
 
+/* === Feedback Messages === */
 .feedback {
-  font-size: 0.8rem;
-  margin-top: 0.25rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.5rem;
+  border-radius: 4px;
 }
 
 .feedback.success {
+  background-color: rgba(22, 163, 74, 0.1); /* green background */
   color: #4ade80;
+  border: 1px solid #4ade80;
 }
 
 .feedback.error {
+  background-color: rgba(220, 38, 38, 0.1); /* red background */
   color: #f87171;
+  border: 1px solid #f87171;
 }
