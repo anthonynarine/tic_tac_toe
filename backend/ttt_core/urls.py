@@ -8,17 +8,20 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    
+
     # Users app URLs
-    path("api/", include("users.urls")),  # No need to add a trailing slash here
-    
+    path("api/", include("users.urls")),
+
     # Friends app URLs
-    path("api/", include("friends.urls")),  # No need to add a trailing slash here
+    path("api/", include("friends.urls")),
 
     # Game app URLs
-    path("api/games/", include("game.urls")),  # No need to add a trailing slash here
+    path("api/games/", include("game.urls")),
 
-    # SIMPLE_JWT for authentication
+    # Chat app URLs (REST endpoints, not WebSocket)
+    path("api/chat/", include("chat.urls")), 
+
+    # JWT Token endpoints
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
@@ -26,4 +29,3 @@ urlpatterns = [
 # Serves media files in development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-

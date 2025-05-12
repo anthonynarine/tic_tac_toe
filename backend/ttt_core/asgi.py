@@ -23,13 +23,16 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 from game.middleware import JWTWebSocketMiddleware
 import game.routing
+import chat.routing
 
 # Define ASGI application with HTTP and WebSocket support
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AllowedHostsOriginValidator(
         JWTWebSocketMiddleware(
-            URLRouter(game.routing.websocket_urlpatterns)
+            URLRouter(
+                game.routing.websocket_urlpatterns + chat.routing.websocket_urlpatterns
+            )
         )
     ),
 })

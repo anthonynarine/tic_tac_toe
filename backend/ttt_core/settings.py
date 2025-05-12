@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     # Project-Specific Apps
     "game",
     "friends",
+    "chat",
     "users.apps.UsersConfig",  # Signals
 ]
 
