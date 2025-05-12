@@ -33,12 +33,17 @@ const FriendsSidebar = ({ isOpen, onClose }) => {
     };
 
 
-    useEffect(() => {
-        if (isOpen && !hasLoaded.current) {
-        refreshFriends();
-        hasLoaded.current = true;
-        }
-    }, [isOpen, refreshFriends]);
+        useEffect(() => {
+        if (!isOpen) return;
+
+        const timer = setTimeout(() => {
+            refreshFriends(); 
+        }, 150);
+
+        return () => clearTimeout(timer);
+    }, [isOpen, ]); // ✅ refreshFriends is now stable
+
+
 
     return (
     <div className={`friends-sidebar ${isOpen ? "open" : ""}`}>

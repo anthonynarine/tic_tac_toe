@@ -1,60 +1,59 @@
+import { useCallback } from "react";
 import useAuthAxios from "./useAuthAxios";
 
 /**
  * useFriendAPI
  *
- * Provides a set of secure, token-authenticated API calls related to the friend system.
- * Wraps your `authAxios` instance so all requests include tokens and refresh logic.
- *
- * This hook is used by the FriendsContext and any component needing access to friend data.
- *
- * @returns {Object} - An object containing methods to interact with the friend system.
+ * Returns a stable set of token-authenticated API methods for managing friends.
+ * All methods are memoized using useCallback to ensure consistent references,
+ * which prevents unnecessary re-renders in consuming components or contexts.
  */
 const useFriendAPI = () => {
-  const { authAxios } = useAuthAxios(); // Secure Axios instance with interceptors
+  const { authAxios } = useAuthAxios(); // Secure Axios instance with JWT and refresh handling
 
-    return {
-        /**
-         * Fetch all accepted friends of the current user.
-         * @returns {Promise} - Axios response containing the list of friends. 
-         */
-        fetchFriends: () => authAxios.get("/friends/friends/"),
+  /**
+   * Get the current user's accepted friends.
+   * Returns a promise resolving to a list of friendship records.
+   */
+  const fetchFriends = useCallback(() => {
+    return authAxios.get("/friends/friends/");
+  }, [authAxios]);
 
-        /**
-         * Fetch pending friend requests.
-         * Includes:
-         *  - sent_requests: requests the user has sent
-         *  - received_requests: requests the user has received but not yet accepted
-         *
-         * @returns {Promise} - Axios response with sent and received pending requests.
-         */
-        fetchPending: () => authAxios.get("/friends/pending/"),
+  /**
+   * Get pending friend requests (both sent and received).
+   */
+  const fetchPending = useCallback(() => {
+    return authAxios.get("/friends/pending/");
+  }, [authAxios]);
 
-        /**
-         * Send a friend request to another user by email.
-         *
-         * @param {string} email - The email of the recipient.
-         * @returns {Promise} - Axios response confirming the request was created.
-         */
-        sendRequest: (email) => authAxios.post("/friends/", { to_user_email: email }),
+  /**
+   * Send a new friend request to the given email address.
+   */
+  const sendRequest = useCallback((email) => {
+    return authAxios.post("/friends/", { to_user_email: email });
+  }, [authAxios]);
 
+  /**
+   * Accept a friend request by its database ID.
+   */
+  const acceptRequest = useCallback((id) => {
+    return authAxios.post(`/friends/${id}/accept/`);
+  }, [authAxios]);
 
-        /**
-         * Accept a pending friend request by its ID.
-         *
-         * @param {number} id - The ID of the friendship record to accept.
-         * @returns {Promise} - Axios response confirming the request was accepted.
-         */
-        acceptRequest: (id) => authAxios.post(`/friends/${id}/accept/`),
+  /**
+   * Decline a friend request by its database ID.
+   */
+  const declineRequest = useCallback((id) => {
+    return authAxios.delete(`/friends/${id}/decline/`);
+  }, [authAxios]);
 
-        /**
-        * Decline a pending friend request by its ID.
-        *
-        * @param {number} id - The ID of the friendship request to decline.
-        * @returns {Promise} - Axios response after deletion.
-        */
-      declineRequest: (id) => authAxios.delete(`/friends/${id}/decline/`),
-    };
+  return {
+    fetchFriends,
+    fetchPending,
+    sendRequest,
+    acceptRequest,
+    declineRequest,
+  };
 };
 
 export default useFriendAPI;

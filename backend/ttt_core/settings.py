@@ -182,20 +182,28 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [config("REDIS_URL", default="redis://localhost:6379")],  # Fallback for dev
+            "hosts": [{
+                "address": config("REDIS_URL", default="redis://localhost:6379"),
+                "ssl_cert_reqs": None  # 👈 disables SSL cert validation (safe on Heroku mini, FREE)
+            }],
         },
     },
 }
 
+
 CACHES = {
     "default": {
-        "BACKEND": "django_redis.cache.RedisCache",  # REQUIRED for get_redis_connection
-        "LOCATION": config("REDIS_URL", default="redis://127.0.0.1:6379/1"),  # works with Heroku + dev
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": config("REDIS_URL"),
         "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",  # optional but recommended
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_KWARGS": {
+                "ssl_cert_reqs": None  # disable cert validation need for free redis :)
+            }
         }
     }
 }
+
 
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
