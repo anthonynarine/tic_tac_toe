@@ -1,6 +1,6 @@
 import json
 import logging
-from django_redis import get_redis_connection
+from utils.redis.redis_client import get_redis_client
 from channels.layers import BaseChannelLayer
 from users.models import CustomUser
 
@@ -35,7 +35,13 @@ class RedisChatLobbyManager:
         """
         Initialize the Redis connection using the Django Redis configuration.
         """
-        self.redis = get_redis_connection("default")
+        self.redis = get_redis_client()
+        
+        try:
+            self.redis.ping()
+            logger.debug("Redis connection established successfully.")
+        except Exception as e:
+            logger.warning(f"Redis connection test failed: {e}")
 
     def _players_key(self, lobby_id: str) -> str:
         """

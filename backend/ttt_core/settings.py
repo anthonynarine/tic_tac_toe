@@ -4,6 +4,7 @@ from django_redis import get_redis_connection
 from datetime import timedelta
 from pathlib import Path
 from decouple import config
+from urllib.parse import urlparse
 
 from .logging_conf import julia_fiesta_logs
 
@@ -170,40 +171,41 @@ else:
     SESSION_COOKIE_SAMESITE = 'None'
     CSRF_COOKIE_SAMESITE = 'None'
 
-# Channels configuration
-# if DEBUG:
-#     CHANNEL_LAYERS = {
-#         "default": {
-#             "BACKEND": "channels.layers.InMemoryChannelLayer",
-#         }
-#     }
-# else:
+
+REDIS_URL = config("REDIS_URL", default="redis://localhost:6379")
+parsed_url = urlparse(REDIS_URL)
+
+# Detect SSL based on scheme
+is_ssl = parsed_url.scheme == "rediss"
+
+# Conditional Redis config
+redis_config = {
+    "address": REDIS_URL,
+}
+if is_ssl:
+    redis_config["ssl_cert_reqs"] = None  # Only apply in production
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [{
-                "address": config("REDIS_URL", default="redis://localhost:6379"),
-                "ssl_cert_reqs": None  # 👈 disables SSL cert validation (safe on Heroku mini, FREE)
-            }],
+            "hosts": [redis_config],
         },
     },
 }
 
-
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": config("REDIS_URL"),
+        "LOCATION": REDIS_URL,
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
             "CONNECTION_POOL_KWARGS": {
-                "ssl_cert_reqs": None  # disable cert validation need for free redis :)
+                "ssl_cert_reqs": None if is_ssl else "required"
             }
         }
     }
 }
-
 
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'

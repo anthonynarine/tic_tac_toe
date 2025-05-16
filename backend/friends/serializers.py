@@ -1,20 +1,26 @@
 from rest_framework import serializers
 from django.db import models
 from django.contrib.auth import get_user_model
-
 from .models import Friendship
 
 User = get_user_model()
 
-
 class FriendshipSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the Friendship model.
+
+    Includes:
+    - Legacy fields for friend request views (from_user_name, to_user_name)
+    - Simplified `friend_id`, `friend_name`, and `friend_status` fields for frontend use
+    based on the perspective of the authenticated user
+    """
     to_user_email = serializers.EmailField(write_only=True)
 
-    # Legacy fields for pending request UI
+    # Legacy fields (used by pending request UI)
     from_user_name = serializers.CharField(source="from_user.first_name", read_only=True)
     to_user_name = serializers.CharField(source="to_user.first_name", read_only=True)
 
-    # Display the other user's info (used in friends list)
+    # Computed fields: these describe the "other" user in the friendship
     friend_id = serializers.SerializerMethodField()
     friend_name = serializers.SerializerMethodField()
     friend_status = serializers.SerializerMethodField()
@@ -35,22 +41,35 @@ class FriendshipSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "from_user", "is_accepted", "created_at"]
 
-    def get_friend_id(self, obj):
+    # ===== Utility for DRY access to the "friend" object =====
+
+    def _get_other_user(self, obj):
+        """
+        Returns the "other" user in the friendship, relative to the authenticated user.
+        """
         current_user = self.context["request"].user
-        other = obj.get_other_user(current_user)
+        return obj.get_other_user(current_user)
+
+    # ===== Computed display fields =====
+
+    def get_friend_id(self, obj):
+        other = self._get_other_user(obj)
         return other.id if other else None
 
     def get_friend_name(self, obj):
-        current_user = self.context["request"].user
-        other = obj.get_other_user(current_user)
+        other = self._get_other_user(obj)
         return other.first_name if other else "Unknown"
 
     def get_friend_status(self, obj):
-        current_user = self.context["request"].user
-        other = obj.get_other_user(current_user)
-        return other.status == "online" if other else False
+        other = self._get_other_user(obj)
+        return other.status if other else "offline"
+
+    # ===== Creation logic =====
 
     def create(self, validated_data):
+        """
+        Handles sending a friend request using the recipient's email.
+        """
         request = self.context["request"]
         from_user = request.user
         to_email = validated_data.pop("to_user_email")

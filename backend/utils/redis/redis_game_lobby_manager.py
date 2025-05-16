@@ -1,6 +1,6 @@
 import json
 import logging
-from django_redis import get_redis_connection
+from utils.redis.redis_client import get_redis_client
 from users.models import CustomUser
 from channels.layers import BaseChannelLayer
 from asgiref.sync import async_to_sync
@@ -29,7 +29,13 @@ class RedisGameLobbyManager:
     PREFIX = "lobby:game:"
 
     def __init__(self):
-        self.redis = get_redis_connection("default")
+        self.redis = get_redis_client()
+        
+        try:
+            self.redis.ping()
+            logger.debug("Redis connection established successfully.")
+        except Exception as e:
+            logger.warning(f"Redis connection test failed: {e}")
 
     def _players_key(self, game_id: str) -> str:
         """Returns the Redis key used to store player metadata (id, first_name)."""

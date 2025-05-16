@@ -62,11 +62,20 @@ class JWTWebSocketMiddleware:
 
                 # Step 3: Retrieve the user from cache or database
                 cache_key = f"user_{user_id}"
-                user = cache.get(cache_key)
+                user = None
+
+                try:
+                    user = cache.get(cache_key)
+                except TypeError as redis_error:
+                    logger.warning(f"⚠️ Redis cache.get() failed: {redis_error} — falling back to DB")
 
                 if not user:
                     user = await self.get_user(user_id, User)  # Fetch user from database
-                    cache.set(cache_key, user, timeout=60)  # Cache user for 60 seconds
+
+                    try:
+                        cache.set(cache_key, user, timeout=60)  # Cache user for 60 seconds
+                    except TypeError as redis_error:
+                        logger.warning(f"⚠️ Redis cache.set() failed: {redis_error} — skipping cache store")
 
                 # Step 4: Attach the authenticated user to the WebSocket scope
                 if user:

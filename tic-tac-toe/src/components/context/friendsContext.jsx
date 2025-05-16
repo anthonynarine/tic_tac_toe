@@ -1,21 +1,51 @@
-// ✅ UPDATED FriendsProvider with on-demand loading
-import { createContext, useContext, useReducer, useCallback } from "react";
+// context/friendsContext.jsx
+
+import {
+    createContext,
+    useContext,
+    useReducer,
+    useCallback,
+} from "react";
 import useFriendAPI from "../hooks/useFriendAPI";
 import { INITIAL_FRIEND_STATE, friendReducer } from "../reducers/friendReducer";
+import { useUserContext } from "../context/userContext";
+import useFriendStatusSocket from "../hooks/useFriendStatusSocket"; // ✅ Custom WebSocket hook
 
+/**
+ * Context for managing and accessing friend-related state and actions
+ */
 export const FriendsContext = createContext(undefined);
 
+/**
+ * Custom hook to access FriendsContext.
+ * Throws an error if used outside the FriendsProvider.
+ */
 export const useFriends = () => {
     const context = useContext(FriendsContext);
     if (!context) throw new Error("useFriends must be used within a FriendsProvider");
     return context;
-    };
+};
 
-    export const FriendsProvider = ({ children }) => {
+/**
+ * FriendsProvider sets up all friend-related state management and WebSocket subscriptions.
+ *
+ * Features:
+ * 1. Fetches friend and pending request data via REST API
+ * 2. Tracks friend status updates via WebSocket (real-time online/offline)
+ * 3. Provides context actions for sending, accepting, and declining requests
+ */
+export const FriendsProvider = ({ children }) => {
     const [state, dispatch] = useReducer(friendReducer, INITIAL_FRIEND_STATE);
     const { fetchFriends, fetchPending, sendRequest, acceptRequest, declineRequest } = useFriendAPI();
+    const { user } = useUserContext();
 
-    // ✅ Moved loading logic into an exported function
+    // ✅ STEP 1: Establish real-time friend status listener
+    useFriendStatusSocket(user, dispatch);
+
+    /**
+     * ✅ STEP 2: Load friend data from backend (REST)
+     * - Called on initial load or refresh
+     */
     const loadFriendData = useCallback(async () => {
         dispatch({ type: "SET_LOADING", payload: true });
         try {
@@ -23,13 +53,14 @@ export const useFriends = () => {
             fetchFriends(),
             fetchPending(),
         ]);
+
         dispatch({ type: "SET_ERROR", payload: null });
         dispatch({ type: "SET_FRIENDS", payload: friendsRes.data });
         dispatch({
             type: "SET_PENDING",
             payload: {
-                sent: pendingRes.data.sent_requests,
-                received: pendingRes.data.received_requests,
+            sent: pendingRes.data.sent_requests,
+            received: pendingRes.data.received_requests,
             },
         });
         } catch (error) {
@@ -43,18 +74,26 @@ export const useFriends = () => {
         }
     }, [fetchFriends, fetchPending]);
 
-    const handleDeclineRequest = useCallback(async (id) => {
+    /**
+     * ✅ STEP 3: Handle decline request action
+     * - Triggers friend deletion and reloads friend list
+     */
+    const handleDeclineRequest = useCallback(
+        async (id) => {
         try {
-        await declineRequest(id);
-        await loadFriendData(); // Refresh after decline
+            await declineRequest(id);
+            await loadFriendData(); // Refresh after decline
         } catch (error) {
-        console.error("Failed to decline friend request:", error);
+            console.error("Failed to decline friend request:", error);
         }
-    }, [declineRequest, loadFriendData]);
+        },
+        [declineRequest, loadFriendData]
+    );
 
+    // ✅ STEP 4: Provide full friend-related state and actions
     const value = {
         ...state,
-        refreshFriends: loadFriendData, // ❗ only call this manually when needed
+        refreshFriends: loadFriendData,
         sendRequest,
         acceptRequest,
         declineRequest: handleDeclineRequest,
@@ -66,4 +105,3 @@ export const useFriends = () => {
         </FriendsContext.Provider>
     );
 };
-

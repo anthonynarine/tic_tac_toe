@@ -8,7 +8,7 @@
  * @property {Error|null} error - Captures any API or reducer error.
  */
 export const INITIAL_FRIEND_STATE = {
-friends: [],
+    friends: [],
     pending: {
         sent: [],
         received: [],
@@ -41,8 +41,26 @@ export function friendReducer(state, action) {
         case "SET_ERROR":
         return { ...state, error: action.payload };
 
+        /**
+         * Handles real-time online/offline status updates.
+         * - Matches incoming user_id to each friend.friend_id
+         * - Updates that friend's friend_status field
+         */
+        case "STATUS_UPDATE": {
+        const { user_id, status } = action.payload;
+
+        return {
+            ...state,
+            friends: state.friends.map((friend) =>
+            friend.friend_id === user_id
+                ? { ...friend, friend_status: status }
+                : friend
+            ),
+        };
+        }
+
         default:
         console.warn("Unknown action type in friendReducer:", action.type);
-        return state; // Ensures state is returned even on unknown actions
+        return state; // safe fallback
     }
 }
