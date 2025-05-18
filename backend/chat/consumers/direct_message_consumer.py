@@ -1,8 +1,150 @@
 import json
-from channels.generic.websocket import AsyncJsonWebsocketConsumer
-from django.contrib.auth import get_user_model
+import logging
+from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
-from chat.models import DirectMessage
+from django.contrib.auth import get_user_model
+from django.db.models import Q
 from friends.models import Friendship
+from chat.models import DirectMessage
 
+logger = logging.getLogger("chat")
 User = get_user_model()
+
+class DirectMessageConsumer(AsyncWebsocketConsumer):
+    """
+    Handles private 1-on-1 WebSocket messaging between two accepted friends.
+
+    Responsibilities:
+    - Accept authenticated users only
+    - Verify sender and receiver are friends
+    - Establish a unique, shared conversation group for message exchange
+    - Broadcast chat messages and game invites
+    - Persist messages to the database
+    """
+
+    async def connect(self):
+        """
+        Called on WebSocket connection.
+        Verifies the user and friendship status before joining a private group.
+        """
+        self.user = self.scope["user"]
+        self.friend_id = self.scope["url_route"]["kwargs"]["friend_id"]
+        self.room_group_name = self.get_conversation_id(self.user.id, int(self.friend_id))
+
+        if self.user.is_anonymous:
+            logger.warning("[DM] Anonymous user blocked from connecting.")
+            await self.close()
+            return
+
+        if not await self.are_friends(self.user.id, self.friend_id):
+            logger.warning(f"[DM] Unauthorized connection attempt: {self.user.id} → {self.friend_id}")
+            await self.close()
+            return
+
+        # Join the private group
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+        logger.info(f"[DM] {self.user} connected to room {self.room_group_name}")
+
+    async def disconnect(self, close_code):
+        """
+        Called on WebSocket disconnect.
+        Removes user from the private group.
+        """
+        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        logger.info(f"[DM] {self.user} disconnected from room {self.room_group_name}")
+
+    async def receive(self, text_data):
+        """
+        Handles incoming WebSocket messages.
+        Supports:
+        - 'message': a chat message to be saved and broadcast
+        - 'game_invite': a game invitation to be sent to the friend
+        """
+        data = json.loads(text_data)
+        msg_type = data.get("type")
+
+        if msg_type == "message":
+            message = data.get("message")
+            if message:
+                await self.save_message(message)
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "chat_message",
+                        "sender_id": self.user.id,
+                        "receiver_id": self.friend_id,
+                        "message": message,
+                    }
+                )
+
+        elif msg_type == "game_invite":
+            game_id = data.get("game_id")
+            if game_id:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "game_invite",
+                        "sender_id": self.user.id,
+                        "receiver_id": self.friend_id,
+                        "game_id": game_id,
+                    }
+                )
+        else:
+            logger.warning(f"[DM] Unrecognized message type received: {msg_type}")
+
+    async def chat_message(self, event):
+        """
+        Sends a chat message back to both users in the conversation group.
+        Triggered by group_send from `receive()`.
+        """
+        await self.send(text_data=json.dumps({
+            "type": "message",
+            "sender_id": event["sender_id"],
+            "receiver_id": event["receiver_id"],
+            "message": event["message"],
+        }))
+
+    async def game_invite(self, event):
+        """
+        Sends a game invite message to both users in the conversation group.
+        """
+        await self.send(text_data=json.dumps({
+            "type": "game_invite",
+            "sender_id": event["sender_id"],
+            "receiver_id": event["receiver_id"],
+            "game_id": event["game_id"],
+        }))
+
+    @staticmethod
+    def get_conversation_id(id1, id2):
+        """
+        Generates a deterministic group name for a 1-on-1 chat between two users.
+        Ensures the same ID is used regardless of sender/receiver order.
+        Format: "dm_<smaller_id>__<larger_id>"
+        """
+        return f"dm_{min(id1, id2)}__{max(id1, id2)}"
+
+    @database_sync_to_async
+    def save_message(self, content):
+        """
+        Persists a direct message to the database.
+        """
+        return DirectMessage.objects.create(
+            sender=self.user,
+            receiver_id=self.friend_id,
+            content=content,
+        )
+
+    @database_sync_to_async
+    def are_friends(self, user_id, friend_id):
+        """
+        Checks if the two users are accepted friends.
+        Used to prevent unauthorized messaging.
+        """
+        return Friendship.objects.filter(
+            is_accepted=True
+        ).filter(
+            Q(from_user_id=user_id, to_user_id=friend_id) |
+            Q(from_user_id=friend_id, to_user_id=user_id)
+        ).exists()
