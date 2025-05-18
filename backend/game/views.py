@@ -16,6 +16,7 @@ from .models import DEFAULT_BOARD_STATE
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
+logger.warning("This is a manual log line from views.py — should appear when server starts")
 class TicTacToeGameViewSet(viewsets.ModelViewSet):
     """
     ViewSet for creating, joining, and updating TicTacToe games.

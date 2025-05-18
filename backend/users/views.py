@@ -7,6 +7,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from .models import CustomUser
 from .serializers import UserSerializer
 
+from utils.logger.log_helpers import get_logger, log_event, log_error
+
 import logging
 logger = logging.getLogger(__name__)
 

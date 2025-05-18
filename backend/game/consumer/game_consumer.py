@@ -8,7 +8,7 @@ from utils.shared.shared_utils_game_chat import SharedUtils
 from utils.game.game_utils import GameUtils
 from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("game")
 
 class GameConsumer(JsonWebsocketConsumer):
     """

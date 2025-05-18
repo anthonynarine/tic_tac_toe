@@ -5,7 +5,7 @@ from channels.layers import get_channel_layer
 from ..models import TicTacToeGame
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("game")
 
 @receiver(post_save, sender=TicTacToeGame)
 def game_update_signal(sender, instance, created, **kwargs):

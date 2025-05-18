@@ -9,7 +9,7 @@ from friends.models import Friendship
 from django.db.models import Q
 
 User = get_user_model()
-logger = logging.getLogger(__name__)  
+logger = logging.getLogger("friends")  
 
 class FriendStatusConsumer(AsyncWebsocketConsumer):
     """

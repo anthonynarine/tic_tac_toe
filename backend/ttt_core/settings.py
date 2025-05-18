@@ -110,7 +110,8 @@ else:
     }
 
 # Authentication settings
-AUTH_USER_MODEL = 'users.CustomUser'
+AUTH_USER_MODEL = "users.CustomUser"
+
 
 # REST Framework configuration
 REST_FRAMEWORK = {

@@ -33,10 +33,13 @@ const useFriendStatusSocket = (user, dispatch) => {
         if (!user?.id) return;
 
         //  Get JWT token depending on environment
-        const token =
-            process.env.NODE_ENV === "production"
-                ? Cookies.get("access_token")       // use secure cookies in production
-                : localStorage.getItem("access_token"); // use localStorage during dev
+        const getToken = () => {
+            return process.env.NODE_ENV === "production"
+                ? Cookies.get("access_token")
+                : localStorage.getItem("access_token");
+        };
+
+        const token = getToken();
 
         if (!token) {
             console.error("Access token not found. Cannot initialize FriendStatus WebSocket.");

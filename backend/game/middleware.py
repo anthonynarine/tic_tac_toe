@@ -45,6 +45,7 @@ class JWTWebSocketMiddleware:
             awaitable: Calls the next middleware or application in the stack.
         """
         logger.debug("JWTWebSocketMiddleware: Middleware invoked")
+        logger.debug(f"[Middleware] Final scope user: {scope.get('user')}")
 
         # Lazy-load Django imports to avoid accessing models/settings prematurely
         from django.contrib.auth.models import AnonymousUser
@@ -52,6 +53,7 @@ class JWTWebSocketMiddleware:
 
         # Step 1: Extract token from headers or query string
         token = self._get_token_from_scope(scope)
+
 
         if token:
             try:
@@ -67,7 +69,7 @@ class JWTWebSocketMiddleware:
                 try:
                     user = cache.get(cache_key)
                 except TypeError as redis_error:
-                    logger.warning(f"⚠️ Redis cache.get() failed: {redis_error} — falling back to DB")
+                    logger.warning(f"Redis cache.get() failed: {redis_error} — falling back to DB")
 
                 if not user:
                     user = await self.get_user(user_id, User)  # Fetch user from database
@@ -75,7 +77,7 @@ class JWTWebSocketMiddleware:
                     try:
                         cache.set(cache_key, user, timeout=60)  # Cache user for 60 seconds
                     except TypeError as redis_error:
-                        logger.warning(f"⚠️ Redis cache.set() failed: {redis_error} — skipping cache store")
+                        logger.warning(f"Redis cache.set() failed: {redis_error} — skipping cache store")
 
                 # Step 4: Attach the authenticated user to the WebSocket scope
                 if user:
@@ -91,6 +93,8 @@ class JWTWebSocketMiddleware:
             # Step 5: Assign AnonymousUser if no token is found
             logger.info("No token found; assigning AnonymousUser.")
             scope["user"] = AnonymousUser()
+            
+        logger.debug(f"[Middleware] Full query string: {scope.get('query_string')}")
 
         # Pass the request to the next middleware or application in the stack
         return await self.app(scope, receive, send)

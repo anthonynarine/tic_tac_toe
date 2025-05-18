@@ -5,7 +5,7 @@ from django.dispatch import receiver
 from django.utils.crypto import get_random_string
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("game")
 
 User = get_user_model()
 
