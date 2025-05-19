@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useLobbyContext } from "../context/lobbyContext";
-import { useUserContext } from "../context/userContext";
+
 import { showToast } from "../../utils/toast/Toast";
+import getWebSocketURL from "./utils/getWebsocketURL";
 import { CiCirclePlus } from "react-icons/ci";
 import "./lobby.css";
-import config from "../../config";
+
 import Cookies from "js-cookie"
 
 /**
@@ -16,7 +17,6 @@ import Cookies from "js-cookie"
  */
 const LobbyPage = () => {
     // Contexts
-    const { user } = useUserContext();
     const { state, dispatch: lobbyDispatch } = useLobbyContext();
 
     // Hooks
@@ -47,7 +47,7 @@ const LobbyPage = () => {
         }
     
         const webSocket = new WebSocket(
-            `${config.websocketBaseUrl}/chat/${gameId}/?token=${token}`
+            getWebSocketURL({ id: gameId, token, isLobby: true})
         );
     
         webSocket.onopen = () => console.log("WebSocket connected.");
@@ -74,7 +74,7 @@ const LobbyPage = () => {
         console.log("📥 WebSocket message received:", data);  // ✅ Debugging
 
         const actions = {
-            connection_success: () => showToast("success", data.message),
+            // connection_success: () => showToast("success", data.message),
             chat_message: () => lobbyDispatch({ type: "ADD_MESSAGE", payload: data.message }),
             update_player_list: () => lobbyDispatch({ type: "PLAYER_LIST", payload: data.players }),
             game_start_acknowledgment: () => handleGameStartAcknowledgment(data),
@@ -96,7 +96,7 @@ const LobbyPage = () => {
      * @param {Object} data - WebSocket payload.
      */
     const handleGameStartAcknowledgment = (data) => {
-        showToast("success", data.message);
+        // showToast("success", data.message);
 
         console.log("🚀 WebSocket received game_start_acknowledgment:", data);
         console.log("🚀 Navigating to game page:", `/games/${data.game_id}`);

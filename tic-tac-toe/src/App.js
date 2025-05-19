@@ -16,6 +16,7 @@ import { FriendsProvider } from "./components/context/friendsContext";
 import { GameProvider } from "./components/context/gameContext";
 import { LobbyProvider } from "./components/context/lobbyContext";
 import { GameWebSocketProvider } from "./components/websocket/GameWebSocketProvider";
+import { DirectMessageProvider } from "./components/context/directMessageContext";
 
 /**
  * Renders app once authentication state has loaded.
@@ -83,8 +84,10 @@ const MainApp = () => {
     return (
         <>
         <ToastContainer />
-        <UserProvider>
-            <MainApp />
+        <UserProvider> {/* Global user info context */}
+            <DirectMessageProvider> {/* Global DM context */}
+                <MainApp />
+            </DirectMessageProvider>
         </UserProvider>
         </>
     );
