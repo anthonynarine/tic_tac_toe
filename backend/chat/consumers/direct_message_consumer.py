@@ -28,8 +28,17 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
         Verifies the user and friendship status before joining a private group.
         """
         self.user = self.scope["user"]
-        self.friend_id = self.scope["url_route"]["kwargs"]["friend_id"]
-        self.room_group_name = self.get_conversation_id(self.user.id, int(self.friend_id))
+        logger.debug(f"[DM] Raw URL scope: {self.scope.get('url_route')}")
+
+        try:
+            self.friend_id = int(self.scope["url_route"]["kwargs"]["friend_id"])
+            logger.debug(f"[DM] Extracted friend_id: {self.friend_id}")
+        except (KeyError, TypeError, ValueError) as e:
+            logger.error(f"[DM] Invalid or missing friend_id in WebSocket URL: {e}")
+            await self.close()
+            return
+
+        self.room_group_name = self.get_conversation_id(self.user.id, self.friend_id)
 
         if self.user.is_anonymous:
             logger.warning("[DM] Anonymous user blocked from connecting.")
@@ -37,7 +46,10 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
             return
 
         if not await self.are_friends(self.user.id, self.friend_id):
-            logger.warning(f"[DM] Unauthorized connection attempt: {self.user.id} → {self.friend_id}")
+            logger.warning(
+                f"[DM] Unauthorized DM attempt. No accepted friendship between "
+                f"user {self.user.id} and user {self.friend_id}"
+            )
             await self.close()
             return
 
@@ -45,6 +57,7 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
         logger.info(f"[DM] {self.user} connected to room {self.room_group_name}")
+
 
     async def disconnect(self, close_code):
         """
@@ -138,13 +151,18 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def are_friends(self, user_id, friend_id):
-        """
-        Checks if the two users are accepted friends.
-        Used to prevent unauthorized messaging.
-        """
-        return Friendship.objects.filter(
+        uid1, uid2 = int(user_id), int(friend_id)
+        logger.info(f"[DM] Checking friendship between {uid1} and {uid2}")
+
+        match = Friendship.objects.filter(
             is_accepted=True
         ).filter(
-            Q(from_user_id=user_id, to_user_id=friend_id) |
-            Q(from_user_id=friend_id, to_user_id=user_id)
-        ).exists()
+            Q(from_user_id=uid1, to_user_id=uid2) |
+            Q(from_user_id=uid2, to_user_id=uid1)
+        )
+
+        logger.info(f"[DM] Friendship query found {match.count()} record(s)")
+        return match.exists()
+
+
+

@@ -30,6 +30,7 @@ class FriendshipSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "from_user",
+            "to_user",
             "to_user_email",
             "from_user_name",
             "to_user_name",

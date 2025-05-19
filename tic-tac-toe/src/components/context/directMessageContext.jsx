@@ -1,10 +1,6 @@
-import { createContext, useContext, useReducer, useEffect } from "react";
+import { createContext, useContext, useReducer,} from "react";
 import Cookies from "js-cookie";
-import {
-  directMessageReducer,
-  initialDMState,
-  DmActionTypes,
-} from "../reducers/directMessageReducer";
+import { directMessageReducer, DmActionTypes, initialDMState } from "../reducers/directMessaeReducer";
 import { useUserContext } from "./userContext"; // 🔁 Assuming your user context is here
 
 /**
@@ -44,14 +40,21 @@ export const useDirectMessage = () => {
      * @param {Object} friend - The friend object with an `id` and `friend_name`.
      */
     const openChat = (friend) => {
+        console.log("[DM] openChat received:", friend);
         const token =
             process.env.NODE_ENV === "production"
                 ? Cookies.get("access_token")
                 : localStorage.getItem("access_token");
 
+
+        const isCurrentUserFrom = friend.from_user === user.id;
+        const friendId = isCurrentUserFrom ? friend.to_user : friend.from_user;
+
+
         const socket = new WebSocket(
-            `ws://localhost:8000/ws/chat/${friend.id}/?token=${token}`
+        `ws://localhost:8000/ws/chat/${friendId}/?token=${token}`
         );
+
 
         socket.onopen = () => {
             dispatch({
