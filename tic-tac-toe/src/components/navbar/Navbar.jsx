@@ -4,35 +4,32 @@ import { useNavigate } from "react-router-dom";
 import { PiGameControllerThin } from "react-icons/pi";
 import { CiLogin, CiLogout, CiHome } from "react-icons/ci";
 
-
 import { useAuth } from "../hooks/useAuth";
 import { useUserContext } from "../context/userContext";
+import { useUI } from "../context/uiContext"; 
 import useGameCreation from "../hooks/useGameCreation";
-import FriendsSidebar from "../friends/FriendsSidebar";
 
 import "./Navbar.css";
 
 const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false); // Mobile nav toggle
-  const [dropdownOpen, setDropdownOpen] = useState(false); // Game mode dropdown
-  const [sidebarOpen, setSidebarOpen] = useState(false); // Friends sidebar
+  const [isOpen, setIsOpen] = useState(false); // Mobile hamburger toggle
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Game mode dropdown toggle
+
+  const { isLoggedIn, user, authLoaded } = useUserContext();
+  const { logout } = useAuth();
+  const { createNewGame } = useGameCreation();
+  const { setSidebarOpen } = useUI(); 
 
   const dropdownRef = useRef();
   const navigate = useNavigate();
-  const { createNewGame } = useGameCreation();
-  const { isLoggedIn, user, authLoaded } = useUserContext();
-  const { logout } = useAuth();
 
-  // Mobile menu toggle
-  const toggleMenu = () => setIsOpen(!isOpen);
+  // Toggle mobile navbar
+  const toggleMenu = () => setIsOpen((prev) => !prev);
 
-  // Game mode dropdown toggle
-  const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
+  // Toggle dropdown for game modes
+  const toggleDropdown = () => setDropdownOpen((prev) => !prev);
 
-  // Close friends sidebar
-  const closeSidebar = () => setSidebarOpen(false);
-
-  // Auto-close dropdown when clicking outside
+  // Auto-close game mode dropdown if user clicks outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -43,24 +40,25 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Game start handlers
+  // Handler: Create multiplayer game and route to lobby
   const startMultiplayerGame = async () => {
     try {
       const newGame = await createNewGame(user?.first_name || "Player", false);
       if (newGame) navigate(`/lobby/${newGame.id}`);
     } catch (error) {
-      console.log("error", error);
+      console.error("Multiplayer error:", error);
     } finally {
       setDropdownOpen(false);
     }
   };
 
+  // Handler: Create AI game and route directly to game page
   const startAIGame = async () => {
     try {
       const newGame = await createNewGame(user?.first_name || "Player", true);
       if (newGame) navigate(`/games/${newGame.id}`);
     } catch (error) {
-      console.log("error", error);
+      console.error("AI game error:", error);
     } finally {
       setDropdownOpen(false);
     }
@@ -69,14 +67,13 @@ const Navbar = () => {
   return (
     <>
       <nav className="navbar">
-        <div className="navbar-frame">
           <div className="navbar-content">
-            {/* Brand/Home Button */}
+            {/* Logo / Home Button */}
             <div className="navbar-brand" onClick={() => navigate("/")}>
               <CiHome className="game-icon" />
             </div>
 
-            {/* Game Mode Dropdown */}
+            {/* Center Game Controller Icon for Game Mode Selection */}
             <div className="game-icon-container" onClick={toggleDropdown} ref={dropdownRef}>
               <PiGameControllerThin className="game-icon" />
               {dropdownOpen && (
@@ -93,7 +90,7 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* Navigation Icons */}
+            {/* Right Navigation Buttons */}
             <div className={`navbar-links ${isOpen ? "active" : ""}`}>
               <ul>
                 {!isLoggedIn ? (
@@ -111,41 +108,26 @@ const Navbar = () => {
                     </li>
                     <li>
                       <button onClick={() => navigate("/profile")} title="Profile" className="nav-button">
-                        {/* <LiaUserNinjaSolid className="nav-icon" /> */}
                         <span className="nav-label glow-pulse">{user?.first_name}</span>
-
                       </button>
                     </li>
                     <li>
-                    <button onClick={() => setSidebarOpen(true)} title="Friends" className="nav-button">
-                      <span className="nav-label glow-pulse">Social</span>
-                    </button>
-                  </li>
+                      {/* ✅ Opens FriendsSidebar via global context */}
+                      <button onClick={() => setSidebarOpen(true)} title="Friends" className="nav-button">
+                        <span className="nav-label glow-pulse">Social</span>
+                      </button>
+                    </li>
                   </>
                 )}
               </ul>
             </div>
 
-            {/* Mobile Menu Toggle */}
+            {/* Hamburger Icon for Mobile Menu */}
             <div className="navbar-toggle" onClick={toggleMenu}>
               {isOpen ? <FaTimes /> : <FaBars />}
             </div>
-          </div>
         </div>
       </nav>
-
-      {/* Friends Sidebar */}
-      {/* {authLoaded && isLoggedIn && (
-        <>
-          <FriendsSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
-          {sidebarOpen && (
-            <div
-              className="fixed inset-0 bg-black bg-opacity-40 z-40"
-              onClick={closeSidebar}
-            />
-          )}
-        </>
-      )} */}
     </>
   );
 };

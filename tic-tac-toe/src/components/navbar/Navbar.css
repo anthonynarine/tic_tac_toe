@@ -1,88 +1,30 @@
-/* @keyframes pulseGlow {
-  0% {
-    text-shadow:
-      0 0 4px #a3bfd1,
-      0 0 8px #a3bfd1,
-      0 0 12px #a3bfd1;
-  }
-  50% {
-    text-shadow:
-      0 0 8px #a3bfd1,
-      0 0 16px #a3bfd1,
-      0 0 24px #a3bfd1;
-  }
-  0% {
-    text-shadow:
-      0 0 4px #a3bfd1,
-      0 0 8px #a3bfd1,
-      0 0 12px #a3bfd1;
-  }
-} */
-
-
-/* Navbar Container */
+/* === NAVBAR CONTAINER === */
 .navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
   width: 100%;
-  height: 6rem;
-  z-index: 1000;
+  height: var(--navbar-height, 96px);
   background-color: black;
-  padding: 1rem 2rem;
+  border-bottom: 1px solid #C0C0C0;
+  display: flex;
+  align-items: center;
   box-sizing: border-box;
-  /* border-bottom: 1px solid #C0C0C0; */
+  z-index: 1000;
+  position: relative;
 }
 
-/* Navbar Content Wrapper */
+/* === NAVBAR CONTENT (Matches .app-frame width) === */
 .navbar-content {
-  max-width: 1200px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
+  height: 100%;
+  padding: 0 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: relative;
-  height: 100%;
-  border-left: 1px solid #C0C0C0;
-  border-right: 1px solid #C0C0C0;
-  border-bottom: 1px solid #C0C0C0;
+  box-sizing: border-box;
 }
 
-.nav-button {
-  background: none;
-  border: none;
-  color: white;
-  font-weight: 400;
-  font-size: 0.95rem;
-  cursor: pointer;
-  padding: 0.5rem 0.75rem;
-  transition: color 0.3s ease;
-}
-
-.nav-button:hover {
-  color: #1da1f2;
-}
-
-.nav-label {
-  font-weight: 300;
-  font-size: 1.2rem;
-  letter-spacing: 0.5px;
-}
-
-/* Apply glow and animation */
-.nav-label.glow-pulse {
-  color: #eef1f3;
-  font-weight: 350;
-  animation: pulseGlow 2s infinite ease-in-out;
-  text-shadow:
-    0 0 0px #eef1f3,
-    0 0 4px #eef1f3,
-    0 0 0px #eef1f3,
-    0 0 1px #eef1f3;
-}
-
-/* Logo Styling */
+/* === Logo/Home Icon === */
 .navbar-brand {
   flex: 1;
   cursor: pointer;
@@ -94,7 +36,7 @@
   height: auto;
 }
 
-/* Game Icon at the Absolute Center of Navbar */
+/* === Centered Game Icon === */
 .game-icon-container {
   position: absolute;
   left: 50%;
@@ -107,45 +49,7 @@
   color: white;
 }
 
-/* Dropdown Menu Styling */
-.dropdown-menu {
-  position: absolute;
-  top: 2.3rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #0D0D0D;
-  padding: .5rem;
-  border-radius: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  z-index: 1001;
-  border: 1px solid #C0C0C0;
-}
-
-/* Dropdown Menu Buttons */
-.dropdown-menu button {
-  background-color: #0D0D0D;
-  color: white;
-  border: none;
-  padding: 0.75rem 1rem;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  border-radius: 0.25rem;
-  transition: background-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.dropdown-menu button:hover {
-  background-color: #000000;
-  color: white;
-  box-shadow: 
-    0 0 5px rgba(255, 255, 255, 0.5),
-    0 0 10px rgba(255, 255, 255, 0.4),
-    0 0 15px rgba(255, 255, 255, 0.3);
-}
-
-/* Navbar Links */
+/* === Navigation Links === */
 .navbar-links {
   flex: 1;
   display: flex;
@@ -176,13 +80,84 @@
   color: #004d40;
 }
 
+/* === Glow Label (Optional) === */
+.nav-label {
+  font-weight: 300;
+  font-size: 1.2rem;
+  letter-spacing: 0.5px;
+}
+
+.nav-label.glow-pulse {
+  color: #eef1f3;
+  font-weight: 350;
+  animation: pulseGlow 2s infinite ease-in-out;
+  text-shadow:
+    0 0 0px #eef1f3,
+    0 0 4px #eef1f3,
+    0 0 0px #eef1f3,
+    0 0 1px #eef1f3;
+}
+
+/* === Buttons / Icons === */
+.nav-button {
+  background: none;
+  border: none;
+  color: white;
+  font-weight: 400;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  transition: color 0.3s ease;
+}
+
+.nav-button:hover {
+  color: #1da1f2;
+}
+
 .nav-icon {
   font-size: 1.75rem;
   color: white;
   vertical-align: middle;
 }
 
-/* Burger Menu Icon */
+/* === Dropdown Menu === */
+.dropdown-menu {
+  position: absolute;
+  top: 2.3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #0D0D0D;
+  padding: .5rem;
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 1001;
+  border: 1px solid #C0C0C0;
+}
+
+.dropdown-menu button {
+  background-color: #0D0D0D;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dropdown-menu button:hover {
+  background-color: #000000;
+  color: white;
+  box-shadow: 
+    0 0 5px rgba(255, 255, 255, 0.5),
+    0 0 10px rgba(255, 255, 255, 0.4),
+    0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+/* === Hamburger Icon for Mobile === */
 .navbar-toggle {
   display: none;
   font-size: 2rem;
@@ -190,10 +165,14 @@
   color: white;
 }
 
-/* Responsive Design for Mobile Screens */
+/* === Responsive Navbar Collapse === */
 @media (max-width: 768px) {
   .navbar-toggle {
     display: block;
+  }
+
+  .navbar-content {
+    padding: 0 1rem;
   }
 
   .navbar-links {
@@ -217,15 +196,4 @@
   .navbar-links.active {
     display: flex;
   }
-
-  .navbar {
-    padding: 1rem;
-  }
-
-  .game-icon-container {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-  }
 }
-

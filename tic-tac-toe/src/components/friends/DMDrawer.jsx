@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDirectMessage } from "../context/directMessageContext";
-import { FaCheck } from "react-icons/fa";
 import { IoIosSend } from "react-icons/io";
-
 import "./DMDrawer.css";
 
 const DMDrawer = ({ isOpen, onClose }) => {
@@ -16,67 +14,67 @@ const DMDrawer = ({ isOpen, onClose }) => {
     const [newMessage, setNewMessage] = useState("");
     const messagesEndRef = useRef(null);
 
+    // Scroll to bottom whenever new messages arrive
     useEffect(() => {
         if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+        messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
     }, [messages]);
 
+    // Message send handler
     const handleSend = () => {
         if (newMessage.trim()) {
-            sendMessage(newMessage);
-            setNewMessage("");
+        sendMessage(newMessage);
+        setNewMessage("");
         }
     };
 
+    // Only render if drawer is open and we have an active chat target
     if (!isOpen || !activeChat) return null;
 
     const friendDisplayName = activeChat.friend_name || activeChat.first_name || "Friend";
 
     return (
         <div className={`dm-drawer ${isOpen ? "open" : ""}`}>
-            {/* Header */}
-            <div className="dm-header">
-                <h2>{friendDisplayName}</h2>
-                <button onClick={() => { closeChat(); onClose(); }}>&times;</button>
-            </div>
+        {/* Header with close button */}
+        <div className="dm-header">
+            <h2>{friendDisplayName}</h2>
+            <button onClick={() => { closeChat(); onClose(); }}>&times;</button>
+        </div>
 
-            {/* Messages */}
-            <div className="dm-messages">
-                {messages.map((msg, index) => (
-                    <div
-                        key={index}
-                        className={`dm-message ${msg.sender_id === activeChat.id ? "incoming" : "outgoing"}`}
-                    >
-                        <span>{msg.message}</span>
-                    </div>
-                ))}
-                <div ref={messagesEndRef} />
+        {/* Message history */}
+        <div className="dm-messages">
+            {messages.map((msg, index) => (
+            <div
+                key={index}
+                className={`dm-message ${msg.sender_id === activeChat.id ? "incoming" : "outgoing"}`}
+            >
+                <span>{msg.message}</span>
             </div>
+            ))}
+            <div ref={messagesEndRef} />
+        </div>
 
-            {/* Input */}
-            <div className="dm-input">
-                <div className="dm-input-container">
-                    <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                        placeholder="Type a message..."
-                    />
-                    <button
-                        className="send-btn"
-                        onClick={handleSend}
-                        disabled={!newMessage.trim()}
-                        aria-label="Send message"
-                    >
-                        <IoIosSend size={18} />
-                    </button>
-
-                        </div>
-                    </div>
-                <div>
+        {/* Message input area */}
+        <div className="dm-input">
+            <div className="dm-input-container">
+            <input
+                type="text"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                placeholder="Type a message..."
+            />
+            <button
+                className="send-btn"
+                onClick={handleSend}
+                disabled={!newMessage.trim()}
+                aria-label="Send message"
+            >
+                <IoIosSend size={18} />
+            </button>
             </div>
+        </div>
         </div>
     );
 };

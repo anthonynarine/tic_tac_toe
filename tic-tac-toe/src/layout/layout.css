@@ -1,36 +1,74 @@
+/* === App Shell: Full-page Flex Wrapper === */
 .app-shell {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-    background-color: black;
-    }
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background-color: black;
+}
 
-/* Main content inside frame */
+/* === Main Content Area === */
 .main-content {
-    flex: 1;
-    overflow-y: auto;
-    background-color: black;
-    padding: 2rem;
-    height: 100%;
-    }
+  flex: 1;
+  overflow-y: auto;
+  background-color: black;
+  padding: 2rem;
+  height: 100%;
+}
 
-    /* Sidebar + Main Content layout */
-    .layout-frame {
-    display: flex;
-    flex: 1;
-    max-width: 1200px;
-    margin: 0 auto;
-    height: calc(100vh - 96px); /* Adjust if your navbar height changes */
-    border-left: 1px solid #C0C0C0;
-    border-right: 1px solid #C0C0C0;
-    box-sizing: border-box;
-    }
+/* === App Frame: Bordered Layout Box === */
+.app-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  max-width: 1440px;              /* consistent with navbar-content */
+  margin: 0 auto;
+  border: 1px solid #C0C0C0;
+  box-sizing: border-box;
+  background-color: black;
+}
 
-    /* Mobile stack fallback */
-    @media (max-width: 768px) {
-    .layout-frame {
-        flex-direction: column;
-        border: none;
-    }
+/* Optional minimum width for wide layout look */
+@media (min-width: 1300px) {
+  .app-frame {
+    min-width: 1300px;
+  }
+}
+
+/* === Frame Body: Sidebar + Main Content === */
+.frame-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* === Tablet and Mobile Handling === */
+@media (max-width: 1024px) {
+  .frame-body {
+    flex-direction: column;
+  }
+
+  .friends-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #333;
+  }
+
+  .main-content {
+    padding: 1rem;
+  }
+}
+
+/* === Mobile Optimization (Full Collapse) === */
+@media (max-width: 768px) {
+  .app-frame {
+    flex-direction: column;
+    border: none;
+    max-width: 100%;
+  }
+
+  .frame-body {
+    flex-direction: column;
+  }
 }

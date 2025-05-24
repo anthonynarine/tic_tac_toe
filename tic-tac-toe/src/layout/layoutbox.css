@@ -1,0 +1,49 @@
+/* App-level wrapper */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background-color: black;
+}
+
+/* Main route content */
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: black;
+  padding: 2rem;
+  height: 100%;
+}
+
+/* NEW: Full application frame */
+.app-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1200px;
+  margin: 0 auto;
+  border: 1px solid #C0C0C0;
+  box-sizing: border-box;
+  background-color: black;
+}
+
+/* NEW: Frame body that holds sidebar + content */
+.frame-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Responsive layout for smaller screens */
+@media (max-width: 768px) {
+  .app-frame {
+    flex-direction: column;
+    border: none;
+    max-width: 100%;
+  }
+
+  .frame-body {
+    flex-direction: column;
+  }
+}

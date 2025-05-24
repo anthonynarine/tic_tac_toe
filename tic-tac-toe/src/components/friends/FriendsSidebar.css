@@ -2,7 +2,7 @@
   --navbar-height: 96px;
 }
 
-/* === Base Sidebar === */
+/* === Base Sidebar Styling === */
 .friends-sidebar {
   background-color: #000;
   color: #fff;
@@ -14,7 +14,6 @@
   border-right: 1px solid #C0C0C0;
   border-bottom: 1px solid #C0C0C0;
   box-shadow: -2px 0 5px rgba(255, 255, 255, 0.05);
-
 }
 
 /* === Sticky Header === */
@@ -48,15 +47,15 @@
   color: #fff;
 }
 
-/* === Sidebar Content === */
+/* === Scrollable Sidebar Content === */
 .friends-sidebar__content {
   padding: 1rem;
+  padding-top: 2rem;
   overflow-y: auto;
   flex-grow: 1;
-  padding-top: 2rem;
 }
 
-/* === Friend Sections, Requests, etc. === */
+/* === Section Headings and Layout === */
 .friends-sidebar__section {
   margin-bottom: 2rem;
   border-top: 1px solid #444;
@@ -74,7 +73,7 @@
   color: #888;
 }
 
-/* === Friend Item === */
+/* === Friend List Item === */
 .friends-sidebar__friend {
   padding-left: 0.75rem;
   margin-bottom: 0.75rem;
@@ -102,6 +101,7 @@
   color: #aaa;
 }
 
+/* === Online/Offline Status Dots === */
 .status-dot {
   width: 0.6rem;
   height: 0.6rem;
@@ -116,56 +116,39 @@
   background-color: #6b7280;
 }
 
-/* === Mobile Only: Slide-in Behavior === */
+/* === Responsive Mobile Slide-In Behavior === */
 @media (max-width: 767px) {
   .friends-sidebar {
     position: fixed;
     top: var(--navbar-height);
     right: 0;
+    width: 100%;
     height: calc(100vh - var(--navbar-height));
-    transform: translateX(100%);
-    transition: transform 0.4s ease-in-out;
-    z-index: 50;
-  }
-
-  .friends-sidebar.open {
-    transform: translateX(0);
-  }
-}
-
-/* Desktop: static with border-right */
-/* Desktop: static sidebar */
-@media (min-width: 768px) {
-  .friends-sidebar {
-    position: static;
-    height: 100%;
-    transform: none !important;
-    border-right: 1px solid #C0C0C0;
-    border-left: none;
-    top: auto;              /* 🧼 Reset */
-    margin-top: 0;          /* 🧼 Remove offset */
-  }
-}
-
-
-/* Mobile: fixed drawer */
-@media (max-width: 767px) {
-  .friends-sidebar {
-    position: fixed;
-    top: 0;
-    height: 100vh;
     padding-top: var(--navbar-height);
     transform: translateX(100%);
     transition: transform 0.4s ease-in-out;
-    right: 0;
     z-index: 50;
-
+    background-color: #000;
     border-left: 1px solid #C0C0C0;
     border-right: none;
     box-shadow: -2px 0 5px rgba(255, 255, 255, 0.05);
   }
 
+  /* When the .open class is applied, slide in from the right */
   .friends-sidebar.open {
     transform: translateX(0);
+  }
+}
+
+/* === Desktop Static Sidebar === */
+@media (min-width: 768px) {
+  .friends-sidebar {
+    position: static;
+    height: 100%;
+    transform: none !important;
+    top: auto;
+    margin-top: 0;
+    border-right: 1px solid #C0C0C0;
+    border-left: none;
   }
 }

@@ -30,6 +30,7 @@ import { FriendsProvider } from "./components/context/friendsContext";
 import { LobbyProvider } from "./components/context/lobbyContext";
 import { GameProvider } from "./components/context/gameContext";
 import { GameWebSocketProvider } from "./components/websocket/GameWebSocketProvider";
+import "./layout/layout.css"
 
 // All routes grouped here
 const MainRoutes = () => (
@@ -66,33 +67,36 @@ const MainRoutes = () => (
 const AppRoutes = () => {
     const { isLoggedIn, authLoaded } = useUserContext();
 
-    // Avoid rendering UI until auth status is confirmed
     if (!authLoaded) return null;
 
-    // Guest view (unauthenticated user)
+    // Guest view
     if (!isLoggedIn) {
         return (
         <LobbyProvider>
             <AppShell>
-            <Navbar />
-            <LayoutFrame>
+            <div className="app-frame">
+                <Navbar />
+                <div className="frame-body">
                 <MainRoutes />
-            </LayoutFrame>
+                </div>
+            </div>
             </AppShell>
         </LobbyProvider>
         );
     }
 
-    // Authenticated user view with sidebar and friends features
+    // Authenticated view
     return (
         <LobbyProvider>
         <FriendsProvider>
             <AppShell>
-            <Navbar />
-            <LayoutFrame>
+            <div className="app-frame">
+                <Navbar />
+                <div className="frame-body">
                 <FriendsSidebar />
                 <MainRoutes />
-            </LayoutFrame>
+                </div>
+            </div>
             </AppShell>
         </FriendsProvider>
         </LobbyProvider>
