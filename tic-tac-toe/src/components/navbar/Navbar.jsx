@@ -3,8 +3,7 @@ import { FaBars, FaTimes } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { PiGameControllerThin } from "react-icons/pi";
 import { CiLogin, CiLogout, CiHome } from "react-icons/ci";
-import { LiaUserNinjaSolid } from "react-icons/lia";
-import { PiUsersThree } from "react-icons/pi";
+
 
 import { useAuth } from "../hooks/useAuth";
 import { useUserContext } from "../context/userContext";
@@ -70,71 +69,73 @@ const Navbar = () => {
   return (
     <>
       <nav className="navbar">
-        <div className="navbar-content">
-          {/* Brand/Home Button */}
-          <div className="navbar-brand" onClick={() => navigate("/")}>
-            <CiHome className="game-icon" />
-          </div>
+        <div className="navbar-frame">
+          <div className="navbar-content">
+            {/* Brand/Home Button */}
+            <div className="navbar-brand" onClick={() => navigate("/")}>
+              <CiHome className="game-icon" />
+            </div>
 
-          {/* Game Mode Dropdown */}
-          <div className="game-icon-container" onClick={toggleDropdown} ref={dropdownRef}>
-            <PiGameControllerThin className="game-icon" />
-            {dropdownOpen && (
-              <div className="dropdown-menu">
-                {isLoggedIn ? (
-                  <>
-                    <button onClick={startMultiplayerGame}>Multiplayer</button>
-                    <button onClick={startAIGame}>Play vs AI</button>
-                  </>
-                ) : (
-                  <button onClick={() => navigate("/login")}>Login</button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Navigation Icons */}
-          <div className={`navbar-links ${isOpen ? "active" : ""}`}>
-            <ul>
-              {!isLoggedIn ? (
-                <li>
-                  <button onClick={() => navigate("/login")} title="Login" className="nav-button">
-                    <CiLogin className="nav-icon" />
-                  </button>
-                </li>
-              ) : (
-                <>
-                  <li>
-                    <button onClick={logout} title="Logout" className="nav-button">
-                      <CiLogout className="nav-icon" />
-                    </button>
-                  </li>
-                  <li>
-                    <button onClick={() => navigate("/profile")} title="Profile" className="nav-button">
-                      {/* <LiaUserNinjaSolid className="nav-icon" /> */}
-                      <span className="nav-label glow-pulse">{user?.first_name}</span>
-
-                    </button>
-                  </li>
-                  <li>
-                  <button onClick={() => setSidebarOpen(true)} title="Friends" className="nav-button">
-                    <span className="nav-label glow-pulse">Social</span>
-                  </button>
-                </li>
-                </>
+            {/* Game Mode Dropdown */}
+            <div className="game-icon-container" onClick={toggleDropdown} ref={dropdownRef}>
+              <PiGameControllerThin className="game-icon" />
+              {dropdownOpen && (
+                <div className="dropdown-menu">
+                  {isLoggedIn ? (
+                    <>
+                      <button onClick={startMultiplayerGame}>Multiplayer</button>
+                      <button onClick={startAIGame}>Play vs AI</button>
+                    </>
+                  ) : (
+                    <button onClick={() => navigate("/login")}>Login</button>
+                  )}
+                </div>
               )}
-            </ul>
-          </div>
+            </div>
 
-          {/* Mobile Menu Toggle */}
-          <div className="navbar-toggle" onClick={toggleMenu}>
-            {isOpen ? <FaTimes /> : <FaBars />}
+            {/* Navigation Icons */}
+            <div className={`navbar-links ${isOpen ? "active" : ""}`}>
+              <ul>
+                {!isLoggedIn ? (
+                  <li>
+                    <button onClick={() => navigate("/login")} title="Login" className="nav-button">
+                      <CiLogin className="nav-icon" />
+                    </button>
+                  </li>
+                ) : (
+                  <>
+                    <li>
+                      <button onClick={logout} title="Logout" className="nav-button">
+                        <CiLogout className="nav-icon" />
+                      </button>
+                    </li>
+                    <li>
+                      <button onClick={() => navigate("/profile")} title="Profile" className="nav-button">
+                        {/* <LiaUserNinjaSolid className="nav-icon" /> */}
+                        <span className="nav-label glow-pulse">{user?.first_name}</span>
+
+                      </button>
+                    </li>
+                    <li>
+                    <button onClick={() => setSidebarOpen(true)} title="Friends" className="nav-button">
+                      <span className="nav-label glow-pulse">Social</span>
+                    </button>
+                  </li>
+                  </>
+                )}
+              </ul>
+            </div>
+
+            {/* Mobile Menu Toggle */}
+            <div className="navbar-toggle" onClick={toggleMenu}>
+              {isOpen ? <FaTimes /> : <FaBars />}
+            </div>
           </div>
         </div>
       </nav>
 
       {/* Friends Sidebar */}
-      {authLoaded && isLoggedIn && (
+      {/* {authLoaded && isLoggedIn && (
         <>
           <FriendsSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
           {sidebarOpen && (
@@ -144,7 +145,7 @@ const Navbar = () => {
             />
           )}
         </>
-      )}
+      )} */}
     </>
   );
 };

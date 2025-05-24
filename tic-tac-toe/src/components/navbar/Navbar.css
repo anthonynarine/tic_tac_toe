@@ -31,7 +31,7 @@
   background-color: black;
   padding: 1rem 2rem;
   box-sizing: border-box;
-  border-bottom: 1px solid #C0C0C0;
+  /* border-bottom: 1px solid #C0C0C0; */
 }
 
 /* Navbar Content Wrapper */
@@ -44,6 +44,9 @@
   align-items: center;
   position: relative;
   height: 100%;
+  border-left: 1px solid #C0C0C0;
+  border-right: 1px solid #C0C0C0;
+  border-bottom: 1px solid #C0C0C0;
 }
 
 .nav-button {
@@ -83,6 +86,7 @@
 .navbar-brand {
   flex: 1;
   cursor: pointer;
+  margin-left: 1.5rem;
 }
 
 .app-logo {
@@ -153,6 +157,7 @@
   display: flex;
   gap: 1.5rem;
   align-items: center;
+  margin-right: 1.7rem;
 }
 
 .navbar-links ul li a,
@@ -223,3 +228,4 @@
     transform: translateX(-50%);
   }
 }
+

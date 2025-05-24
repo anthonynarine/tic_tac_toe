@@ -33,25 +33,27 @@ const Home = () => {
   };
 
   return (
-    <div className="homepage-container">
-      <h1 className="homepage-title">Tic Tac Toe</h1>
-      <p className="homepage-tagline">Challenge friends or beat the AI.</p>
+    <div className="layout-container">
+      <div className="homepage-container">
+        <h1 className="homepage-title">Tic Tac Toe</h1>
+        <p className="homepage-tagline">Challenge friends or beat the AI.</p>
 
-      <div className="game-modes">
-        {isLoggedIn ? (
-          <>
-            <button className="game-mode-button" onClick={() => handleCreateGame(false)}>
-              Create Multiplayer Game
+        <div className="game-modes">
+          {isLoggedIn ? (
+            <>
+              <button className="game-mode-button" onClick={() => handleCreateGame(false)}>
+                Create Multiplayer Game
+              </button>
+              <button className="game-mode-button" onClick={() => handleCreateGame(true)}>
+                Play vs AI
+              </button>
+            </>
+          ) : (
+            <button className="login-play-button" onClick={handleLoginRedirect}>
+              Login to Play
             </button>
-            <button className="game-mode-button" onClick={() => handleCreateGame(true)}>
-              Play vs AI
-            </button>
-          </>
-        ) : (
-          <button className="login-play-button" onClick={handleLoginRedirect}>
-            Login to Play
-          </button>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

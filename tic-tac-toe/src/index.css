@@ -3,18 +3,19 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, Arial, sans-serif;
-  background-color: #f9f3f3; /* Similar dark background */
-  color: #333; /* Neutral text color */
-
+  background-color: black;
+  color: #333;
+  margin: 0;
+  padding: 0;
 }
 
 .thin-text {
-  font-weight: 100; /* Thin font weight for clean lines */
+  font-weight: 100;
 }
 
 :root {
   --background-light-color: #57ebd7;
-  --background-dark-color: black; /* Similar to Twitter's dark mode */
+  --background-dark-color: black;
   --content-background-color: #f5ffbe;
   --primary-color: white;
   --accent-color: #FD0;
@@ -25,33 +26,20 @@ body {
   --main-title-font-size: 4vmin;
 }
 
-/* Main content area below the navbar */
-.main-content {
-  padding-top: 6rem; /* Matches the height of the fixed Navbar */
-  min-height: calc(100vh - 6rem); /* Ensure content fits within the remaining viewport */
-  display: flex;
-  justify-content: center; /* Center horizontally */
-  align-items: flex-start; /* Align content to the top of .main-content */
-  background-color: black; /* Match the theme */
-  max-width: 1200px;
-  margin: 0 auto;
-  width: 100%;
-  padding: 0 1rem;
-  position: relative;
-}
 
 
-/* Headings with a Twitter-like feel */
+
+/* Main content inside frame */
+
+
 h1, h2, h3 {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, Arial, sans-serif;
-  background-color: #000000; /* Similar dark background */
-  color: black; /* Neutral text color */
+  color: white;
 }
 
-/* Example of Twitter-like button styles */
 button {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, Arial, sans-serif;
-  background-color: #1DA1F2; /* Twitter blue */
+  background-color: #1DA1F2;
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -61,16 +49,15 @@ button {
 }
 
 button:hover {
-  background-color: #1a91da; /* Darker hover effect */
+  background-color: #1a91da;
 }
 
-/* New glowing "sign" around the Tic Tac Toe title */
 .title-sign {
   display: inline-block;
   padding: 1rem 2rem;
   border: 2px solid white;
   border-radius: 15px;
-  background-color: rgba(0, 0, 0, 0.7); /* semi-transparent black */
+  background-color: rgba(0, 0, 0, 0.7);
   box-shadow: 
     0 0 10px rgba(255, 255, 255, 0.4),
     0 0 20px rgba(255, 255, 255, 0.3),
@@ -79,7 +66,6 @@ button:hover {
   margin-bottom: 1.5rem;
 }
 
-/* Use the same pulse animation you have already */
 @keyframes pulse-glow {
   0% {
     box-shadow: 
@@ -100,4 +86,5 @@ button:hover {
 
 html, body {
   background-color: black !important;
+  height: 100%;
 }
