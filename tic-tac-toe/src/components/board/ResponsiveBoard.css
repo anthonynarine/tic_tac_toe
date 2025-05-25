@@ -1,0 +1,23 @@
+.board-wrapper {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 90vmin;
+  margin: auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: black;
+  border: 2px solid white;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}

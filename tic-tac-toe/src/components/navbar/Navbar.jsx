@@ -111,12 +111,14 @@ const Navbar = () => {
                         <span className="nav-label glow-pulse">{user?.first_name}</span>
                       </button>
                     </li>
-                    <li>
-                      {/* ✅ Opens FriendsSidebar via global context */}
-                      <button onClick={() => setSidebarOpen(true)} title="Friends" className="nav-button">
-                        <span className="nav-label glow-pulse">Social</span>
-                      </button>
-                    </li>
+                    <div className="mobile-social-only">
+                      <li>
+                        {/* ✅ Opens FriendsSidebar via global context */}
+                        <button onClick={() => setSidebarOpen(true)} title="Friends" className="nav-button">
+                          <span className="nav-label glow-pulse">Social</span>
+                        </button>
+                      </li>
+                    </div>
                   </>
                 )}
               </ul>

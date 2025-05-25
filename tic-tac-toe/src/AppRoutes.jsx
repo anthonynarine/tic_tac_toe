@@ -1,15 +1,7 @@
 // AppRoutes.jsx
-// ------------------
-// This file contains the main route logic for the application.
-// It determines what layout and providers to apply based on login state.
-// - If the user is not logged in: Navbar + Routes only (e.g. Home, Login, Register)
-// - If the user is logged in: Full layout including FriendsSidebar and FriendsProvider
-// This structure separates routing concerns from the main App.js entry point.
-
 import React from "react";
 import { Route, Routes } from "react-router-dom";
 
-// Pages for routing
 import HomePage from "./components/home/HomePage";
 import LoginPage from "./components/user/LoginPage";
 import RegistrationPage from "./components/user/RegisterPage";
@@ -18,21 +10,21 @@ import LobbyPage from "./components/lobby/LobbyPage";
 import TechnicalPaper from "./components/technical-paper/TechnicalPaper";
 import ToastTestPage from "./utils/toast/ToastTestPage";
 
-// Layout structure
 import AppShell from "./layout/AppShell";
-import LayoutFrame from "./layout/LayoutFrame";
 import Navbar from "./components/navbar/Navbar";
 import FriendsSidebar from "./components/friends/FriendsSidebar";
 
-// Contexts scoped to this layer
 import { useUserContext } from "./components/context/userContext";
 import { FriendsProvider } from "./components/context/friendsContext";
 import { LobbyProvider } from "./components/context/lobbyContext";
 import { GameProvider } from "./components/context/gameContext";
 import { GameWebSocketProvider } from "./components/websocket/GameWebSocketProvider";
-import "./layout/layout.css"
 
-// All routes grouped here
+import { useUI } from "./components/context/uiContext";         // ✅ sidebar toggle state
+import useIsDesktop from "./components/hooks/useIsDesktop";
+
+import "./layout/layout.css";
+
 const MainRoutes = () => (
     <div className="main-content">
         <Routes>
@@ -44,7 +36,9 @@ const MainRoutes = () => (
             element={
             <GameWebSocketProvider>
                 <GameProvider>
-                <GamePage />
+                <div className="game-wrapper">
+                    <GamePage />
+                </div>
                 </GameProvider>
             </GameWebSocketProvider>
             }
@@ -63,9 +57,10 @@ const MainRoutes = () => (
     </div>
 );
 
-// AppRoutes chooses the layout and providers based on auth state
 const AppRoutes = () => {
     const { isLoggedIn, authLoaded } = useUserContext();
+    const { isSidebarOpen } = useUI();       // ✅ controls sidebar visibility
+    const isDesktop = useIsDesktop();        // ✅ detect if screen is desktop
 
     if (!authLoaded) return null;
 
@@ -85,7 +80,7 @@ const AppRoutes = () => {
         );
     }
 
-    // Authenticated view
+    // Logged-in view
     return (
         <LobbyProvider>
         <FriendsProvider>
@@ -93,7 +88,8 @@ const AppRoutes = () => {
             <div className="app-frame">
                 <Navbar />
                 <div className="frame-body">
-                <FriendsSidebar />
+                {/* ✅ Show sidebar only on desktop or if mobile toggle is open */}
+                {isDesktop ? <FriendsSidebar /> : isSidebarOpen && <FriendsSidebar />}
                 <MainRoutes />
                 </div>
             </div>

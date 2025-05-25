@@ -1,3 +1,5 @@
+/* layout.css */
+
 /* === App Shell: Full-page Flex Wrapper === */
 .app-shell {
   display: flex;
@@ -7,29 +9,19 @@
   background-color: black;
 }
 
-/* === Main Content Area === */
-.main-content {
-  flex: 1;
-  overflow-y: auto;
-  background-color: black;
-  padding: 2rem;
-  height: 100%;
-}
-
 /* === App Frame: Bordered Layout Box === */
 .app-frame {
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100%;
-  max-width: 1440px;              /* consistent with navbar-content */
+  max-width: 1440px;
   margin: 0 auto;
-  border: 1px solid #C0C0C0;
+  border: 1px solid #555;
   box-sizing: border-box;
   background-color: black;
 }
 
-/* Optional minimum width for wide layout look */
 @media (min-width: 1300px) {
   .app-frame {
     min-width: 1300px;
@@ -39,20 +31,59 @@
 /* === Frame Body: Sidebar + Main Content === */
 .frame-body {
   display: flex;
-  flex: 1;
-  overflow: hidden;
+  flex-grow: 1;
+  overflow-x: visible;
+  position: relative;
 }
 
-/* === Tablet and Mobile Handling === */
+/* === Sidebar (Desktop Only) === */
+.friends-sidebar {
+  flex: 0 0 320px;
+  border-right: 1px solid #333;
+  overflow-y: auto;
+  background-color: black;
+}
+
+/* Hide sidebar on tablets and smaller */
+@media (max-width: 1024px) {
+  .friends-sidebar {
+    display: none;
+  }
+}
+
+/* === Main content: stretches and centers content === */
+.main-content {
+  flex-grow: 1;
+  overflow: visible;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background-color: black;
+}
+
+/* === Game Wrapper: center + cap board width === */
+.game-wrapper,
+#game {
+  width: 100%;
+  max-width: 590px; /* 520px board + 2×20px padding */
+  box-sizing: border-box;
+  margin-top: 1.5rem;
+  padding: 0 2rem;   /* fixed padding to give cells breathing room */
+}
+
+/* === Responsive Padding Adjustment === */
+@media (max-width: 768px) {
+  .game-wrapper,
+  #game {
+    padding: 0 1rem;
+  }
+}
+
+/* === Mobile / Tablet Layout: Full Collapse === */
 @media (max-width: 1024px) {
   .frame-body {
     flex-direction: column;
-  }
-
-  .friends-sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid #333;
   }
 
   .main-content {
@@ -60,7 +91,6 @@
   }
 }
 
-/* === Mobile Optimization (Full Collapse) === */
 @media (max-width: 768px) {
   .app-frame {
     flex-direction: column;
@@ -70,5 +100,47 @@
 
   .frame-body {
     flex-direction: column;
+  }
+}
+
+/* === Navbar Hamburger Menu === */
+.hamburger {
+  display: none;
+  font-size: 1.5rem;
+  background: none;
+  border: none;
+  color: white;
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+  .hamburger {
+    display: block;
+  }
+}
+
+/* === Navbar Dropdown Menu (mobile/tablet) === */
+.navbar-menu {
+  display: flex;
+  gap: 1rem;
+  list-style: none;
+}
+
+@media (max-width: 1024px) {
+  .navbar-menu {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 60px;
+    right: 1rem;
+    background: black;
+    border: 1px solid #333;
+    padding: 1rem;
+    z-index: 1000;
+  }
+
+  .navbar-menu.open {
+    display: flex;
   }
 }

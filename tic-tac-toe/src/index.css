@@ -87,4 +87,14 @@ button:hover {
 html, body {
   background-color: black !important;
   height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;  /* ✅ fixes horizontal scroll */
+  overflow-y: auto;    /* ✅ only show scroll if needed */
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
 }

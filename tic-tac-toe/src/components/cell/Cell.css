@@ -1,31 +1,139 @@
-  .cell {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 10vmin;
-    font-weight: bold;
-    color: var(--accent-color);
-    background: black;
-    border: var(--default-primary-border);
-    border-radius: var(--default-border-radius);
-    outline: none;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 6px 20px rgba(0, 0, 0, 0.19); /* More elevated box shadow */
-  }
+/* === Base Cell === */
+.cell {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  .cell:active, .cell:hover, .cell.winner {
-    cursor: pointer;
-    color: var(--content-background-color);
-    background: #262F39;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4), 0 8px 30px rgba(0, 0, 0, 0.3); /* Elevated shadow on hover/active */
+  /* Dark glowing background */
+  background: radial-gradient(circle at 30% 30%, #1a1a1a, #000);
+  border: 2px solid #444;
+  border-radius: 1rem;
+
+  /* Soft glow/shadow */
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.05),
+              0 2px 10px rgba(0, 0, 0, 0.5);
+
+  font-weight: 800;
+  color: white;
+
+  transition:
+    box-shadow 0.2s ease,
+    background 0.3s ease,
+    transform 0.1s ease;
+
+  /* Prevent blue highlight flash on mobile click */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* === Hover / Pressed State (only when clickable) === */
+.cell:hover:not(:disabled),
+.cell:active:not(:disabled) {
+  background: #1e2633;
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px rgba(0, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+/* === Remove Default Button Focus Styling === */
+.cell:focus,
+.cell:active {
+  outline: none;
+  box-shadow: none;
+}
+
+/* === Winner State === */
+.cell.winner {
+  background: #111a2c;
+  border-color: var(--accent-color, #bac2c2); /* Default glow if not overridden */
+  box-shadow: 0 0 15px var(--accent-color, #7a8383);
+}
+
+/* === Centered Glowing Content (X or O) === */
+.cell-content.populated {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* === Glowing Value via ::after === */
+.cell-content.populated::after {
+  content: attr(data-value);                  /* Renders X or O */
+  display: block;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 800;
+  font-size: inherit;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+/* === Red Glow for X === */
+.cell-content.populated[data-value="X"]::after {
+  background-image: linear-gradient(45deg, #ff4d4d, #ff1a10);
+  text-shadow: 0 0 10px #ff4d4d, 0 0 25px #ff1a10;
+}
+
+/* === Blue Glow for O === */
+.cell-content.populated[data-value="O"]::after {
+  background-image: linear-gradient(45deg, #00e0ff, #00bfff);
+  text-shadow: 0 0 10px #00e0ff, 0 0 25px #00bfff;
+}
+
+/* === Winner Glow Animation === */
+.cell.winner .cell-content.populated::after {
+  animation: pulseWinner 1.2s ease-in-out infinite;
+}
+
+/* === Pulse Keyframe === */
+@keyframes pulseWinner {
+  0%, 100% {
+    text-shadow:
+      0 0 10px var(--accent-color, white),
+      0 0 20px var(--accent-color, white);
+    transform: scale(1);
   }
-  .cell-content {
-    overflow: hidden;
-    width: 0;
-    height: 0;
-    transition: width var(--selection-animation-duration), height var(--selection-animation-duration);
+  50% {
+    text-shadow:
+      0 0 20px var(--accent-color, white),
+      0 0 30px var(--accent-color, white);
+    transform: scale(1.08);
   }
-  
-  .cell-content.populated {
-    width: 12vmin;
-    height: 12vmin;
+}
+
+/* === Responsive Edge Polishing for Mobile === */
+@media (max-width: 480px) {
+  .cell {
+    border-radius: 0.75rem;
   }
+}
+
+/* === Cell border color per move === */
+.cell[data-value="X"] {
+  border-color: #ff1a10;
+}
+
+.cell[data-value="O"] {
+  border-color: #00bfff;
+}
+
+/* When X is played, background gets a red hue */
+.cell[data-value="X"] {
+  background: radial-gradient(circle at center, #2c000a, #000);
+}
+
+/* When O is played, background gets a blue hue */
+.cell[data-value="O"] {
+  background: radial-gradient(circle at center, #001a26, #000);
+}
+
+.cell:hover:not(:disabled):not([data-value]) {
+  background: #1e2633;
+}

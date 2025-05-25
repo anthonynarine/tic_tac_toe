@@ -1,22 +1,54 @@
-/* Board.css */
 #board {
   display: grid;
-  grid-template-columns: repeat(3, 12vmin);
-  grid-template-rows: repeat(3, 12vmin);
-  grid-gap: 1.5vmin;
-  margin: 2vmin auto;
-  justify-content: center;
-  background-color: black;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  width: 100%;
+  max-width: 520px;      /* HARD cap */
+  aspect-ratio: 1 / 1;
+  margin: 1rem auto;
+
 }
 
 #board div {
-  background-color: inherit;
-  border: 0.5vmin solid #E1E8ED;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  font-size: 2rem;
+  border: 2px solid #E1E8ED;
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 1vmin;
-  margin-top: 11rem;
+  justify-content: center;
+  border-radius: 0.5rem;
 }
 
+@media (max-width: 768px) {
+  #board {
+    gap: 0.75rem;
+
+  }
+
+  #board div {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  #board {
+    max-width: 90vw;     /* fill small screens */
+    gap: 0.5rem;
+    margin: 1rem auto;
+  }
+}
+
+@media (max-width: 1024px) {
+  #board {
+    max-width: 80vw;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 600px) {
+  #board {
+    max-width: 90vw;
+    gap: 0.5rem;
+  }
+}

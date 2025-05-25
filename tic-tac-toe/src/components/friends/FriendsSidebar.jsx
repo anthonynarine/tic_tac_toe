@@ -36,7 +36,7 @@ const FriendsSidebar = () => {
         <div className={`friends-sidebar ${isSidebarOpen ? "open" : ""}`}>
         {/* Sticky header */}
         <div className="friends-sidebar__header">
-            <h2 className="friends-sidebar__title">Friends</h2>
+            <h2 className="friends-sidebar__title">Social</h2>
             <button className="friends-sidebar__close" onClick={() => setSidebarOpen(false)}>
             &times;
             </button>

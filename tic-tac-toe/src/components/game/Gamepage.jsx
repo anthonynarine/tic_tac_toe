@@ -1,6 +1,7 @@
 import "./Game.css";
 import GameLoader from "../../utils/gameLoader/Gameloader";
 import GameBoard from "./GameBoard";
+import ResponsiveBoard from "../board/ResponsiveBoard";
 import GameResult from "./GameResult";
 import GameManager from "./GameManager";
 import { useParams } from "react-router-dom";
@@ -65,7 +66,7 @@ export const GamePage = () => {
                 }
 
                 return (
-                    <div id="game">
+                    <div className="game-container">
                         {/* Display a loading spinner or error message */}
                         <GameLoader loading={loading} error={error} />
 

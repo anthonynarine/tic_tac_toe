@@ -3,7 +3,7 @@
   width: 100%;
   height: var(--navbar-height, 96px);
   background-color: black;
-  border-bottom: 1px solid #C0C0C0;
+  border-bottom: 1px solid #555;
   display: flex;
   align-items: center;
   box-sizing: border-box;
@@ -26,9 +26,16 @@
 
 /* === Logo/Home Icon === */
 .navbar-brand {
-  flex: 1;
+  position: absolute;
+  top: 55%;             /* vertical center of navbar */
+  left: 0;              /* align with sidebar start */
+  width: 5rem;  
+margin-left: 7.5rem;      /* match sidebar width visually */
+  display: flex;
+  justify-content: center;
+  transform: translateY(-50%); /* true vertical center */
   cursor: pointer;
-  margin-left: 1.5rem;
+  z-index: 10;
 }
 
 .app-logo {
@@ -42,6 +49,7 @@
   left: 50%;
   transform: translateX(-50%);
   cursor: pointer;
+  top: 35%;
 }
 
 .game-icon {
@@ -133,7 +141,7 @@
   flex-direction: column;
   gap: 0.5rem;
   z-index: 1001;
-  border: 1px solid #C0C0C0;
+  border: 1px solid #555;
 }
 
 .dropdown-menu button {
@@ -175,6 +183,65 @@
     padding: 0 1rem;
   }
 
+  .navbar-links {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 100%;
+    background-color: #0D0D0D;
+    padding: 1rem 0;
+    border: 1px solid white;
+  }
+
+  .navbar-links ul {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .navbar-links.active {
+    display: flex;
+  }
+}
+
+@media (max-width: 767px) {
+  .navbar-brand,
+  .game-icon-container {
+    display: none;
+  }
+}
+
+
+/* @media (max-width: 767px) {
+  .navbar-toggle {
+    margin: 0 auto;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+} */
+
+/* Hide mobile-social by default (on desktop) */
+.mobile-social-only {
+  display: none;
+}
+
+/* On mobile: show only Social, hide all other nav buttons/icons */
+@media (max-width: 1024px) {
+  .navbar-toggle {
+    display: block;
+  }
+
+  .navbar-brand,
+  .game-icon-container,
+  .navbar-links > ul > li:not(.mobile-social-only) {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1024px) {
   .navbar-links {
     display: none;
     flex-direction: column;

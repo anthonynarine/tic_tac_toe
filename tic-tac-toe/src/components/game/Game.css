@@ -1,23 +1,66 @@
-#game {
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 590px;
+  padding: 1.5rem 2rem;
+  margin: 2rem auto;
+  box-sizing: border-box;
+
   background: black;
+  border: 2px solid white;
   border-radius: var(--default-border-radius);
-  padding: 3vmin;
   box-shadow: var(--box-shadow);
-  border: 1px solid white;
-  margin-top: 12rem;
+
+  max-height: 90vh;       /* prevent board from spilling on short screens */
+  overflow-y: auto;
 }
 
 h1 {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
   color: var(--primary-color);
   text-align: center;
-  margin-bottom: 2vmin;
-  font-size: var(--main-title-font-size);
 }
 
 .turn-notification {
-  font-size: 1.5rem;
-  text-align: center;
+  font-size: 1.25rem;
   margin-bottom: 1rem;
-  color: #333;
+  text-align: center;
+  color: #ccc;
 }
 
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .game-container {
+    padding: 1rem;
+    max-width: 95vw;
+    margin: 1.5rem auto;
+    overflow-x: hidden;
+  }
+}
+
+/* Tablet padding adjustments */
+@media (min-width: 768px) {
+  .game-container {
+    padding: 1.5rem 3rem;
+  }
+}
+
+/* Desktop padding */
+@media (min-width: 1024px) {
+  .game-container {
+    padding: 2rem 4rem;
+  }
+}
+
+/* Small viewport height (e.g., mobile landscape) */
+@media (max-height: 500px) {
+  .game-container {
+    padding: 1rem;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
