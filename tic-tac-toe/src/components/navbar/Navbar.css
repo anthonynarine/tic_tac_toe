@@ -11,7 +11,7 @@
   position: relative;
 }
 
-/* === NAVBAR CONTENT (Matches .app-frame width) === */
+/* === NAVBAR CONTENT === */
 .navbar-content {
   max-width: 1440px;
   width: 100%;
@@ -24,32 +24,27 @@
   box-sizing: border-box;
 }
 
-/* === Logo/Home Icon === */
+/* === Logo / Home Icon === */
 .navbar-brand {
   position: absolute;
-  top: 55%;             /* vertical center of navbar */
-  left: 0;              /* align with sidebar start */
-  width: 5rem;  
-margin-left: 7.5rem;      /* match sidebar width visually */
+  top: 55%;
+  left: 0;
+  margin-left: 7.5rem;
+  width: 5rem;
   display: flex;
   justify-content: center;
-  transform: translateY(-50%); /* true vertical center */
+  transform: translateY(-50%);
   cursor: pointer;
   z-index: 10;
 }
 
-.app-logo {
-  width: 70px;
-  height: auto;
-}
-
-/* === Centered Game Icon === */
+/* === Game Controller Icon (centered) === */
 .game-icon-container {
   position: absolute;
   left: 50%;
+  top: 35%;
   transform: translateX(-50%);
   cursor: pointer;
-  top: 35%;
 }
 
 .game-icon {
@@ -80,15 +75,15 @@ margin-left: 7.5rem;      /* match sidebar width visually */
   background: none;
   border: none;
   cursor: pointer;
-  align-items: center;
 }
 
+/* Hover Effects */
 .navbar-links ul li a:hover,
 .navbar-links ul li button:hover {
   color: #004d40;
 }
 
-/* === Glow Label (Optional) === */
+/* === Glow Effect for Labels === */
 .nav-label {
   font-weight: 300;
   font-size: 1.2rem;
@@ -99,22 +94,17 @@ margin-left: 7.5rem;      /* match sidebar width visually */
   color: #eef1f3;
   font-weight: 350;
   animation: pulseGlow 2s infinite ease-in-out;
-  text-shadow:
-    0 0 0px #eef1f3,
-    0 0 4px #eef1f3,
-    0 0 0px #eef1f3,
-    0 0 1px #eef1f3;
+  text-shadow: 0 0 0px #eef1f3, 0 0 4px #eef1f3, 0 0 0px #eef1f3, 0 0 1px #eef1f3;
 }
 
-/* === Buttons / Icons === */
+/* === Icons & Buttons === */
 .nav-button {
   background: none;
   border: none;
   color: white;
-  font-weight: 400;
   font-size: 0.95rem;
-  cursor: pointer;
   padding: 0.5rem 0.75rem;
+  cursor: pointer;
   transition: color 0.3s ease;
 }
 
@@ -128,14 +118,14 @@ margin-left: 7.5rem;      /* match sidebar width visually */
   vertical-align: middle;
 }
 
-/* === Dropdown Menu === */
+/* === Game Mode Dropdown === */
 .dropdown-menu {
   position: absolute;
   top: 2.3rem;
   left: 50%;
   transform: translateX(-50%);
-  background-color: #0D0D0D;
-  padding: .5rem;
+  background-color: #0d0d0d;
+  padding: 0.5rem;
   border-radius: 0.5rem;
   display: flex;
   flex-direction: column;
@@ -145,7 +135,7 @@ margin-left: 7.5rem;      /* match sidebar width visually */
 }
 
 .dropdown-menu button {
-  background-color: #0D0D0D;
+  background-color: #0d0d0d;
   color: white;
   border: none;
   padding: 0.75rem 1rem;
@@ -158,14 +148,12 @@ margin-left: 7.5rem;      /* match sidebar width visually */
 
 .dropdown-menu button:hover {
   background-color: #000000;
-  color: white;
-  box-shadow: 
-    0 0 5px rgba(255, 255, 255, 0.5),
-    0 0 10px rgba(255, 255, 255, 0.4),
-    0 0 15px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5),
+              0 0 10px rgba(255, 255, 255, 0.4),
+              0 0 15px rgba(255, 255, 255, 0.3);
 }
 
-/* === Hamburger Icon for Mobile === */
+/* === Hamburger Toggle === */
 .navbar-toggle {
   display: none;
   font-size: 2rem;
@@ -173,62 +161,61 @@ margin-left: 7.5rem;      /* match sidebar width visually */
   color: white;
 }
 
-/* === Responsive Navbar Collapse === */
-@media (max-width: 768px) {
-  .navbar-toggle {
-    display: block;
-  }
+/* === Mobile Dropdown (NEW) === */
+.mobile-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 100%;
+  background-color: #111;
+  border-top: 1px solid #444;
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+  padding: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 999;
+  border-radius: 0 0 12px 12px;
+  animation: slideDown 0.3s ease-in-out;
+}
 
-  .navbar-content {
-    padding: 0 1rem;
-  }
+.mobile-dropdown button {
+  all: unset;
+  display: block;
+  width: 100%;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  color: white;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
 
-  .navbar-links {
-    display: none;
-    flex-direction: column;
-    position: absolute;
-    top: 100%;
-    right: 0;
-    width: 100%;
-    background-color: #0D0D0D;
-    padding: 1rem 0;
-    border: 1px solid white;
-  }
+.mobile-dropdown button:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
 
-  .navbar-links ul {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: center;
+/* === Glow animation === */
+@keyframes pulseGlow {
+  0%, 100% {
+    text-shadow: 0 0 0px #eef1f3;
   }
-
-  .navbar-links.active {
-    display: flex;
+  50% {
+    text-shadow: 0 0 8px #eef1f3;
   }
 }
 
-@media (max-width: 767px) {
-  .navbar-brand,
-  .game-icon-container {
-    display: none;
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-
-/* @media (max-width: 767px) {
-  .navbar-toggle {
-    margin: 0 auto;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-  }
-} */
-
-/* Hide mobile-social by default (on desktop) */
-.mobile-social-only {
-  display: none;
-}
-
-/* On mobile: show only Social, hide all other nav buttons/icons */
+/* === MOBILE + TABLET (≤ 1024px) === */
 @media (max-width: 1024px) {
   .navbar-toggle {
     display: block;
@@ -239,9 +226,7 @@ margin-left: 7.5rem;      /* match sidebar width visually */
   .navbar-links > ul > li:not(.mobile-social-only) {
     display: none !important;
   }
-}
 
-@media (max-width: 1024px) {
   .navbar-links {
     display: none;
     flex-direction: column;
@@ -249,7 +234,7 @@ margin-left: 7.5rem;      /* match sidebar width visually */
     top: 100%;
     right: 0;
     width: 100%;
-    background-color: #0D0D0D;
+    background-color: #0d0d0d;
     padding: 1rem 0;
     border: 1px solid white;
   }
@@ -262,5 +247,21 @@ margin-left: 7.5rem;      /* match sidebar width visually */
 
   .navbar-links.active {
     display: flex;
+  }
+
+  .mobile-social-only {
+    display: block;
+  }
+}
+
+/* === TABLET/DESKTOP (≥ 768px) === */
+@media (max-width: 768px) {
+  .navbar-content {
+    padding: 0 1rem;
+  }
+
+  .navbar-brand,
+  .game-icon-container {
+    display: none;
   }
 }

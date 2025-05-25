@@ -2,7 +2,7 @@
   --navbar-height: 96px;
 }
 
-/* === Base Sidebar Styling === */
+/* === Sidebar Container === */
 .friends-sidebar {
   background-color: #000;
   color: #fff;
@@ -21,21 +21,21 @@
   position: sticky;
   top: 0;
   background-color: #000;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1.25rem;
   display: flex;
-  justify-content: center;  /* Center content horizontally */
+  justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #555;
   z-index: 10;
-  flex-direction: column; /* Stack title + close if needed */
+  height: 56px;
+  flex-direction: row;
 }
 
 .friends-sidebar__title {
-  font-size: 1rem;
-  font-weight: bold;
+  font-size: 1.1rem;
+  font-weight: 600;
   color: #1DA1F2;
-  text-align: center;
-  width: 100%;
+  margin: 0;
 }
 
 .friends-sidebar__close {
@@ -44,16 +44,17 @@
   font-size: 1.5rem;
   color: #ccc;
   cursor: pointer;
+  transition: color 0.3s ease;
 }
 
 .friends-sidebar__close:hover {
   color: #fff;
 }
 
-/* === Scrollable Sidebar Content === */
+/* === Scrollable Content === */
 .friends-sidebar__content {
   padding: 1rem;
-  padding-top: 2rem;
+  padding-top: 1.5rem;
   overflow-y: auto;
   flex-grow: 1;
 }
@@ -76,7 +77,7 @@
   color: #888;
 }
 
-/* === Friend List Item === */
+/* === Friend List === */
 .friends-sidebar__friend {
   padding-left: 0.75rem;
   margin-bottom: 0.75rem;
@@ -104,7 +105,7 @@
   color: #aaa;
 }
 
-/* === Online/Offline Status Dots === */
+/* === Online/Offline Dots === */
 .status-dot {
   width: 0.6rem;
   height: 0.6rem;
@@ -119,7 +120,7 @@
   background-color: #6b7280;
 }
 
-/* === Responsive Mobile Slide-In Behavior === */
+/* === Mobile: Full-screen slide-in === */
 @media (max-width: 767px) {
   .friends-sidebar {
     position: fixed;
@@ -127,42 +128,114 @@
     right: 0;
     width: 100%;
     height: calc(100vh - var(--navbar-height));
-    padding-top: var(--navbar-height);
     transform: translateX(100%);
     transition: transform 0.4s ease-in-out;
     z-index: 50;
     background-color: #000;
+    box-shadow: -2px 0 10px rgba(255, 255, 255, 0.1);
     border-left: 1px solid #555;
     border-right: none;
-    box-shadow: -2px 0 5px rgba(255, 255, 255, 0.05);
   }
 
-  /* When the .open class is applied, slide in from the right */
   .friends-sidebar.open {
     transform: translateX(0);
   }
-}
 
-/* === Desktop Static Sidebar === */
-@media (min-width: 768px) {
-  .friends-sidebar {
-    position: static;
-    height: 100%;
-    transform: none !important;
-    top: auto;
-    margin-top: 0;
-    border-right: 1px solid #555;
-    border-left: none;
-  }
-}
-
-@media (max-width: 767px) {
   .friends-sidebar__close {
     display: block;
   }
 }
 
-@media (min-width: 768px) {
+/* === Mobile: Full-screen drawer (≤ 600px) === */
+@media (max-width: 600px) {
+  .friends-sidebar {
+    position: fixed;
+    top: var(--navbar-height);
+    right: 0;
+    width: 100%;
+    height: calc(100vh - var(--navbar-height));
+    transform: translateX(100%);
+    transition: transform 0.4s ease-in-out;
+    z-index: 50;
+    background-color: #000;
+    box-shadow: -2px 0 10px rgba(255, 255, 255, 0.1);
+    border-left: 1px solid #555;
+  }
+
+  .friends-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .friends-sidebar__close {
+    display: block;
+  }
+}
+
+/* === Small tablets (601px–900px): 70% width === */
+@media (min-width: 601px) and (max-width: 900px) {
+  .friends-sidebar {
+    position: fixed;
+    top: var(--navbar-height);
+    right: 0;
+    width: 70%;
+    max-width: 28rem;
+    height: calc(100vh - var(--navbar-height));
+    transform: translateX(100%);
+    transition: transform 0.4s ease-in-out;
+    z-index: 50;
+    background-color: #000;
+    border-left: 1px solid #555;
+    border-radius: 12px 0 0 12px;
+    box-shadow: -4px 0 10px rgba(0, 0, 0, 0.2);
+  }
+
+  .friends-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .friends-sidebar__close {
+    display: block;
+  }
+}
+
+/* === Large tablets (901px–1024px): 50% width === */
+@media (min-width: 901px) and (max-width: 1024px) {
+  .friends-sidebar {
+    position: fixed;
+    top: var(--navbar-height);
+    right: 0;
+    width: 50%;
+    max-width: 32rem;
+    height: calc(100vh - var(--navbar-height));
+    transform: translateX(100%);
+    transition: transform 0.4s ease-in-out;
+    z-index: 50;
+    background-color: #000;
+    border-left: 1px solid #555;
+    border-radius: 12px 0 0 12px;
+    box-shadow: -4px 0 10px rgba(0, 0, 0, 0.2);
+  }
+
+  .friends-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .friends-sidebar__close {
+    display: block;
+  }
+}
+
+/* === Desktop (≥ 1025px): Static left sidebar === */
+@media (min-width: 1025px) {
+  .friends-sidebar {
+    position: static;
+    height: 100%;
+    transform: none !important;
+    top: auto;
+    border-right: 1px solid #555;
+    border-left: none;
+  }
+
   .friends-sidebar__close {
     display: none;
   }
