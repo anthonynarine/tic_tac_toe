@@ -9,6 +9,8 @@
  */
 const getWebSocketURL = ({ id, token, isLobby }) => {
   // 🧠 Resolve the backend host from environment or fallback to localhost
+  const isProd = process.env.NODE_ENV === "production"; 
+
   const host = process.env.REACT_APP_BACKEND_WS || (isProd
     ? "tic-tac-toe-server-66c5e15cb1f1.herokuapp.com"
     : "localhost:8000");
