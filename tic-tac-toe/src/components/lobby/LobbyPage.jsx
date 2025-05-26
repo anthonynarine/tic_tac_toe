@@ -169,7 +169,7 @@ const LobbyPage = () => {
     /**
      * Renders the list of players in the lobby.
      */
-    const renderPlayersList = useMemo(
+    const playersList = useMemo(
         () => (
             <div className="players-list">
                 {Array.from({ length: MAX_PLAYERS }).map((_, index) => {
@@ -203,7 +203,7 @@ const LobbyPage = () => {
         <div className="lobby-container">
             <h1 className="lobby-title">Game Lobby</h1>
 
-            <div className="lobby-details">{renderPlayersList()}</div>
+            <div className="lobby-details">{playersList}</div>
 
             <div className="lobby-buttons">
                 <button
