@@ -1,138 +1,176 @@
-/* General Container */
+/* ===================================================
+    🎮 LOBBY CONTAINER
+=================================================== */
 .lobby-container {
-  max-width: 350px;
+  max-width: 550px;
+  width: 95%;
   margin: 0 auto;
-  padding: 2rem;
-  background: #000000; /* Match the black background of the homepage */
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  padding: 3rem 2rem;
+  background: linear-gradient(to bottom right, #0a0a0a, #1a1a1a);
+  border-radius: 18px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
   text-align: center;
   font-family: 'Arial', sans-serif;
   position: relative;
-  top: 11rem; /* Offset below navbar */
-  z-index: 0; /* Prevent overlap with navbar */
-  border: 1px solid white;
+  top: 4rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Title */
-.lobby-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #00aaff; /* Bright blue for title */
-  letter-spacing: 1px;
-  margin: -1rem 0 2.5rem 0;
-}
-
-/* Players List Container */
+/* ===================================================
+    🧍‍♂️ PLAYERS LIST
+=================================================== */
 .players-list {
   display: flex;
-  justify-content: center; /* Align players horizontally */
-  gap: 3rem; /* Space between player slots */
-  padding: 1rem;
-  background: black;
-  border-radius: 10px;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1rem 0;
+  background: transparent;
+  border-radius: 12px;
 }
 
-/* Individual Player Slot */
 .player-slot {
+  flex: 1;
+  min-width: 0;
+  padding: 1rem;
+  background: linear-gradient(to bottom right, #111111, #1a1a1a);
+  border-radius: 12px;
+  border: 1px solid #2a2a2a;
   display: flex;
-  flex-direction: column;
-  align-items: center; /* Center avatar and text */
-  gap: 0.5rem; /* Space between avatar and text */
-  padding: 0.8rem;
-  background: black;
-  border-radius: 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
   transition: transform 0.2s ease, background 0.3s ease;
+  box-shadow: 0 4px 14px rgba(0, 170, 255, 0.08);
 }
 
 .player-slot:hover {
-  transform: scale(1.05); /* Slight zoom on hover */
-  background: black;
+  transform: translateY(-2px);
 }
 
-/* Player Avatar */
-.player-avatar {
-  width: 60px; /* Match icon size */
-  height: 60px;
-  border-radius: 50%; /* Circular */
-  background: #00aaff;
+.player-details {
   display: flex;
-  justify-content: center;
   align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.player-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #00aaff;
   color: white;
   font-weight: bold;
-  font-size: 1.4rem; /* Adjust font size */
-}
-
-/* Player Info */
-.player-info {
-  text-align: center;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .player-name {
   font-size: 1rem;
-  font-weight: bold;
+  font-weight: 600;
   color: white;
 }
 
-/* Invite Icon as Button */
+.empty-slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
 .icon-invite {
-  font-size: 3.5rem; /* Adjust size of the "+" icon */
-  color: white; /* Icon color */
-  cursor: pointer; /* Indicate it's clickable */
-  transition: transform 0.2s ease, color 0.2s ease; /* Add hover effects */
+  font-size: 2.5rem;
+  color: #00aaff;
+  cursor: pointer;
+  transition: transform 0.2s ease, color 0.3s ease;
 }
 
 .icon-invite:hover {
-  transform: scale(1.2); /* Slight zoom on hover */
-  color: #00aaff; /* Change color on hover */
+  transform: scale(1.2);
+  color: #00ccff;
 }
 
-.icon-invite:active {
-  transform: scale(1); /* Reset scale on click */
-  color: #007acc; /* Slightly darker color on click */
+/* ===================================================
+    🎮 LOBBY BUTTONS
+=================================================== */
+.lobby-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 0.5rem;
 }
 
-/* Chat Section */
+.lobby-button {
+  width: 70px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(to bottom right, #00aaff, #0088cc);
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 170, 255, 0.15);
+  transition: all 0.25s ease;
+}
+
+.lobby-button:hover {
+  background: linear-gradient(to bottom right, #0099dd, #007acc);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 170, 255, 0.3);
+}
+
+.lobby-button:active {
+  background: #006699;
+  transform: scale(0.96);
+}
+
+/* ===================================================
+    💬 CHAT CONTAINER + MESSAGES
+=================================================== */
 .chat-container {
-  margin-top: 1.5rem;
-  background: #111111;
-  border-radius: 15px;
-  border: 1px solid #333333;
+  margin-top: 2rem;
+  background: #111;
+  border-radius: 16px;
+  border: 1px solid #2a2a2a;
   padding: 1.5rem;
   text-align: left;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 0 10px rgba(0, 170, 255, 0.1);
 }
 
 .chat-container h3 {
   font-size: 1.6rem;
   font-weight: 600;
-  color: #00aaff;
+  color: #00bfff;
   text-align: center;
-  margin: -1rem 0 1rem 0;
+  margin-bottom: 1.5rem;
 }
 
-/* Chat Messages */
 .chat-messages {
-  max-height: 200px;
-  min-height: 100px;
-  overflow-y: auto; /* Allow vertical scrolling */
-  margin-bottom: 1rem;
+  max-height: 100px;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
   padding: 1rem;
-  border: 1px solid #333333;
-  border-radius: 10px;
-  background: #000000;
-  word-wrap: break-word; /* Break long words */
-  word-break: break-word; /* Ensure proper line breaking */
-  white-space: pre-wrap; /* Preserve whitespace and wrap text to the next line */
-  overflow-x: hidden; /* Disable horizontal scrolling */
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  background: #000;
+  white-space: pre-wrap;
+  word-break: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: #00aaff #111;
 }
 
 .chat-message {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
   font-size: 1rem;
-  line-height: 1.4;
-  color: #ffffff;
+  line-height: 1.5;
+  color: #f0f0f0;
 }
 
 .chat-message strong {
@@ -140,164 +178,105 @@
   color: #00aaff;
 }
 
-/* Custom Scrollbar */
-.chat-messages::-webkit-scrollbar {
-  width: 8px;
-}
-
-.chat-messages::-webkit-scrollbar-track {
-  background: #111111;
-  border-radius: 10px;
-}
-
-.chat-messages::-webkit-scrollbar-thumb {
-  background: #00aaff;
-  border-radius: 10px;
-}
-
-.chat-messages::-webkit-scrollbar-thumb:hover {
-  background: #007acc;
-}
-
-.chat-messages {
-  scrollbar-width: thin;
-  scrollbar-color: #00aaff #111111;
-}
-
-/* Chat Input */
+/* ===================================================
+    💬 CHAT INPUT AREA
+=================================================== */
 .chat-input {
   display: flex;
-  gap: 0.8rem;
-  align-items: center;
-}
-
-.chat-input input {
-  flex: 1;
-  padding: 0.8rem;
-  font-size: 1rem;
-  border: 1px solid #333333;
-  border-radius: 8px;
-  outline: none;
-  background: #111111;
-  color: #ffffff;
-  transition: border-color 0.2s ease;
-}
-
-.chat-input input::placeholder {
-  color: #888888;
-}
-
-.chat-input input:focus {
-  border-color: #00aaff;
-}
-
-.chat-input button {
-  padding: 0.8rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 600;
-  background: #00aaff;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.3s ease, transform 0.2s ease;
-}
-
-.chat-input button:hover {
-  background: #007acc;
-  transform: scale(1.05);
-}
-
-/* Buttons Section */
-.lobby-buttons {
-  display: flex;
   justify-content: center;
-  gap: 1rem; /* Space between buttons */
-  margin-top: rem;
+  padding-top: 1rem;
+  border-top: 1px solid #222;
 }
 
-/* Base Button Styles */
-.lobby-button {
-  padding: 0.4rem 1.25rem; /* Uniform padding */
-  font-size: 1rem; /* Uniform font size */
-  font-weight: 600; /* Consistent font weight */
-  width: 100px; /* Fixed width for all buttons */
-  text-align: center; /* Center-align text */
+.chat-input-container {
+  width: 100%;
+  background: #111;
+  border: 1px solid #C0C0C0;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.chat-input-container:focus-within {
+  border-color: #00aaff;
+  box-shadow: 0 0 10px rgba(0, 170, 255, 0.45);
+}
+
+.chat-input-container input {
+  flex: 1;
+  background: transparent;
   border: none;
-  border-radius: 3px;
-  border: 1px solid white;
-  cursor: pointer;
-  transition: background 0.3s ease, transform 0.2s ease;
-}
-
-/* Active Start Game Button */
-.start-game-button {
-  background: black; /* Active background color */
-  color: white; /* Text color */
-  border: 1px solid white;
-  cursor: pointer;
-  transition: background 0.3s ease, transform 0.2s ease, color 0.2s ease;
-}
-
-/* Hover for Active Start Game Button */
-.start-game-button:hover:not(:disabled) {
-  background: white; /* Change background to white on hover */
-  color: black; /* Change text color to black */
-  transform: scale(1.05); /* Slight zoom effect */
-}
-
-/* Disabled Start Game Button */
-.start-game-button:disabled {
-  background: #555555; /* Gray background for disabled state */
-  color: #bbbbbb; /* Faded text color */
-  cursor: not-allowed; /* Indicate button is not clickable */
-  transform: none; /* Remove hover/active effects */
-}
-
-/* Leave Lobby Button */
-.leave-lobby-button {
-  background: black;
   color: white;
+  font-size: 0.9rem;
+  outline: none;
+  min-width: 0;
 }
 
-.leave-lobby-button:hover {
-  background: white;
-  border: 1px solid #0d0d0d;
-  color:#000000;
-  transform: scale(1.05); /* Subtle zoom effect on hover */
+.chat-input-container input::placeholder {
+  color: #888;
 }
 
-.leave-lobby-button:active {
-  transform: scale(1); /* Reset scale on click */
-  background: #cc0000;
+/* ===================================================
+    📤 SEND BUTTON
+=================================================== */
+.send-btn {
+  background-color: #1f1f1f;
+  color: #00ccff;
+  border: none;
+  border-radius: 9999px;
+  padding: 0.5rem;
+  min-width: 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
 }
 
-/* Responsive Design */
+.send-btn:hover {
+  background-color: #2a2a2a;
+  color: #00e0ff;
+  box-shadow: 0 0 6px rgba(0, 170, 255, 0.3);
+}
+
+.send-btn:disabled {
+  background-color: #222;
+  color: #555;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ===================================================
+  📱 RESPONSIVE TWEAKS
+=================================================== */
 @media (max-width: 768px) {
   .lobby-container {
-    padding: 1.5rem;
+    padding: 2rem 1.5rem;
+    top: 2rem;
   }
 
-  .lobby-title {
-    font-size: 2rem;
+  .chat-input {
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
-  .chat-container {
-    padding: 1rem;
+  .chat-input-container {
+    padding: 0.4rem 0.5rem;
+    gap: 0.5rem;
   }
 
-  .start-game-button {
-    font-size: 1rem;
-    padding: 0.8rem 1.5rem;
+  .chat-input-container input {
+    font-size: 0.85rem;
   }
 
-  .players-list {
-    flex-wrap: wrap; /* Allow players to wrap to a new line on smaller screens */
-    justify-content: center;
-  }
-
-  .player-slot {
-    flex: 1 0 40%; /* Allow slots to scale and wrap */
-    max-width: 100px;
+  .send-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0.4rem;
   }
 }

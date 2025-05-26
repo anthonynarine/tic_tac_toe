@@ -5,6 +5,7 @@ import { useLobbyContext } from "../context/lobbyContext";
 import { showToast } from "../../utils/toast/Toast";
 import getWebSocketURL from "./utils/getWebsocketURL";
 import { CiCirclePlus } from "react-icons/ci";
+import { IoIosSend } from "react-icons/io";
 import "./lobby.css";
 
 import Cookies from "js-cookie"
@@ -177,9 +178,9 @@ const LobbyPage = () => {
                         <div key={index} className="player-slot">
                             {player ? (
                                 <div className="player-details">
-                                    <div className="player-avatar">
+                                    {/* <div className="player-avatar">
                                         {player.first_name?.charAt(0).toUpperCase()}
-                                    </div>
+                                    </div> */}
                                     <div className="player-name">{player.first_name}</div>
                                 </div>
                             ) : (
@@ -230,14 +231,22 @@ const LobbyPage = () => {
                     ))}
                 </div>
                 <div className="chat-input">
-                    <input
+                    <div className="chat-input-container">
+                        <input
                         type="text"
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Type a message"
+                        placeholder="Type a message..."
                         onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-                    />
-                    <button onClick={handleSendMessage}>Send</button>
+                        />
+                        <button
+                        className="send-btn"
+                        onClick={handleSendMessage}
+                        disabled={!message.trim()}
+                        >
+                        <IoIosSend size={18} />
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
