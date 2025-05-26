@@ -15,6 +15,9 @@ const getWebSocketURL = ({ id, token, isLobby }) => {
     ? "tic-tac-toe-server-66c5e15cb1f1.herokuapp.com"
     : "localhost:8000");
 
+    console.log("[WebSocket] Host resolved to:", process.env.REACT_APP_BACKEND_WS);
+
+
   // 🌐 Use 'wss' if HTTPS, else 'ws' for local/dev environments
   const scheme = window.location.protocol === "https:" ? "wss" : "ws";
 
