@@ -9,7 +9,9 @@
  */
 const getWebSocketURL = ({ id, token, isLobby }) => {
   // 🧠 Resolve the backend host from environment or fallback to localhost
-  const host = process.env.REACT_APP_BACKEND_WS || "localhost:8000";
+  const host = process.env.REACT_APP_BACKEND_WS || (isProd
+    ? "tic-tac-toe-server-66c5e15cb1f1.herokuapp.com"
+    : "localhost:8000");
 
   // 🌐 Use 'wss' if HTTPS, else 'ws' for local/dev environments
   const scheme = window.location.protocol === "https:" ? "wss" : "ws";
