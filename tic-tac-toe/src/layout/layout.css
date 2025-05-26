@@ -45,7 +45,7 @@
 }
 
 /* Hide sidebar on tablets and smaller */
-@media (max-width: 1200px) {
+@media (max-width: 1024px) {
   .friends-sidebar {
     display: none;
   }
@@ -82,7 +82,7 @@
 }
 
 /* === Mobile / Tablet Layout: Full Collapse === */
-@media (max-width: 1200px) {
+@media (max-width: 1024px) {
   .frame-body {
     flex-direction: column;
   }

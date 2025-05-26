@@ -16,6 +16,7 @@
   box-shadow: -2px 0 20px rgba(0, 170, 255, 0.08);
   z-index: 50;
   height: 100%;
+  transition: transform 0.4s ease-in-out;
 }
 
 /* ==========================================================================
@@ -48,6 +49,7 @@
   color: #ccc;
   cursor: pointer;
   transition: color 0.3s ease;
+  margin-left: auto;
 }
 
 .friends-sidebar__close:hover {
@@ -206,7 +208,7 @@
 }
 
 /* ==========================================================================
-   📱 RESPONSIVE SIDEBAR VARIANTS
+   📱 MOBILE DRAWER STYLE
 ========================================================================== */
 @media (max-width: 767px) {
   .friends-sidebar {
@@ -223,6 +225,9 @@
 
   .friends-sidebar.open {
     transform: translateX(0);
+    box-shadow:
+      -4px 0 15px rgba(0, 170, 255, 0.08),
+      0 0 20px rgba(0, 170, 255, 0.06);
   }
 
   .friends-sidebar__close {
@@ -230,32 +235,62 @@
   }
 }
 
-@media (min-width: 601px) and (max-width: 900px) {
+/* ==========================================================================
+   📱 TABLET DRAWER STYLE (70% width)
+========================================================================== */
+@media (min-width: 768px) and (max-width: 1024px) {
   .friends-sidebar {
+    position: fixed;
+    top: var(--navbar-height);
+    right: 0;
     width: 70%;
-    max-width: 28rem;
-    border-radius: 12px 0 0 12px;
-  }
-}
-
-@media (min-width: 901px) and (max-width: 1024px) {
-  .friends-sidebar {
-    width: 50%;
     max-width: 32rem;
+    height: calc(100vh - var(--navbar-height));
+    transform: translateX(100%);
+    transition: transform 0.4s ease-in-out;
     border-radius: 12px 0 0 12px;
+    box-shadow: -2px 0 20px rgba(0, 170, 255, 0.2);
+  }
+
+  .friends-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .friends-sidebar__close {
+    display: block;
   }
 }
 
+/* ==========================================================================
+   🖥️ DESKTOP STATIC STYLE
+========================================================================== */
 @media (min-width: 1025px) {
   .friends-sidebar {
     position: static;
-    height: 100%;
     transform: none !important;
-    border-right: 1px solid #555;
-    border-left: none;
+    height: 100%;
+    border-left: 1px solid #555;
+    border-radius: 0;
   }
 
   .friends-sidebar__close {
     display: none;
+  }
+}
+
+/* ==========================================================================
+   🔲 BACKDROP FOR MOBILE + TABLET
+========================================================================== */
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
   }
 }

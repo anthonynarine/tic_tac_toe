@@ -18,7 +18,7 @@ import { useState, useEffect } from "react";
 
 const useIsDesktop = () => {
     // Initialize state based on current window width
-    const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1200);
+    const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1000);
 
     useEffect(() => {
         // Create a media query that matches when width is ≥ 1200px

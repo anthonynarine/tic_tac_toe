@@ -2,36 +2,41 @@
 
 import React from "react";
 import MainRoutes from "../routes/MainRoutes";
-import FriendsSidebar from "../components/friends/FriendsSidebar"
+import FriendsSidebar from "../components/friends/FriendsSidebar";
 import DMDrawer from "../components/friends/DMDrawer";
 
-import { useLayoutView } from "../components/hooks/useLayoutView";
+import useIsDesktop from "../components/hooks/useIsDesktop";
+import { useUI } from "../components/context/uiContext"; // ✅ Assuming this manages sidebar open state
 
-/**
- * ResponsiveLayout
- *
- * Central switch for rendering the appropriate view
- * based on screen size and UI state.
- */
 const ResponsiveLayout = () => {
-    const layout = useLayoutView();
+    const isDesktop = useIsDesktop();
+    const { isSidebarOpen, setSidebarOpen } = useUI();
 
-    switch (layout) {
-        case "desktop":
-        return (
-            <div className="frame-body">
+    return (
+        <div className="frame-body">
+        {isDesktop ? (
+            <>
             <FriendsSidebar />
             <MainRoutes />
             <DMDrawer isOpen onClose={() => {}} />
-            </div>
-        );
-        case "sidebar":
-        return <FriendsSidebar />;
-        case "drawer":
-        return <DMDrawer isOpen onClose={() => {}} />;
-        default:
-        return <MainRoutes />;
-    }
+            </>
+        ) : (
+            <>
+            {isSidebarOpen && (
+                <>
+                <div
+                    className="sidebar-backdrop"
+                    onClick={() => setSidebarOpen(false)}
+                />
+                <FriendsSidebar />
+                </>
+            )}
+            <MainRoutes />
+            <DMDrawer isOpen onClose={() => {}} />
+            </>
+        )}
+        </div>
+    );
 };
 
 export default ResponsiveLayout;
