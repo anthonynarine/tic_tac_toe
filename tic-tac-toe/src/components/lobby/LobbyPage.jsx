@@ -203,7 +203,7 @@ const LobbyPage = () => {
         <div className="lobby-container">
             <h1 className="lobby-title">Game Lobby</h1>
 
-            <div className="lobby-details">{renderPlayersList}</div>
+            <div className="lobby-details">{renderPlayersList()}</div>
 
             <div className="lobby-buttons">
                 <button
