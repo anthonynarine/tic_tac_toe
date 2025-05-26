@@ -45,7 +45,7 @@
 }
 
 /* Hide sidebar on tablets and smaller */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .friends-sidebar {
     display: none;
   }
@@ -55,9 +55,10 @@
 .main-content {
   flex-grow: 1;
   overflow: visible;
-  padding: 2rem;
+  padding: 1rem;
   display: flex;
   justify-content: center;
+  width: 100%;
   align-items: flex-start;
   background-color: black;
 }
@@ -81,7 +82,7 @@
 }
 
 /* === Mobile / Tablet Layout: Full Collapse === */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
   .frame-body {
     flex-direction: column;
   }

@@ -3,7 +3,7 @@ import { useDirectMessage } from "../context/directMessageContext";
 import { IoIosSend } from "react-icons/io";
 import "./DMDrawer.css";
 
-const DMDrawer = ({ isOpen, onClose }) => {
+const DMDrawer = ({ isOpen, onClose = () => {} }) => {
     const {
         activeChat,
         messages,

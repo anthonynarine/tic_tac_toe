@@ -2,109 +2,107 @@
   --navbar-height: 96px;
 }
 
-/* === Drawer Container === */
+/* ===================================================
+   💬 DM DRAWER CONTAINER
+=================================================== */
 .dm-drawer {
-  position: fixed;
-  top: 352px; /* ⬅️ Adjust this until it matches the red line */
-  /* right: 20rem;  */
-  width: 18rem;
-  height: calc(60vh - 250px); /* Fills space below "Pending Requests" */
-  background-color: #000;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 22rem;
+  max-width: 100%;
+  height: calc(100vh - var(--navbar-height));
+  background: linear-gradient(to bottom right, #0a0a0a, #1a1a1a);
   color: #fff;
-  z-index: 60;
+  z-index: 100;
   transform: translateX(100%);
-  transition: transform 0.3s ease-in-out;
+  transition: transform 0.35s ease-in-out;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-
-  /* ✅ Add full borders */
-  border: 1px solid #333;
-  border-left: 1px solid #333; /* match sidebar */
-  border-right: 1px solid #333;
-  border-top: 1px solid #333;;
-  border-bottom: 1px solid #333;
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
-
-  box-shadow: -2px 0 5px rgba(255, 255, 255, 0.05);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: -4px 0 15px rgba(0, 170, 255, 0.08);
 }
-
 
 .dm-drawer.open {
-   transform: translateX(0); /* slide into view */
+  transform: translateX(0);
 }
 
-/* === Header === */
+/* ===================================================
+   🧭 HEADER BAR
+=================================================== */
 .dm-header {
   padding: 1rem;
   background-color: #000;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid #2a2a2a;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .dm-header h2 {
-  font-size: 1rem;
-  font-weight: bold;
-  color: #00aaff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #00bfff;
   margin: 0;
 }
 
 .dm-header button {
   background: none;
   border: none;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   color: #ccc;
   cursor: pointer;
+  transition: color 0.2s ease;
 }
 
 .dm-header button:hover {
-  color: #fff;
+  color: white;
 }
 
-/* === Message Area === */
+/* ===================================================
+   📩 MESSAGE SCROLL AREA
+=================================================== */
 .dm-messages {
-  padding: 0.75rem;
-  background-clip: padding-box;
-  box-shadow: inset 0 0 0 1000px #030303;
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow-y: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-  margin-right: 1.5px;
+  background-color: #0a0a0a;
 }
 
 .dm-message {
   max-width: 80%;
   padding: 0.5rem 0.75rem;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.9rem;
-  word-wrap: break-word;
+  word-break: break-word;
+  border: 1px solid #222;
+  line-height: 1.4;
 }
 
 .incoming {
   align-self: flex-start;
-  background-color: #2d2d2d;
+  background: #1f1f1f;
   color: #f5f5f5;
-  border: 1px solid #555;
+  border-color: #333;
 }
 
 .outgoing {
   align-self: flex-end;
-  background-color: #00aaff;
+  background: linear-gradient(to bottom right, #00aaff, #0088cc);
   color: #fff;
-  border: 1px solid #007acc;
+  border-color: #007acc;
 }
 
-/* === Input Area === */
+/* ===================================================
+   ✍️ INPUT CONTAINER
+=================================================== */
 .dm-input {
-  padding: 0.75rem;
-  background-color: #000;
-  /* border-top: 1px solid #C0C0C0; */
+  padding: 1rem;
+  background: #111;
+  border-top: 1px solid #2a2a2a;
   display: flex;
   justify-content: center;
 }
@@ -112,96 +110,47 @@
 .dm-input-container {
   width: 100%;
   background: #111;
-  border: 1px solid #C0C0C0;
+  border: 1px solid #444;
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
 
 .dm-input-container:focus-within {
   border-color: #00aaff;
-  box-shadow: 0 0 10px rgba(0, 170, 255, 0.45);
+  box-shadow: 0 0 10px rgba(0, 170, 255, 0.35);
 }
 
 .dm-input input {
   background: transparent;
   border: none;
   color: #fff;
-  width: 100%;
   font-size: 0.9rem;
   outline: none;
+  flex: 1;
 }
+
 .dm-input input::placeholder {
-  color: #888;
+  color: #777;
 }
 
-.dm-input button {
-  padding: 0.5rem 1rem;
-  background-color: #00aaff;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.dm-input button:hover {
-  background-color: #007acc;
-}
-
-/* === Scrollbar Styling === */
-.dm-messages::-webkit-scrollbar {
-  width: 8px;
-}
-
-.dm-messages::-webkit-scrollbar-track {
-  background: #000;
-  border-radius: 10px;
-}
-
-.dm-messages::-webkit-scrollbar-thumb {
-  background: #000;
-  border-radius: 10px;
-}
-
-.dm-messages::-webkit-scrollbar-thumb:hover {
-  background: #000;
-}
-
-.dm-messages {
-  scrollbar-width: thin;
-  scrollbar-color: #000;
-}
-
-/* === Mobile Support === */
-@media (max-width: 768px) {
-  .dm-drawer {
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: calc(100vh - var(--navbar-height));
-    transform: translateX(100%);
-    transition: transform 0.3s ease-in-out;
-  }
-
-  .dm-drawer.open {
-    transform: translateX(0);
-  }
-}
-
+/* ===================================================
+   📤 SEND BUTTON
+=================================================== */
 .send-btn {
   background-color: #0a84ff;
   color: white;
   border: none;
   border-radius: 9999px;
-  padding: 0.45rem;
+  padding: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  min-width: 40px;
+  min-height: 40px;
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -215,4 +164,59 @@
   color: #777;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* ===================================================
+   📱 MOBILE RESPONSIVE
+=================================================== */
+@media (max-width: 768px) {
+  .dm-drawer {
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    height: calc(100vh - var(--navbar-height));
+    transform: translateX(100%);
+  }
+
+  .dm-drawer.open {
+    transform: translateX(0);
+  }
+
+  .dm-header h2 {
+    font-size: 1rem;
+  }
+
+  .dm-message {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.6rem;
+  }
+
+  .send-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+}
+
+/* ===================================================
+   🎚 SCROLLBAR (Optional visual polish)
+=================================================== */
+.dm-messages::-webkit-scrollbar {
+  width: 8px;
+}
+.dm-messages::-webkit-scrollbar-track {
+  background: #111;
+  border-radius: 8px;
+}
+.dm-messages::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 8px;
+}
+.dm-messages::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+.dm-messages {
+  scrollbar-width: thin;
+  scrollbar-color: #333 #111;
 }

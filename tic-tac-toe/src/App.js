@@ -7,7 +7,7 @@ import { UserProvider } from "./components/context/userContext";
 import { DirectMessageProvider } from "./components/context/directMessageContext";
 
 // Routes (new split file)
-import AppRoutes from "./AppRoutes";
+import AppRoutes from "./routes/AppRoutes";
 
 function App() {
     return (

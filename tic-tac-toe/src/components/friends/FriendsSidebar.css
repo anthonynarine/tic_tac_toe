@@ -2,39 +2,42 @@
   --navbar-height: 96px;
 }
 
-/* === Sidebar Container === */
+/* ==========================================================================
+   📦 SIDEBAR CONTAINER
+========================================================================== */
 .friends-sidebar {
-  background-color: #000;
+  background: linear-gradient(to bottom right, #0a0a0a, #000000);
   color: #fff;
   width: 20rem;
   max-width: 100%;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid #555;
-  border-right: 1px solid #555;
-  border-bottom: 1px solid #555;
-  box-shadow: -2px 0 5px rgba(255, 255, 255, 0.05);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: -2px 0 20px rgba(0, 170, 255, 0.08);
+  z-index: 50;
+  height: 100%;
 }
 
-/* === Sticky Header === */
+/* ==========================================================================
+   📌 STICKY HEADER
+========================================================================== */
 .friends-sidebar__header {
   position: sticky;
   top: 0;
   background-color: #000;
   padding: 0.75rem 1.25rem;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  border-bottom: 1px solid #555;
+  border-bottom: 1px solid #2a2a2a;
   z-index: 10;
   height: 56px;
-  flex-direction: row;
 }
 
 .friends-sidebar__title {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #1DA1F2;
+  color: #00bfff;
   margin: 0;
 }
 
@@ -51,25 +54,30 @@
   color: #fff;
 }
 
-/* === Scrollable Content === */
+/* ==========================================================================
+   🧾 MAIN CONTENT SCROLL AREA
+========================================================================== */
 .friends-sidebar__content {
-  padding: 1rem;
-  padding-top: 1.5rem;
+  padding: 1.5rem 1rem;
   overflow-y: auto;
   flex-grow: 1;
 }
 
-/* === Section Headings and Layout === */
+/* ==========================================================================
+   📂 SECTION HEADERS
+========================================================================== */
 .friends-sidebar__section {
   margin-bottom: 2rem;
-  border-top: 1px solid #444;
-  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1.25rem;
 }
 
 .friends-sidebar__section h3 {
   font-size: 1rem;
-  color: #e5e5e5;
-  margin-bottom: 0.5rem;
+  color: #00bfff;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.75rem;
 }
 
 .friends-sidebar__empty {
@@ -77,17 +85,31 @@
   color: #888;
 }
 
-/* === Friend List === */
+/* ==========================================================================
+   👥 FRIEND LIST ITEMS
+========================================================================== */
 .friends-sidebar__friend {
-  padding-left: 0.75rem;
   margin-bottom: 0.75rem;
-  color: #f5f5f5;
+  padding-left: 0.25rem;
 }
 
 .friend-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.75rem;
+  padding: 0.75rem;
+  background: linear-gradient(to bottom right, #111, #1a1a1a);
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  transition: background 0.3s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.friend-row:hover {
+  background: #1f1f1f;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 170, 255, 0.15);
 }
 
 .friend-info {
@@ -96,16 +118,19 @@
 }
 
 .friend-name {
-  font-weight: 500;
+  font-weight: 600;
   font-size: 1rem;
+  color: #ffffff;
 }
 
 .friend-status-text {
   font-size: 0.75rem;
-  color: #aaa;
+  color: #00aaff;
 }
 
-/* === Online/Offline Dots === */
+/* ==========================================================================
+   🔵 ONLINE/OFFLINE DOTS
+========================================================================== */
 .status-dot {
   width: 0.6rem;
   height: 0.6rem;
@@ -113,14 +138,76 @@
 }
 
 .status-dot.online {
-  background-color: #4ade80;
+  background-color: #00ff9d;
+  box-shadow: 0 0 6px rgba(0, 255, 157, 0.6);
 }
 
 .status-dot.offline {
-  background-color: #6b7280;
+  background-color: #444;
 }
 
-/* === Mobile: Full-screen slide-in === */
+/* ==========================================================================
+   🔔 UNREAD BADGE
+========================================================================== */
+.unread-badge {
+  background-color: #ff4d4d;
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 0.5rem;
+  box-shadow: 0 0 10px rgba(255, 77, 77, 0.4);
+}
+
+/* ==========================================================================
+   ✅ FRIEND REQUEST BUTTONS
+========================================================================== */
+.friends-sidebar__request {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.friends-sidebar__actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.accept-btn,
+.decline-btn {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  font-weight: bold;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.accept-btn {
+  background: linear-gradient(to bottom right, #16a34a, #15803d);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+}
+
+.accept-btn:hover {
+  background: #15803d;
+}
+
+.decline-btn {
+  background: linear-gradient(to bottom right, #dc2626, #b91c1c);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.decline-btn:hover {
+  background: #991b1b;
+}
+
+/* ==========================================================================
+   📱 RESPONSIVE SIDEBAR VARIANTS
+========================================================================== */
 @media (max-width: 767px) {
   .friends-sidebar {
     position: fixed;
@@ -130,11 +217,8 @@
     height: calc(100vh - var(--navbar-height));
     transform: translateX(100%);
     transition: transform 0.4s ease-in-out;
-    z-index: 50;
-    background-color: #000;
-    box-shadow: -2px 0 10px rgba(255, 255, 255, 0.1);
     border-left: 1px solid #555;
-    border-right: none;
+    box-shadow: -2px 0 10px rgba(255, 255, 255, 0.1);
   }
 
   .friends-sidebar.open {
@@ -146,92 +230,27 @@
   }
 }
 
-/* === Mobile: Full-screen drawer (≤ 600px) === */
-@media (max-width: 600px) {
-  .friends-sidebar {
-    position: fixed;
-    top: var(--navbar-height);
-    right: 0;
-    width: 100%;
-    height: calc(100vh - var(--navbar-height));
-    transform: translateX(100%);
-    transition: transform 0.4s ease-in-out;
-    z-index: 50;
-    background-color: #000;
-    box-shadow: -2px 0 10px rgba(255, 255, 255, 0.1);
-    border-left: 1px solid #555;
-  }
-
-  .friends-sidebar.open {
-    transform: translateX(0);
-  }
-
-  .friends-sidebar__close {
-    display: block;
-  }
-}
-
-/* === Small tablets (601px–900px): 70% width === */
 @media (min-width: 601px) and (max-width: 900px) {
   .friends-sidebar {
-    position: fixed;
-    top: var(--navbar-height);
-    right: 0;
     width: 70%;
     max-width: 28rem;
-    height: calc(100vh - var(--navbar-height));
-    transform: translateX(100%);
-    transition: transform 0.4s ease-in-out;
-    z-index: 50;
-    background-color: #000;
-    border-left: 1px solid #555;
     border-radius: 12px 0 0 12px;
-    box-shadow: -4px 0 10px rgba(0, 0, 0, 0.2);
-  }
-
-  .friends-sidebar.open {
-    transform: translateX(0);
-  }
-
-  .friends-sidebar__close {
-    display: block;
   }
 }
 
-/* === Large tablets (901px–1024px): 50% width === */
 @media (min-width: 901px) and (max-width: 1024px) {
   .friends-sidebar {
-    position: fixed;
-    top: var(--navbar-height);
-    right: 0;
     width: 50%;
     max-width: 32rem;
-    height: calc(100vh - var(--navbar-height));
-    transform: translateX(100%);
-    transition: transform 0.4s ease-in-out;
-    z-index: 50;
-    background-color: #000;
-    border-left: 1px solid #555;
     border-radius: 12px 0 0 12px;
-    box-shadow: -4px 0 10px rgba(0, 0, 0, 0.2);
-  }
-
-  .friends-sidebar.open {
-    transform: translateX(0);
-  }
-
-  .friends-sidebar__close {
-    display: block;
   }
 }
 
-/* === Desktop (≥ 1025px): Static left sidebar === */
 @media (min-width: 1025px) {
   .friends-sidebar {
     position: static;
     height: 100%;
     transform: none !important;
-    top: auto;
     border-right: 1px solid #555;
     border-left: none;
   }
