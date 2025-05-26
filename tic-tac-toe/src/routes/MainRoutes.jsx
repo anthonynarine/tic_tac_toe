@@ -42,9 +42,11 @@ const MainRoutes = () => (
         <Route
             path="/lobby/:id"
             element={
-            <GameProvider>
-                <LobbyPage />
-            </GameProvider>
+            <GameWebSocketProvider>
+                <GameProvider>
+                    <LobbyPage />
+                </GameProvider>
+            </GameWebSocketProvider>
             }
         />
         <Route path="/toast-test-page" element={<ToastTestPage />} />
