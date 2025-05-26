@@ -61,6 +61,9 @@ class GameConsumer(JsonWebsocketConsumer):
 
         # Step 6: Accept WebSocket connection
         self.accept()
+        
+        self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.game_id)
+        logger.info(f"[✅ BROADCAST] Sent updated player list for game lobby {self.lobby_group_name}")
 
         # Step 7: Log success
         logger.info(f"User {self.user.first_name} connected to game lobby {self.lobby_group_name}")
