@@ -37,19 +37,29 @@
   font-weight: bold;
   background-color: black;
   color: white;
-  border: 2px solid white;
+  border: 2px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-  animation: pulse-glow 2.5s infinite ease-in-out;
+
+  /* ✅ Tron glow by default */
+  /* box-shadow:
+    0 0 6px var(--glow-color-soft),
+    0 0 12px var(--glow-color);
+
+  animation: pulse-glow 3s ease-in-out infinite; */
 }
 
 .add-btn:hover {
   background-color: #0d0d0d;
   transform: translateY(-3px) scale(1.05);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.8), 0 0 30px rgba(255, 255, 255, 0.6);
-}
 
+  /* ✅ Enhanced hover glow */
+  box-shadow:
+    0 0 12px var(--glow-color),
+    0 0 20px var(--glow-color-soft),
+    0 0 32px var(--glow-color);
+}
 /* @keyframes pulse-glow {
   0% {
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);

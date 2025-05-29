@@ -6,7 +6,17 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background-color: black;
+  background: radial-gradient(ellipse at top right, #000000 70%, #0e1a2b);
+  position: relative;
+  z-index: 0;
+
+  
+
+  /* background-image: url('../assets/bg_img.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+   */
 }
 
 /* === App Frame: Bordered Layout Box === */
@@ -17,7 +27,12 @@
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  border: 1px solid #555;
+
+  border: 1px solid #0e1a2b; /* softer tone base */
+  box-shadow:
+    0 0 10px rgba(0, 170, 255, 0.2),
+    0 0 20px rgba(0, 170, 255, 0.1);
+  
   box-sizing: border-box;
   background-color: black;
 }
@@ -60,7 +75,7 @@
   justify-content: center;
   width: 100%;
   align-items: flex-start;
-  background-color: black;
+  background: radial-gradient(ellipse at top left, #000000 100%, #0e1a2b,);
 }
 
 /* === Game Wrapper: center + cap board width === */
@@ -145,3 +160,5 @@
     display: flex;
   }
 }
+
+

@@ -24,6 +24,13 @@ const getWebSocketURL = ({ id, token, isLobby }) => {
   // 🧭 Prefix the path with 'lobby/' if it's a lobby chat route
   const typePath = isLobby ? "lobby/" : "";
 
+    // ✅ Log your .env variable and final result
+  console.log("🧪 ENV REACT_APP_BACKEND_WS:", process.env.REACT_APP_BACKEND_WS);
+  console.log("🧪 WebSocket Host resolved to:", host);
+  console.log("💬 ENV value:", process.env.REACT_APP_BACKEND_WS);
+  console.log("📡 Final WebSocket URL:", `${scheme}://${host}/ws/chat/${typePath}${id}/?token=${token}`);
+
+
   // 🔗 Build and return the complete WebSocket URL
   return `${scheme}://${host}/ws/chat/${typePath}${id}/?token=${token}`;
 };

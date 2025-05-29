@@ -20,7 +20,7 @@ html, body {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    margin-top:1rem;
+    margin-top:5rem;
   }
   
   /* Form Layout */

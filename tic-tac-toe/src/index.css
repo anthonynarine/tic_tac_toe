@@ -24,8 +24,19 @@ body {
   --default-border-radius: 2vmin;
   --default-primary-border: 0.25vmin solid var(--primary-color);
   --main-title-font-size: 4vmin;
+
+  --glow-color: rgba(0, 170, 255, 0.2);
+  --glow-color-soft: rgba(0, 170, 255, 0.1);
+  --border-color: #0e1a2b;
 }
 
+/* === Reusable Glow Border === */
+.glow-border {
+  border: 1px solid var(--border-color);
+  box-shadow:
+    0 0 8px var(--glow-color),
+    0 0 16px var(--glow-color-soft);
+}
 
 
 
@@ -98,3 +109,16 @@ html, body {
 *, *::before, *::after {
   box-sizing: inherit;
 }
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(0, 191, 255, 0.06), transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.03), transparent 60%),
+    radial-gradient(circle at center, rgba(0, 191, 255, 0.08), transparent 90%);
+  z-index: -1;
+  pointer-events: none;
+}
+

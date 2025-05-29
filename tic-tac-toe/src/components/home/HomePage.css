@@ -1,137 +1,146 @@
-/* General Container */
+/* ==========================================================================
+   🌐 GLOBAL INHERITANCE
+   ==========================================================================
+   Inherits global variables defined in :root in index.css:
+   --glow-color, --glow-color-soft, --primary-color, --accent-color, --border-color
+   ========================================================================== */
+
+/* ==========================================================================
+   🏠 HOMEPAGE CONTAINER
+   ========================================================================== */
+
 .homepage-container {
+  position: relative;
   background-color: black;
   border-radius: 15px;
   padding: 2rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   max-width: 600px;
-  margin: 5rem auto;
+  margin: 8rem auto 4rem auto;
   text-align: center;
-  color: white;
-  margin-top: 10rem;
+  color: var(--primary-color);
+
+  /* ✅ Deep multi-layered shadow */
+  box-shadow:
+    0 0 8px rgba(29, 161, 242, 0.3),    /* tight glow */
+    0 0 16px rgba(29, 161, 242, 0.2),   /* medium falloff */
+    0 0 32px rgba(29, 161, 242, 0.15),  /* long blur glow */
+    0 12px 24px rgba(0, 0, 0, 0.5);     /* bottom drop shadow for lift */
+
+  transition: box-shadow 0.3s ease;
 }
 
-/* Title */
+/* Optional lighting zone for visual depth */
+.homepage-container::before {
+  content: "";
+  position: absolute;
+  top: -150px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, var(--glow-color) 0%, transparent 70%);
+  opacity: 0.15;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ==========================================================================
+   📝 TITLE + SUBTITLE
+   ========================================================================== */
+
 .homepage-title {
-  font-size: 2.5rem;
+  font-size: 2.75rem;
   font-weight: bold;
-  margin-bottom: 0.5rem;
-  color: #1DA1F2; /* Twitter blue for modern look */
+  color: #1DA1F2;
+  text-shadow:
+    0 0 8px rgba(29, 161, 242, 0.6),
+    0 0 16px rgba(29, 161, 242, 0.4),
+    0 0 24px rgba(29, 161, 242, 0.2);
+  margin-bottom: 1.25rem;
 }
 
-/* Tagline */
-.homepage-tagline {
+
+.homepage-subtitle {
   font-size: 1.2rem;
-  font-weight: 300;
+  color: var(--primary-color);
+  opacity: 0.85;
   margin-bottom: 2rem;
-  color: #e1e8ed; /* Subtle gray for contrast */
 }
 
-/* Game Modes Buttons */
-.game-modes {
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-}
+/* ==========================================================================
+   🎮 GAME MODE BUTTONS
+   ========================================================================== */
 
 .game-mode-button {
   padding: 1rem 2rem;
   font-size: 1.1rem;
   font-weight: bold;
-  color: white;
-  background: black; /* Button background color */
-  border: 1px solid white; /* White border */
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Subtle shadow */
-}
-
-
-.game-mode-button:hover {
-  background: white; /* Change background on hover */
-  color: black; /* Optional: Change text color on hover */
-  transform: translateY(-3px); /* Slight hover effect */
-}
-
-/* Invite Section */
-.invite-section {
-  margin-top: 2rem;
-  text-align: center;
-}
-
-.invite-message {
-  font-size: 1rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-}
-
-.invite-actions {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.invite-link {
-  padding: 1.2rem;
-  font-size: 1rem;
-  border: 1px solid white;
-  border-radius: 8px;
   background: black;
-  color: #333;
-  width: 80%;
-  text-align: center;
-  cursor: pointer;
-}
-
-.copy-button {
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
-  font-weight: bold;
-  color: white;
-  background: black; /* Green for copy action */
-  border: 1px solid white;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.copy-button:hover {
-  background: white;
-  color: black; /* Optional: Change text color on hover */
-  transform: translateY(-3px); /* Slight hover effect */
-}
-
-/* Keyframes for white pulsing glow */
-@keyframes pulse-glow {
-  0% {
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(245, 247, 245, 0.7), 0 0 30px rgba(255, 255, 255, 0.5);
-  }
-  100% {
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.2);
-  }
-}
-
-/* Illuminated black button that pulses white */
-.login-play-button {
-  padding: 1.2rem 2.5rem;
-  font-size: 1.2rem;
-  font-weight: bold;
-  background-color: black;
-  color: white;
-  border: 2px solid white; /* Solid white border */
+  color: var(--primary-color);
+  border: 2px solid var(--border-color);
   border-radius: 12px;
   cursor: pointer;
+  margin-bottom: 1rem;
+  margin-left: 10px;
   transition: all 0.3s ease;
-  animation: pulse-glow 2.5s infinite ease-in-out; /* 👈 Add pulsing */
+
+  box-shadow:
+    0 0 8px var(--glow-color-soft),
+    0 0 14px var(--glow-color);
 }
 
-.login-play-button:hover {
-  background-color: #0d0d0d; /* slightly lighter black on hover */
-  transform: translateY(-4px) scale(1.05); /* slight lift */
-  box-shadow: 0 0 25px rgba(255, 255, 255, 0.8), 0 0 35px rgba(255, 255, 255, 0.6);
+.game-mode-button:hover {
+  background-color: black;
+  transform: translateY(-3px) scale(1.05);
+  box-shadow:
+    0 0 16px var(--glow-color),
+    0 0 30px var(--glow-color-soft);
+}
+
+/* ==========================================================================
+   🔐 LOGIN / PLAY + COPY BUTTONS
+   ========================================================================== */
+
+.login-play-button,
+.copy-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: bold;
+  background-color: black;
+  color: var(--primary-color);
+  border: 2px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  margin-top: 1rem;
+  transition: all 0.3s ease;
+
+  box-shadow:
+    0 0 8px var(--glow-color-soft),
+    0 0 14px var(--glow-color);
+}
+
+.login-play-button:hover,
+.copy-button:hover {
+  background-color: #0d0d0d;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow:
+    0 0 16px var(--glow-color),
+    0 0 30px var(--glow-color-soft);
+}
+
+/* ==========================================================================
+   🌟 GLOW ANIMATION (if used on buttons)
+   ========================================================================== */
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 8px var(--glow-color-soft),
+      0 0 14px var(--glow-color);
+  }
+  50% {
+    box-shadow:
+      0 0 16px var(--glow-color),
+      0 0 28px var(--glow-color-soft);
+  }
 }

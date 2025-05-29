@@ -1,8 +1,9 @@
-import "./layout.css"
+// AppShell.jsx
+import "./layout.css";
 
 const AppShell = ({ children }) => {
     return (
-        <div className="app-shell">
+        <div className="app-shell"        >
         {children}
         </div>
     );

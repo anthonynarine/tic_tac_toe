@@ -68,9 +68,15 @@ export const DirectMessageProvider = ({ children }) => {
         const isCurrentUserFrom = friend.from_user === user.id;
         const friendId = isCurrentUserFrom ? friend.to_user : friend.from_user;
 
+        const WS_BASE =
+        process.env.NODE_ENV === "production"
+            ? `wss://${process.env.REACT_APP_BACKEND_WS}`
+            : "ws://localhost:8000";
+
         const socket = new WebSocket(
-        `ws://localhost:8000/ws/chat/${friendId}/?token=${token}`
+        `${WS_BASE}/ws/chat/${friendId}/?token=${token}`
         );
+
 
         socket.onopen = () => {
         dispatch({
