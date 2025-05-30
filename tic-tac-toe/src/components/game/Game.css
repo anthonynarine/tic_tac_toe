@@ -6,31 +6,87 @@
   width: 100%;
   max-width: 590px;
   padding: 1.5rem 2rem;
-  margin: 2rem auto;
+  margin: 4rem auto;
   box-sizing: border-box;
 
   background: black;
-  border: 2px solid white;
-  border-radius: var(--default-border-radius);
-  box-shadow: var(--box-shadow);
+  border-radius: 15px;
 
-  max-height: 90vh;       /* prevent board from spilling on short screens */
+  box-shadow:
+    0 0 8px rgba(29, 161, 242, 0.3),
+    0 0 16px rgba(29, 161, 242, 0.2),
+    0 0 32px rgba(29, 161, 242, 0.15),
+    0 12px 24px rgba(0, 0, 0, 0.5);
+
+  transition: box-shadow 0.3s ease;
+
+  max-height: 90vh;
   overflow-y: auto;
 }
 
-h1 {
+
+/* Title */
+.game-container h1 {
   font-size: 2rem;
   margin-bottom: 0.75rem;
-  color: var(--primary-color);
+  color: #ff073a; /* 🚨 Tron red */
   text-align: center;
+  font-weight: bold;
+
+  text-shadow:
+    0 0 8px rgba(255, 7, 58, 0.6),
+    0 0 16px rgba(255, 7, 58, 0.4),
+    0 0 24px rgba(255, 7, 58, 0.2);
+}
+.game-container h1:hover {
+  transform: scale(1.03);
+  text-shadow:
+    0 0 12px rgba(255, 7, 58, 0.7),
+    0 0 24px rgba(255, 7, 58, 0.5),
+    0 0 32px rgba(255, 7, 58, 0.3);
+  transition: all 0.25s ease;
 }
 
+
+/* Turn Message */
+/* Base Turn Message Style */
 .turn-notification {
   font-size: 1.25rem;
   margin-bottom: 1rem;
   text-align: center;
-  color: #ccc;
+  font-weight: 500;
+  color: var(--primary-color);
+  opacity: 0.9;
+  transition: all 0.3s ease;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
 }
+
+/* 🟦 Your Turn */
+.turn-notification.your-turn {
+  color: #1DA1F2;
+  text-shadow:
+    0 0 6px rgba(29, 161, 242, 0.6),
+    0 0 12px rgba(29, 161, 242, 0.3),
+    0 0 18px rgba(29, 161, 242, 0.15);
+}
+
+/* ⚪ Opponent's Turn */
+.turn-notification.opponent-turn {
+  color: rgba(255, 255, 255, 0.6);
+  opacity: 0.6;
+}
+
+/* 🔴 Game Over */
+.turn-notification.game-over {
+  color: #ff073a;
+  font-weight: bold;
+  text-shadow:
+    0 0 8px rgba(255, 7, 58, 0.6),
+    0 0 16px rgba(255, 7, 58, 0.4),
+    0 0 24px rgba(255, 7, 58, 0.2);
+}
+
 
 /* Mobile adjustments */
 @media (max-width: 480px) {

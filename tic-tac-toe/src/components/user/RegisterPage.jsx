@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import "./Registration.css";
-import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import "./Registration.css";
 
 const RegistrationPage = () => {
-  const { register, isLoading, error } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -14,55 +14,69 @@ const RegistrationPage = () => {
     password: "",
   });
 
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     await register(formData);
   };
 
   return (
     <div id="registration-container">
       <form id="registration-form" onSubmit={handleSubmit}>
-        <h2>Register</h2>
-        <input
-          type="email"
-          name="email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={handleInputChange}
-          required
-        />
-        <input
-          type="text"
-          name="first_name"
-          placeholder="First Name"
-          value={formData.first_name}
-          onChange={handleInputChange}
-          required
-        />
-        <input
-          type="text"
-          name="last_name"
-          placeholder="Last Name"
-          value={formData.last_name}
-          onChange={handleInputChange}
-          required
-        />
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={formData.password}
-          onChange={handleInputChange}
-          required
-        />
+        <h2>Create Account</h2>
+
+        <div className="input-group">
+          <label htmlFor="email" className="form-label">Email</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+
+        <div className="input-group">
+          <label htmlFor="first_name" className="form-label">First Name</label>
+          <input
+            id="first_name"
+            type="text"
+            name="first_name"
+            value={formData.first_name}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+
+        <div className="input-group">
+          <label htmlFor="last_name" className="form-label">Last Name</label>
+          <input
+            id="last_name"
+            type="text"
+            name="last_name"
+            value={formData.last_name}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+
+        <div className="input-group">
+          <label htmlFor="password" className="form-label">Password</label>
+          <input
+            id="password"
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+
         <button type="submit">Submit</button>
       </form>
     </div>

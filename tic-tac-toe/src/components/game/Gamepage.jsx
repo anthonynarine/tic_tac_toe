@@ -76,15 +76,22 @@ export const GamePage = () => {
                                 <h1>Tic Tac Toe</h1>
 
                                 {/* Display the turn notification */}
-                                <div className="turn-notification">
-                                    {isGameOver
-                                        ? winner
-                                            ? `Game Over! Winner: ${winner}`
-                                            : "Game Over! It's a draw."
-                                        : game.current_turn === playerRole
-                                        ? "It's your turn"
-                                        : "Waiting for opponent's turn"}
+                                <div
+                                className={`turn-notification
+                                    ${isGameOver ? "game-over" : ""}
+                                    ${!isGameOver && game.current_turn === playerRole ? "your-turn" : ""}
+                                    ${!isGameOver && game.current_turn !== playerRole ? "opponent-turn" : ""}
+                                `}
+                                >
+                                {isGameOver
+                                    ? winner
+                                    ? `Game Over! Winner: ${winner}`
+                                    : "Game Over! It's a draw."
+                                    : game.current_turn === playerRole
+                                    ? "It's your turn"
+                                    : "Waiting for opponent's turn"}
                                 </div>
+
 
                                 {/* Render the game board */}
                                 <GameBoard

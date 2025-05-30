@@ -1,139 +1,233 @@
-/* Global Reset and Flexbox Centering */
+/* ==========================================================================
+   🌌 LOGIN PAGE — MATCH APP THEME
+   ========================================================================== */
+:root {
+  --background-dark-color: #000000;
+  --primary-color: #ffffff;
+  --border-color: rgba(29, 161, 242, 0.3);
+  --glow-color: rgba(29, 161, 242, 0.3);
+  --glow-color-soft: rgba(29, 161, 242, 0.4);
+}
+
+/* Global Reset */
 html, body {
-    height: 100%;
-    margin: 0;
-    background-color: var(--background-dark-color); /* Global background */
-    font-family: Arial, Helvetica, sans-serif;
-    box-sizing: border-box;
-  }
-  
-  /* Responsive Login Container */
+  height: 100%;
+  margin: 0;
+  background-color: var(--background-dark-color);
+  font-family: Arial, Helvetica, sans-serif;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   🎯 LOGIN CONTAINER
+   ========================================================================== */
+#login-container {
+  width: 100%;
+  max-width: 500px;
+  min-width: 280px;
+  padding: 2rem;
+  margin: 8rem auto 4rem auto;
+  background-color: black;
+  color: var(--primary-color);
+  border-radius: 15px;
+
+  box-shadow:
+    0 0 8px rgba(29, 161, 242, 0.3),
+    0 0 16px rgba(29, 161, 242, 0.2),
+    0 0 32px rgba(29, 161, 242, 0.15),
+    0 12px 24px rgba(0, 0, 0, 0.5);
+
+  transition: box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   📄 LOGIN FORM STYLING
+   ========================================================================== */
+#login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+#login-form h2 {
+  text-align: center;
+  color: #1DA1F2;
+  font-size: 2.25rem;
+  font-weight: bold;
+  text-shadow:
+    0 0 8px rgba(29, 161, 242, 0.6),
+    0 0 16px rgba(29, 161, 242, 0.4),
+    0 0 24px rgba(29, 161, 242, 0.2);
+  margin-bottom: 1.5rem;
+}
+
+/* ==========================================================================
+   ✏️ INPUT FIELD & LABELS
+   ========================================================================== */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  position: relative;
+}
+
+.form-label {
+  color: #1DA1F2;
+  margin-bottom: 0.1rem;
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+#login-form input {
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background-color: #0A0A0A;
+  color: var(--primary-color);
+  font-size: 1rem;
+  outline: none;
+}
+
+#login-form input:focus {
+  border-color: var(--glow-color);
+  box-shadow: 0 0 8px var(--glow-color);
+}
+
+/* ==========================================================================
+   👁 PASSWORD TOGGLE ICON
+   ========================================================================== */
+.toggle-password {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-0%);
+  cursor: pointer;
+  color: #090a0b;
+  opacity: 0.8;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+.toggle-password:hover {
+  opacity: 1;
+}
+
+/* ==========================================================================
+   🔘 BUTTON
+   ========================================================================== */
+#login-form button {
+  padding: 1rem;
+  background: black;
+  color: var(--primary-color);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow:
+    0 0 8px var(--glow-color-soft),
+    0 0 14px var(--glow-color);
+}
+
+#login-form button:hover {
+  background-color: black;
+  transform: translateY(-3px) scale(1.05);
+  box-shadow:
+    0 0 16px var(--glow-color),
+    0 0 30px var(--glow-color-soft);
+}
+
+/* ==========================================================================
+   🔗 REGISTER LINK
+   ========================================================================== */
+.register-link {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.register-link a {
+  color: white;
+  text-decoration: none;
+  font-size: 1rem;
+  transition: color 0.3s ease;
+}
+
+.register-link a:hover {
+  color: #1DA1FE;
+}
+
+/* ==========================================================================
+   📱 RESPONSIVE REFINEMENTS — MOBILE & TABLET
+   ========================================================================== */
+
+/* Mobile (<=480px) */
+@media (max-width: 480px) {
   #login-container {
-    width: 100%; /* Take full width */
-    max-width: 500px; /* Maximum width for larger screens */
-    min-width: 280px; /* Minimum width for smaller screens */
-    padding: 2rem;
-    background-color:black; /* Form background - dark green */
-    border-radius: var(--default-border-radius);
-    box-shadow: var(--box-shadow);
-    border: 1px solid white; /* Primary border from global settings */
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-    margin-top:5rem;
+    width: 90%;
+    padding: 2rem 1.25rem;
+    margin-top: 4rem;
+    box-shadow:
+      0 0 4px rgba(29, 161, 242, 0.25),
+      0 0 10px rgba(29, 161, 242, 0.15),
+      0 4px 12px rgba(0, 0, 0, 0.3);
   }
-  
-  /* Form Layout */
-  #login-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-  
-  /* Form Heading */
+
   #login-form h2 {
-    text-align: center;
-    color: white; /* Keep white for contrast */
-    font-size: var(--main-title-font-size);
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
   }
-  
-  /* Form Input Fields */
-  #login-form input {
-    padding: 1rem;
-    border-radius: var(--default-border-radius);
-    border: 1px solid var(--primary-color); /* Use primary color for input border */
-    font-size: 1rem;
-    background-color: white; /* Ensure input field is clear and readable */
-    color: black; /* Keep input text black for readability */
+
+  .form-label {
+    font-size: 0.75rem;
+    margin-left: 0.25rem;
   }
-  
-  /* Form Button */
+
+  #login-form input,
   #login-form button {
-    padding: 1rem;
-    background: #0D0D0D; /* Light green button background */
-    color: white; /* White text on the button */
-    border: none;
-    border-radius: var(--default-border-radius);
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    border: 1px solid White;
-  }
-  
-  #login-form button:hover {
-    background: black; /* Hover color matches other primary accents */
-  }
-  
-  /* Responsive Design Adjustments */
-  
-  /* Small Screens (Phones 414px and below) */
-  @media (max-width: 414px) {
-    #login-container {
-      width: 90%; /* Take most of the width */
-      margin: 0 auto; /* Center container horizontally */
-      padding: 1.5rem;
-    }
-  
-    #login-form h2 {
-      font-size: 4vmin;
-    }
-  
-    #login-form input, 
-    #login-form button {
-      font-size: 1.2rem;
-      padding: 0.8rem;
-    }
-  }
-  
-  /* Tablets (768px and below) */
-  @media (max-width: 768px) {
-    #login-container {
-      width: 90%;
-      min-width: 350px;
-      padding: 1.5rem;
-      margin: 0 auto;
-    }
-  
-    #login-form input, 
-    #login-form button {
-      font-size: 1.5rem;
-      padding: 1rem;
-    }
-  
-    #login-form h2 {
-      font-size: 3.5vmin;
-    }
-  }
-  
-  /* Medium to Large Screens (768px and up) */
-  @media (min-width: 768px) and (max-width: 992px) {
-    #login-container {
-      min-width: 500px;
-      max-width: 500px;
-    }
-  }
-  
-  /* Extra Large Screens (992px and up) */
-  @media (min-width: 992px) {
-    #login-container {
-      min-width: 500px;
-      max-width: 500px;
-    }
-  }
-  
-  /* Style fo the register link */
-  .register-link {
-    text-align: center;
-    margin-top: 1rem;
-  }
-
-  .register-link a {
-    color: white;
-    text-decoration: none;
     font-size: 1rem;
-    transition: color 0.3s ease;
+    padding: 0.85rem;
   }
 
-  .register-link a:hover {
-    color:#1DA1FE;
+  .register-link {
+    font-size: 0.9rem;
   }
+
+  .toggle-password {
+    font-size: 1.2rem;
+    right: 0.75rem;
+  }
+}
+
+/* Tablet (481px–768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  #login-container {
+    width: 85%;
+    padding: 2rem 1.75rem;
+  }
+
+  #login-form h2 {
+    font-size: 2rem;
+  }
+
+  .form-label {
+    font-size: 0.85rem;
+  }
+
+  #login-form input,
+  #login-form button {
+    font-size: 1.15rem;
+    padding: 1rem;
+  }
+
+  .register-link {
+    font-size: 1rem;
+  }
+}

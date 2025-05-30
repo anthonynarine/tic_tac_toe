@@ -65,6 +65,7 @@ MIDDLEWARE = [
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://localhost:3001",
     "https://onevone.net",
     "https://www.onevone.net",
     "https://gorgeous-pothos-e03300.netlify.app",
