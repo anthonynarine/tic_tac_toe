@@ -23,22 +23,31 @@ import { useUserContext } from "../components/context/userContext";
  * @returns {JSX.Element} Responsive container for sidebar + main routes
  */
 const ResponsiveLayout = () => {
-  const isDesktop = useIsDesktop(); // Media query check for screen size
-  const { isSidebarOpen, setSidebarOpen } = useUI(); // Controls mobile sidebar visibility
-  const { isLoggedIn } = useUserContext(); // Prevents crashes if user is logged out
+    const isDesktop = useIsDesktop(); // Media query check for screen size
+    const {
+        isSidebarOpen,
+        setSidebarOpen,
+        isDMOpen,
+        setDMOpen
+    } = useUI(); // UI state from context
+    const { isLoggedIn } = useUserContext(); // Prevents rendering if not logged in
 
     return (
-        <div className="frame-body">
+        <div className={`frame-body ${isDesktop && isDMOpen ? 'dm-drawer-open' : ''}`}>
         {isDesktop ? (
             <>
-            {/* Desktop layout: sidebar always visible if logged in */}
+            {/* Desktop layout: sidebar always visible */}
             {isLoggedIn && <FriendsSidebar />}
-            <MainRoutes />
-            {isLoggedIn && <DMDrawer isOpen onClose={() => {}} />}
+            <div className="main-content">
+                <MainRoutes />
+            </div>
+            {isLoggedIn && (
+                <DMDrawer isOpen={isDMOpen} onClose={() => setDMOpen(false)} />
+            )}
             </>
         ) : (
             <>
-            {/* Mobile/Tablet layout: sidebar toggled via UI context */}
+            {/* Mobile/tablet layout: toggled sidebar and drawer */}
             {isSidebarOpen && isLoggedIn && (
                 <>
                 <div
@@ -48,12 +57,17 @@ const ResponsiveLayout = () => {
                 <FriendsSidebar />
                 </>
             )}
-            <MainRoutes />
-            {isLoggedIn && <DMDrawer isOpen onClose={() => {}} />}
+            <div className="main-content">
+                <MainRoutes />
+            </div>
+            {isLoggedIn && (
+                <DMDrawer isOpen={isDMOpen} onClose={() => setDMOpen(false)} />
+            )}
             </>
         )}
         </div>
     );
 };
+
 
 export default ResponsiveLayout;

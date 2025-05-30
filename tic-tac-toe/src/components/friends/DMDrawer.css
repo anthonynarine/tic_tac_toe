@@ -170,20 +170,25 @@
    🖥️ DESKTOP FIXED HEIGHT DM DRAWER
 ================================= */
 @media (min-width: 1025px) {
+  .main-content {
+    position: relative; /* 🔑 this makes drawer position relative to it */
+  }
+
   .dm-drawer {
-    position: fixed;
-    top: 50%;
-    transform: translateY(-50%) translateX(100%);
-    height: 600px;
-    max-height: 90vh;
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translateX(100%);
+    height: 100%;
     border-radius: 12px 0 0 12px;
     box-shadow: -6px 0 20px rgba(0, 170, 255, 0.2);
   }
 
   .dm-drawer.open {
-    transform: translateY(-50%) translateX(0);
+    transform: translateX(0);
   }
 }
+
 
 
 /* ===================================================

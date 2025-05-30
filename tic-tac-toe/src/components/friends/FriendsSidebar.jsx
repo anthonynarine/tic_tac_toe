@@ -8,7 +8,7 @@ import { useUI } from "../context/uiContext"; // ✅ Bring in context
 import "./FriendsSidebar.css";
 
 const FriendsSidebar = () => {
-    const { isSidebarOpen, setSidebarOpen } = useUI(); // ✅ Hook into UIContext
+    const { isSidebarOpen, setSidebarOpen, setDMOpen } = useUI(); // ✅ Hook into UIContext
     const { friends, pending, acceptRequest, declineRequest, refreshFriends } = useFriends();
     const { activeChat, openChat, closeChat } = useDirectMessage();
     const { user } = useUserContext();
@@ -29,6 +29,7 @@ const FriendsSidebar = () => {
     const handleFriendClick = (friend) => {
         if (friend.friend_status === "online") {
         openChat(friend);
+        setDMOpen(true); 
         }
     };
 

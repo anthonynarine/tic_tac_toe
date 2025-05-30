@@ -1,25 +1,19 @@
-/* layout.css */
-
-/* === App Shell: Full-page Flex Wrapper === */
+/* ==========================================================================
+   🧱 APP SHELL: Full-page Wrapper
+========================================================================== */
 .app-shell {
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background: radial-gradient(ellipse at top right, #000000 70%, #0e1a2b);
   position: relative;
   z-index: 0;
-
-  
-
-  /* background-image: url('../assets/bg_img.png');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-   */
+  background: radial-gradient(ellipse at top right, #000000 70%, #0e1a2b);
 }
 
-/* === App Frame: Bordered Layout Box === */
+/* ==========================================================================
+   📦 APP FRAME: Layout Container Box
+========================================================================== */
 .app-frame {
   display: flex;
   flex-direction: column;
@@ -27,14 +21,13 @@
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
+  box-sizing: border-box;
+  background-color: black;
 
-  border: 1px solid #0e1a2b; /* softer tone base */
+  border: 1px solid #0e1a2b;
   box-shadow:
     0 0 10px rgba(0, 170, 255, 0.2),
     0 0 20px rgba(0, 170, 255, 0.1);
-  
-  box-sizing: border-box;
-  background-color: black;
 }
 
 @media (min-width: 1300px) {
@@ -43,7 +36,9 @@
   }
 }
 
-/* === Frame Body: Sidebar + Main Content === */
+/* ==========================================================================
+   📐 FRAME BODY: Sidebar + Main Content
+========================================================================== */
 .frame-body {
   display: flex;
   flex-grow: 1;
@@ -51,44 +46,59 @@
   position: relative;
 }
 
-/* === Sidebar (Desktop Only) === */
+/* ==========================================================================
+   👥 SIDEBAR: FriendsSidebar (Desktop)
+========================================================================== */
 .friends-sidebar {
   flex: 0 0 320px;
+  background-color: black;
   border-right: 1px solid #333;
   overflow-y: auto;
-  background-color: black;
 }
 
-/* Hide sidebar on tablets and smaller */
 @media (max-width: 1024px) {
   .friends-sidebar {
     display: none;
   }
 }
 
-/* === Main content: stretches and centers content === */
+/* ==========================================================================
+   🎮 MAIN CONTENT AREA
+========================================================================== */
 .main-content {
   flex-grow: 1;
-  overflow: visible;
+  width: 100%;
   padding: 1rem;
   display: flex;
   justify-content: center;
-  width: 100%;
   align-items: flex-start;
-  background: radial-gradient(ellipse at top left, #000000 100%, #0e1a2b,);
+  background: radial-gradient(ellipse at top left, #000000 100%, #0e1a2b);
+  transition: transform 0.3s ease;
+  will-change: transform;
 }
 
-/* === Game Wrapper: center + cap board width === */
+/* Shift main content left when drawer is open (desktop only) */
+@media (min-width: 1025px) {
+  .frame-body.dm-drawer-open .main-content {
+    transform: translateX(-5.5rem);
+  }
+}
+
+/* Game board centered */
+.game-wrapper {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .game-wrapper,
 #game {
   width: 100%;
-  max-width: 590px; /* 520px board + 2×20px padding */
-  box-sizing: border-box;
+  max-width: 590px;
   margin-top: 1.5rem;
-  padding: 0 2rem;   /* fixed padding to give cells breathing room */
+  padding: 0 2rem;
+  box-sizing: border-box;
 }
 
-/* === Responsive Padding Adjustment === */
 @media (max-width: 768px) {
   .game-wrapper,
   #game {
@@ -96,7 +106,9 @@
   }
 }
 
-/* === Mobile / Tablet Layout: Full Collapse === */
+/* ==========================================================================
+   📱 RESPONSIVE LAYOUT BEHAVIOR
+========================================================================== */
 @media (max-width: 1024px) {
   .frame-body {
     flex-direction: column;
@@ -119,7 +131,9 @@
   }
 }
 
-/* === Navbar Hamburger Menu === */
+/* ==========================================================================
+   🍔 NAVBAR: Mobile Hamburger Menu
+========================================================================== */
 .hamburger {
   display: none;
   font-size: 1.5rem;
@@ -136,7 +150,9 @@
   }
 }
 
-/* === Navbar Dropdown Menu (mobile/tablet) === */
+/* ==========================================================================
+   📂 NAVBAR DROPDOWN MENU (Mobile/Tablet)
+========================================================================== */
 .navbar-menu {
   display: flex;
   gap: 1rem;
@@ -160,5 +176,3 @@
     display: flex;
   }
 }
-
-
