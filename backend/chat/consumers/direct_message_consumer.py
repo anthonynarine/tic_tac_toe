@@ -80,7 +80,8 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
         if msg_type == "message":
             message = data.get("message")
             if message:
-                await self.save_message(message)
+                conversation = await self.get_or_create_conversation()
+                await self.save_message(message, conversation)
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -116,6 +117,7 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
             "sender_id": event["sender_id"],
             "receiver_id": event["receiver_id"],
             "message": event["message"],
+            "conversation_id": f"{min(event['sender_id'], event['receiver_id'])}__{max(event['sender_id'], event['receiver_id'])}"
         }))
 
     async def game_invite(self, event):
@@ -139,14 +141,27 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
         return f"dm_{min(id1, id2)}__{max(id1, id2)}"
 
     @database_sync_to_async
-    def save_message(self, content):
+    def save_message(self, content, conversation):
         """
-        Persists a direct message to the database.
+        Saves a direct message to the database and links it to a conversation thread.
+
+        Parameters:
+        - content (str): The message content sent by the user.
+        - conversation (Conversation): The conversation instance this message belongs to.
+
+        Behavior:
+        - Creates a new DirectMessage object tied to the current user and their friend.
+        - Links the message to the corresponding Conversation.
+        - Marks the message as unread (default behavior).
+        
+        Returns:
+        - DirectMessage: The created message instance.
         """
         return DirectMessage.objects.create(
             sender=self.user,
             receiver_id=self.friend_id,
             content=content,
+            conversation=conversation,
         )
 
     @database_sync_to_async
@@ -163,6 +178,4 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
 
         logger.info(f"[DM] Friendship query found {match.count()} record(s)")
         return match.exists()
-
-
 

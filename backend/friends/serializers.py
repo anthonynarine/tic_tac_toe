@@ -30,7 +30,7 @@ class FriendshipSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "from_user",
-            "to_user",
+            "to_user", 
             "to_user_email",
             "from_user_name",
             "to_user_name",
@@ -40,7 +40,7 @@ class FriendshipSerializer(serializers.ModelSerializer):
             "is_accepted",
             "created_at"
         ]
-        read_only_fields = ["id", "from_user", "is_accepted", "created_at"]
+        read_only_fields = ["id", "from_user", "to_user", "is_accepted", "created_at"]
 
     # ===== Utility for DRY access to the "friend" object =====
 
@@ -70,6 +70,10 @@ class FriendshipSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
         Handles sending a friend request using the recipient's email.
+        Provides specific error messages for:
+        - Already friends
+        - Duplicate outgoing request
+        - Incoming request already exists
         """
         request = self.context["request"]
         from_user = request.user
@@ -83,10 +87,17 @@ class FriendshipSerializer(serializers.ModelSerializer):
         except User.DoesNotExist:
             raise serializers.ValidationError("User not found.")
 
-        if Friendship.objects.filter(
+        existing = Friendship.objects.filter(
             models.Q(from_user=from_user, to_user=to_user) |
             models.Q(from_user=to_user, to_user=from_user)
-        ).exists():
-            raise serializers.ValidationError("Friend request already exists.")
+        ).first()
+
+        if existing:
+            if existing.is_accepted:
+                raise serializers.ValidationError("You are already friends with this user.")
+            elif existing.from_user == from_user:
+                raise serializers.ValidationError("You already sent a friend request to this user.")
+            else:
+                raise serializers.ValidationError("This user already sent you a friend request.")
 
         return Friendship.objects.create(from_user=from_user, to_user=to_user)

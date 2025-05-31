@@ -8,6 +8,9 @@ import DMDrawer from "./DMDrawer";
 import { useDirectMessage } from "../context/directMessageContext";
 import { useUserContext } from "../context/userContext";
 import { useUI } from "../context/uiContext";
+import { FaUserCheck, FaUserTimes } from "react-icons/fa";
+
+
 import styles from "./FriendsSidebar.module.css";
 
 const FriendsSidebar = () => {
@@ -24,6 +27,26 @@ const FriendsSidebar = () => {
         if (friend.friend_status === "online") {
         openChat(friend);
         setDMOpen(true);
+        }
+    };
+
+    const handleAccept = async (id) => {
+    try {
+        await acceptRequest(id);
+        refreshFriends();
+    } catch (error) {
+        console.error("Failed to accept request:", error);
+        // Optionally show toast here
+        }
+    };
+
+    const handleDecline = async (id) => {
+    try {
+        await declineRequest(id);
+        refreshFriends();
+    } catch (error) {
+        console.error("Failed to decline request:", error);
+        // Optionally show toast here
         }
     };
 
@@ -82,8 +105,22 @@ const FriendsSidebar = () => {
                     <li key={r.id} className={styles.friendsSidebarRequest}>
                     <span>{r.from_user_name}</span>
                     <div className={styles.friendsSidebarActions}>
-                        <button onClick={() => acceptRequest(r.id)} className={styles.acceptBtn}>Accept</button>
-                        <button onClick={() => declineRequest(r.id)} className={styles.declineBtn}>Decline</button>
+
+                        <button
+                            onClick={() => handleAccept(r.id)}
+                            className={styles.acceptBtn}
+                            title="Accept request"
+                            >
+                            <FaUserCheck size={14} />
+                        </button>
+
+                        <button
+                            onClick={() => handleDecline(r.id)}
+                            className={styles.declineBtn}
+                            title="Decline request"
+                            >
+                            <FaUserTimes size={14} />
+                        </button>
                     </div>
                     </li>
                 ))
