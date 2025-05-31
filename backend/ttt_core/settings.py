@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django_extensions",
 
     # Project-Specific Apps
+    "ai_agent",
     "game",
     "friends",
     "chat",

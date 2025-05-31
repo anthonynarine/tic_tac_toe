@@ -9,19 +9,22 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 urlpatterns = [
     path("admin/", admin.site.urls),
 
-    # Users app URLs
-    path("api/", include("users.urls")),
+    # Users
+    path("api/users/", include("users.urls")),
 
-    # Friends app URLs
-    path("api/", include("friends.urls")),
+    # Friends
+    path("api/friends/", include("friends.urls")),
 
-    # Game app URLs
+    # Games
     path("api/games/", include("game.urls")),
 
-    # Chat app URLs (REST endpoints, not WebSocket)
-    path("api/chat/", include("chat.urls")), 
+    # Chat
+    path("api/chat/", include("chat.urls")),
 
-    # JWT Token endpoints
+    # Agent
+    path("api/", include("ai_agent.urls")),  
+
+    # JWT
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
