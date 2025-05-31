@@ -96,14 +96,13 @@ button:hover {
 }
 
 html, body {
-  background-color: black !important;
-  height: 100%;
-  width: 100%;
+  height: auto;
+  min-height: 100%;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;  /* ✅ fixes horizontal scroll */
-  overflow-y: auto;    /* ✅ only show scroll if needed */
-  box-sizing: border-box;
+  overflow-x: hidden; /* ✅ prevent sideways scroll */
+  overflow-y: auto;   /* ✅ allow page scroll */
+  background-color: black;
 }
 
 *, *::before, *::after {

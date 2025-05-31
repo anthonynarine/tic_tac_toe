@@ -19,6 +19,7 @@ const MobileMenu = ({
         <button onClick={() => { setSidebarOpen(true); setIsOpen(false); }}>👥 Social</button>
         <button onClick={startMultiplayerGame}>🎮 Multiplayer</button>
         <button onClick={startAIGame}>🤖 Play vs AI</button>
+        <button onClick={() => { navigate("/technical-paper"); setIsOpen(false); }}>📄 About</button>
         {isLoggedIn ? (
             <>
             <button onClick={() => { navigate("/profile"); setIsOpen(false); }}>👤 {user?.first_name}</button>

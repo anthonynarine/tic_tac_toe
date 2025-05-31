@@ -22,13 +22,11 @@ const NavLinks = ({ isLoggedIn, user, logout, navigate, setSidebarOpen, isOpen }
                 <span className="nav-label glow-pulse">{user?.first_name}</span>
                 </button>
             </li>
-            <div className="mobile-social-only">
-                <li>
-                <button onClick={() => setSidebarOpen(true)} title="Friends" className="nav-button">
-                    <span className="nav-label glow-pulse">Social</span>
+            <li>
+                <button onClick={() => navigate("/technical-paper")} title="About" className="nav-button">
+                <span className="nav-label glow-pulse">About</span>
                 </button>
-                </li>
-            </div>
+            </li>
             </>
         )}
         </ul>

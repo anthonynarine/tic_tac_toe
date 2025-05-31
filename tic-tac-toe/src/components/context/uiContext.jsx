@@ -1,38 +1,29 @@
-/**
- * UIContext
- *
- * Provides global UI state for layout elements like the sidebar and DM drawer.
- * This context allows components throughout the app to open/close:
- * - The mobile sidebar (isSidebarOpen)
- * - The DM drawer (isDMOpen)
- *
- * Usage:
- *   const { isSidebarOpen, setSidebarOpen, isDMOpen, setDMOpen } = useUI();
- *
- * Wrap your app with <UIProvider> in the root layout.
- */
-
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
 const UIContext = createContext();
 
-/**
- * Custom hook for accessing the UI context values.
- * @returns {object} - UI state and control setters
- */
 export const useUI = () => useContext(UIContext);
 
-/**
- * UIProvider
- *
- * Wraps the app and provides UI state for sidebar and DM drawer.
- */
 export const UIProvider = ({ children }) => {
-  // Controls whether the mobile sidebar is visible
     const [isSidebarOpen, setSidebarOpen] = useState(false);
-
-    // Controls whether the DM drawer is open (on desktop or mobile)
     const [isDMOpen, setDMOpen] = useState(false);
+
+    const location = useLocation();
+
+    // 🔒 Auto-close DM drawer and block re-opening on restricted routes
+    useEffect(() => {
+        if (location.pathname === "/technical-paper") {
+        setDMOpen(false);
+        }
+    }, [location.pathname]);
+
+    // 🚫 Prevent setting DM drawer open on disallowed pages
+    const safeSetDMOpen = (state) => {
+        if (location.pathname !== "/technical-paper") {
+        setDMOpen(state);
+        }
+    };
 
     return (
         <UIContext.Provider
@@ -40,7 +31,7 @@ export const UIProvider = ({ children }) => {
             isSidebarOpen,
             setSidebarOpen,
             isDMOpen,
-            setDMOpen,
+            setDMOpen: safeSetDMOpen, // 👈 use the guarded setter
         }}
         >
         {children}

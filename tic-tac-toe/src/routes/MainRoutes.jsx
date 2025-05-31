@@ -9,7 +9,6 @@ import LoginPage from "../components/user/LoginPage";
 import RegistrationPage from "../components/user/RegisterPage";
 import { GamePage } from "../components/game/Gamepage";
 import LobbyPage from "../components/lobby/LobbyPage";
-import TechnicalPaper from "../components/technical-paper/TechnicalPaper";
 import ToastTestPage from "../utils/toast/ToastTestPage";
 
 import { GameProvider } from "../components/context/gameContext";
@@ -50,7 +49,6 @@ const MainRoutes = () => (
             }
         />
         <Route path="/toast-test-page" element={<ToastTestPage />} />
-        <Route path="/technical-paper" element={<TechnicalPaper />} />
         </Routes>
     </div>
 );

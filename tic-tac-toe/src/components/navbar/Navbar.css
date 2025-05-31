@@ -103,10 +103,13 @@
 }
 
 .nav-label.glow-pulse {
-  color: #eef1f3;
-  font-weight: 350;
-  animation: pulseGlow 2s infinite ease-in-out;
-  text-shadow: 0 0 0px #eef1f3, 0 0 4px #eef1f3, 0 0 0px #eef1f3, 0 0 1px #eef1f3;
+  color: #1DA1F2; /* Tron blue */
+  font-weight: 500;
+  /* animation: pulseGlow 2s infinite ease-in-out; */
+  /* text-shadow:
+    0 0 4px rgba(29, 161, 242, 0.6),
+    0 0 8px rgba(29, 161, 242, 0.4),
+    0 0 12px rgba(29, 161, 242, 0.2); */
 }
 
 /* === Icons & Buttons === */
@@ -126,7 +129,7 @@
 
 .nav-icon {
   font-size: 1.75rem;
-  color: white;
+  color: #1da1f2;
   vertical-align: middle;
 }
 

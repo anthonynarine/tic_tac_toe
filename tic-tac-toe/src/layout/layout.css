@@ -75,6 +75,15 @@
   background: radial-gradient(ellipse at top left, #000000 100%, #0e1a2b);
   transition: transform 0.3s ease;
   will-change: transform;
+  min-width: 0;
+  position: relative;
+  overflow: visible;
+  
+
+
+  /* ✅ REMOVE this: causes nested scrollbars */
+  /* height: 100vh; */
+  /* overflow-y: auto; */
 }
 
 /* Shift main content left when drawer is open (desktop only) */
