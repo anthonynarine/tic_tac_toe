@@ -1,33 +1,44 @@
+/* File: FriendsSidebar.module.css - Tron Redesign with Color Adjustments */
+
 :root {
   --navbar-height: 96px;
 }
 
-/* ==========================================================================
-   📦 SIDEBAR CONTAINER
-========================================================================== */
-.friends-sidebar {
-  /* background: radial-gradient(ellipse at top left, #000000 70%, #0e1a2b); */
-  color: #fff;
+.friendsSidebar {
+  /* background: linear-gradient(135deg, #0e1117 0%, #000000 100%); */
+  color: #b0cfff;
   width: 20rem;
   max-width: 100%;
   display: flex;
   flex-direction: column;
-
-  /* 🔧 Right-side glow effect */
+  border-left: 1px solid var(--border-color);
   box-shadow:
-    2px 0 4px rgba(0, 170, 255, 0.1),
-    4px 0 12px rgba(0, 170, 255, 0.15),
-    2px 0 20px rgba(0, 170, 255, 0.08);
-
+    2px 0 8px rgba(0, 170, 255, 0.15),
+    0 0 30px rgba(0, 170, 255, 0.04);
+  backdrop-filter: blur(12px);
   z-index: 50;
   height: 100%;
   transition: transform 0.4s ease-in-out;
 }
 
-/* ==========================================================================
-   📌 STICKY HEADER
-========================================================================== */
-.friends-sidebar__header {
+@media (max-width: 1024px) {
+  .friendsSidebar {
+    animation: slideInSidebar 0.5s ease-in-out;
+  }
+}
+
+@keyframes slideInSidebar {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.friendsSidebarHeader {
   position: sticky;
   top: 0;
   background-color: #000;
@@ -37,24 +48,20 @@
   align-items: center;
   height: 56px;
   z-index: 10;
-
-  /* ✅ Base border */
   border-bottom: 1px solid var(--border-color);
-
-  /* ✅ Glow effect */
   box-shadow:
     0 2px 4px var(--glow-color-soft),
     0 4px 8px var(--glow-color);
 }
 
-.friends-sidebar__title {
+.friendsSidebarTitle {
   font-size: 1.1rem;
   font-weight: 600;
   color: #00bfff;
-  margin: 0;
+  margin: 0 auto;
 }
 
-.friends-sidebar__close {
+.friendsSidebarClose {
   background: none;
   border: none;
   font-size: 1.5rem;
@@ -64,135 +71,110 @@
   margin-left: auto;
 }
 
-.friends-sidebar__close:hover {
+@media (min-width: 1025px) {
+  .friendsSidebarClose {
+    display: none;
+  }
+}
+
+.friendsSidebarClose:hover {
   color: #fff;
 }
 
-/* ==========================================================================
-   🧾 MAIN CONTENT SCROLL AREA
-========================================================================== */
-.friends-sidebar__content {
+.friendsSidebarContent {
   padding: 1.5rem 1rem;
   overflow-y: auto;
   flex-grow: 1;
 }
 
-/* ==========================================================================
-   📂 SECTION HEADERS
-========================================================================== */
-.friends-sidebar__section {
+.friendsSidebarSection {
   margin-bottom: 2rem;
   padding-top: 1.25rem;
   border-top: 1px solid var(--border-color);
-  /* box-shadow:
-    inset 0 1px 3px var(--glow-color-soft),
-    inset 0 2px 6px var(--glow-color); */
 }
 
-.friends-sidebar__section h3 {
+.friendsSidebarSection h3 {
   font-size: 1rem;
-  color: #00bfff;
+  color: #1da1f2;
   font-weight: 600;
   letter-spacing: 0.5px;
   margin-bottom: 0.75rem;
+  text-shadow:
+    0 0 6px rgba(29, 161, 242, 0.4),
+    0 0 12px rgba(29, 161, 242, 0.2);
 }
 
-.friends-sidebar__empty {
+.friendsSidebarEmpty {
   font-size: 0.85rem;
-  color: #888;
+  color: #5a6b77;
 }
 
-/* ==========================================================================
-   👥 FRIEND LIST ITEMS
-========================================================================== */
-.friends-sidebar__friend {
+.friendsSidebarFriend {
   margin-bottom: 0.75rem;
   padding-left: 0.25rem;
 }
 
-.friend-row {
+.friendRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.75rem;
-  background: linear-gradient(to bottom right, #111, #1a1a1a);
-  border: 1px solid #2a2a2a;
+  background: rgba(15, 22, 32, 0.6);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(29, 161, 242, 0.2);
   border-radius: 10px;
   transition: background 0.3s ease, transform 0.2s ease;
+  box-shadow: 0 0 6px rgba(29, 161, 242, 0.1);
   cursor: pointer;
 }
 
-.friend-row:hover {
-  background: #1f1f1f;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 170, 255, 0.15);
+.friendRow:hover {
+  background: rgba(29, 161, 242, 0.12);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 8px var(--glow-color),
+    0 0 12px var(--glow-color-soft);
 }
 
-.friend-info {
+.friendInfo {
   display: flex;
   flex-direction: column;
 }
 
-.friend-name {
+.friendName {
   font-weight: 600;
   font-size: 1rem;
-  color: #ffffff;
+  color: #b0cfff;
 }
 
-.friend-status-text {
+.friendStatusText {
   font-size: 0.75rem;
-  color: #00aaff;
+  color: #8fcaff;
 }
 
-/* ==========================================================================
-   🔵 ONLINE/OFFLINE DOTS
-========================================================================== */
-.status-dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
+.online {
+  color: #00ff9d;
 }
 
-.status-dot.online {
-  background-color: #00ff9d;
-  box-shadow: 0 0 6px rgba(0, 255, 157, 0.6);
+.offline {
+  color: #444;
 }
 
-.status-dot.offline {
-  background-color: #444;
-}
-
-/* ==========================================================================
-   🔔 UNREAD BADGE
-========================================================================== */
-.unread-badge {
-  background-color: #ff4d4d;
-  color: white;
-  font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: 12px;
-  margin-left: 0.5rem;
-  box-shadow: 0 0 10px rgba(255, 77, 77, 0.4);
-}
-
-/* ==========================================================================
-   ✅ FRIEND REQUEST BUTTONS
-========================================================================== */
-.friends-sidebar__request {
+.friendsSidebarRequest {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.75rem;
 }
 
-.friends-sidebar__actions {
+.friendsSidebarActions {
   display: flex;
   gap: 0.25rem;
 }
 
-.accept-btn,
-.decline-btn {
+.acceptBtn,
+.declineBtn {
   font-size: 0.75rem;
   padding: 0.3rem 0.7rem;
   border-radius: 6px;
@@ -202,25 +184,34 @@
   transition: all 0.3s ease;
 }
 
-.accept-btn {
+.acceptBtn {
   background: linear-gradient(to bottom right, #16a34a, #15803d);
   color: #fff;
   box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
 }
 
-.accept-btn:hover {
+.acceptBtn:hover {
   background: #15803d;
 }
 
-.decline-btn {
+.declineBtn {
   background: linear-gradient(to bottom right, #dc2626, #b91c1c);
   color: #fff;
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
 }
 
-.decline-btn:hover {
+.declineBtn:hover {
   background: #991b1b;
 }
+
+.formLabel {
+  font-size: 0.9rem;
+  color: #8fcaff;
+  opacity: 0.85;
+  margin-bottom: 0.25rem;
+  display: block;
+}
+
 
 /* ==========================================================================
    📱 MOBILE DRAWER STYLE

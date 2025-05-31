@@ -1,31 +1,39 @@
+// File: AddFriendForm.jsx - Updated with React Icon and Modular CSS
+
 import React, { useState, useEffect } from "react";
+import { AiOutlineUserAdd } from "react-icons/ai";
 import { useFriends } from "../context/friendsContext";
-import "./AddFriendForm.css"; // Custom styling for form and feedback UI
+import styles from "./AddFriendForm.module.css";
 
 /**
- * AddFriendForm
- *
- * Component for submitting friend requests by email.
- * Integrates with the friends context to trigger the backend API,
- * display user-friendly feedback, and refresh the friends list.
- *
- * Features:
- * - Email input validation
- * - Server-side error parsing and display
- * - Success and error feedback with auto-clear
+ * AddFriendForm Component
+ * ----------------------------------------------------------------
+ * Allows users to send friend requests via email.
+ * Uses Tron-style modular CSS and React Icon for submit button.
  */
 const AddFriendForm = () => {
-    // Local state for input and feedback message
     const [email, setEmail] = useState("");
-    const [feedback, setFeedback] = useState(null); // { type: "success" | "error", message: string }
-
-    // Access friend request API actions from context
+    const [feedback, setFeedback] = useState(null);
     const { sendRequest, refreshFriends } = useFriends();
 
-    /**
-     * Extracts a clean error message from an Axios error object.
-     * Supports Django REST Framework's nested field error formats.
-   */
+    // Handle form submission
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+        if (!email) return;
+
+        try {
+        await sendRequest(email);
+        setFeedback({ type: "success", message: "Friend request sent!" });
+        setEmail("");
+        refreshFriends();
+        } catch (error) {
+        const errorMsg = extractErrorMessage(error);
+        console.log("[AddFriendForm] Extracted error message:", errorMsg);
+        setFeedback({ type: "error", message: errorMsg });
+        }
+    };
+
+    // Parse error message from API
     const extractErrorMessage = (error) => {
         const data = error?.response?.data;
         if (!data) return "Something went wrong.";
@@ -42,31 +50,7 @@ const AddFriendForm = () => {
         return "Something went wrong.";
     };
 
-    /**
-     * Handles form submission:
-     * - Sends the request
-     * - Updates friend list
-     * - Sets appropriate feedback message
-     */
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        if (!email) return;
-
-        try {
-        await sendRequest(email);
-        setFeedback({ type: "success", message: "Friend request sent!" });
-        setEmail("");
-        refreshFriends();
-        } catch (error) {
-        const errorMsg = extractErrorMessage(error);
-        console.log("[AddFriendForm] Extracted error message:", errorMsg); 
-        setFeedback({ type: "error", message: errorMsg });
-        }
-    };
-
-    /**
-     * Clears the feedback message after 3 seconds.
-     */
+    // Auto-clear feedback
     useEffect(() => {
         if (feedback) {
         const timer = setTimeout(() => setFeedback(null), 3000);
@@ -75,25 +59,34 @@ const AddFriendForm = () => {
     }, [feedback]);
 
     return (
-        <form onSubmit={handleSubmit} className="friends-sidebar__add-form">
-        <label htmlFor="friendEmail" className="friends-sidebar__label">
+        <form onSubmit={handleSubmit} className={styles.form}>
+        {/* Label */}
+        <label htmlFor="friendEmail" className={styles.label}>
             Add a friend
         </label>
-        <div className="friends-sidebar__input-group">
+
+        {/* Input + Icon Button */}
+        <div className={styles.inputGroup}>
             <input
             id="friendEmail"
             type="email"
             placeholder="Enter email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="friends-sidebar__input"
+            className={styles.input}
             required
             />
-            <button type="submit" className="add-btn">Add</button>
+
+            <button type="submit" className={styles.addBtn} title="Send friend request">
+            <AiOutlineUserAdd size={20} />
+            </button>
         </div>
 
+        {/* Feedback */}
         {feedback && (
-            <p className={`feedback ${feedback.type}`}>{feedback.message}</p>
+            <p className={`${styles.feedback} ${styles[feedback.type]}`}>
+            {feedback.message}
+            </p>
         )}
         </form>
     );

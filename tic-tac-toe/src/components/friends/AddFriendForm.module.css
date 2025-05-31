@@ -1,23 +1,30 @@
+/* File: AddFriendForm.module.css - Modular Tron-styled form */
 
-.friends-sidebar__add-form {
+.form {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
 }
 
-.friends-sidebar__label {
-  font-size: 0.85rem;
-  color: #ccc;
-  font-weight: 500;
+.label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1da1f2;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.5rem;
+
+  text-shadow:
+    0 0 6px rgba(29, 161, 242, 0.4),
+    0 0 12px rgba(29, 161, 242, 0.2);
 }
 
-.friends-sidebar__input-group {
+.inputGroup {
   display: flex;
   gap: 0.5rem;
 }
 
-.friends-sidebar__input {
+.input {
   flex: 1;
   background-color: #111;
   color: white;
@@ -27,52 +34,40 @@
   font-size: 0.85rem;
 }
 
-.friends-sidebar__input::placeholder {
+.input::placeholder {
   color: #777;
 }
 
-.add-btn {
-  padding: 0.5rem 1rem;
+.addBtn {
+  padding: 0.5rem 0.75rem;
   font-size: 1rem;
-  font-weight: bold;
   background-color: black;
-  color: white;
+  color: var(--primary-color);
   border: 2px solid var(--border-color);
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
-
-  /* ✅ Tron glow by default */
-  /* box-shadow:
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
     0 0 6px var(--glow-color-soft),
     0 0 12px var(--glow-color);
-
-  animation: pulse-glow 3s ease-in-out infinite; */
 }
 
-.add-btn:hover {
+.addBtn svg {
+  color: #1da1f2;
+}
+
+.addBtn:hover {
   background-color: #0d0d0d;
   transform: translateY(-3px) scale(1.05);
-
-  /* ✅ Enhanced hover glow */
   box-shadow:
     0 0 12px var(--glow-color),
     0 0 20px var(--glow-color-soft),
     0 0 32px var(--glow-color);
 }
-/* @keyframes pulse-glow {
-  0% {
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 25px rgba(255, 255, 255, 0.6);
-  }
-  100% {
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-  }
-} */
 
-/* === Feedback Messages === */
 .feedback {
   margin-top: 0.75rem;
   font-size: 0.85rem;
@@ -81,14 +76,14 @@
   border-radius: 4px;
 }
 
-.feedback.success {
-  background-color: rgba(22, 163, 74, 0.1); /* green background */
+.success {
+  background-color: rgba(22, 163, 74, 0.1);
   color: #4ade80;
   border: 1px solid #4ade80;
 }
 
-.feedback.error {
-  background-color: rgba(220, 38, 38, 0.1); /* red background */
+.error {
+  background-color: rgba(220, 38, 38, 0.1);
   color: #f87171;
   border: 1px solid #f87171;
 }
