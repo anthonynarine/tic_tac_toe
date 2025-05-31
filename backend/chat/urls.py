@@ -1,7 +1,10 @@
-# chat/urls.py
 from django.urls import path
+from .views.conversation_views import ConversationMessageListView
 
-urlpatterns = []
-
-# WebSocket routing is handled in chat/routing.py
-# Example WebSocket URL: ws://<host>/ws/chat/<lobby_name>/
+urlpatterns = [
+    path(
+        "conversations/<int:conversation_id>/messages/",
+        ConversationMessageListView.as_view(),
+        name="conversation-messages"
+    ),
+]

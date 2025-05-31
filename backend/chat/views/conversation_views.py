@@ -1,20 +1,8 @@
-from rest_framework import serializers, generics, permissions
+from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
 from chat.models import DirectMessage, Conversation
+from chat.serializer import DirectMessageSerializer
 
-class DirectMessageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DirectMessage
-        fields = [
-            "id",
-            "sender",
-            "receiver",
-            "content",
-            "timestamp",
-            "is_read",
-            "conversation_id",
-        ]
-        read_only_fields = ["id", "sender", "timestamp", "conversation_id", "is_read"]
 
 class ConversationMessageListView(generics.ListAPIView):
     """
