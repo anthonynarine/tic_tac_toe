@@ -1,5 +1,6 @@
-import { AIResultModal } from "../reslutModal/AIResultModal";
-import { MultiplayerResultModal } from "../reslutModal/MultiplayerResultModal";
+
+import { AIResultModal } from "../resultModal/AIResultModal";
+import { MultiplayerResultModal } from "../resultModal/MultiplayerResultModal";
 
 /**
  * GameResult Component

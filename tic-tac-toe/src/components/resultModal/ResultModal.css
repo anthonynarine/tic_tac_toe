@@ -1,0 +1,148 @@
+/* ==========================================================================
+   🪩 MODAL OVERLAY
+   ========================================================================== */
+#modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 1000;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+}
+
+#modal-overlay.modal-open {
+  display: flex;
+  pointer-events: all;
+  animation: fadeIn 0.4s ease;
+}
+
+/* ==========================================================================
+   🧱 MODAL CONTAINER
+   ========================================================================== */
+#game-result-modal {
+  background: #0e1117;
+  border: 1px solid rgba(29, 161, 242, 0.25);
+  border-radius: 12px;
+  box-shadow:
+    0 0 8px rgba(29, 161, 242, 0.3),
+    0 0 20px rgba(29, 161, 242, 0.1);
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  animation: dripIn 0.6s ease-out;
+}
+
+/* ==========================================================================
+   🏆 RESULT TITLE
+   ========================================================================== */
+#winner-container {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: #1DA1F2;
+  margin-bottom: 1.25rem;
+  text-shadow: 0 0 8px rgba(29, 161, 242, 0.3);
+}
+
+/* ==========================================================================
+   🕹 BUTTON CONTAINER
+   ========================================================================== */
+#new-game-container {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ==========================================================================
+   🧵 BUTTON STYLES
+   ========================================================================== */
+.modal-button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  box-shadow: 0 0 12px rgba(29, 161, 242, 0.1);
+}
+
+.play-again-button {
+  background-color: #1DA1F2;
+  color: #fff;
+}
+
+.play-again-button:hover {
+  background-color: #1484c7;
+}
+
+.home-button {
+  background-color: #1DA1F2;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.home-icon {
+  margin-right: 0.5rem;
+  font-size: 1.25rem;
+}
+
+/* ==========================================================================
+   💬 REMATCH TEXT / OPTIONS
+   ========================================================================== */
+.rematch-text {
+  color: #aaa;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.rematch-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   🔁 REMATCH BUTTON VARIANTS
+   ========================================================================== */
+.decline-button {
+  background: transparent;
+  border: 1px solid #555;
+  color: #eee;
+}
+
+.decline-button:hover {
+  background: rgba(255, 0, 0, 0.1);
+  color: #ff4d4d;
+  border-color: #ff4d4d;
+}
+
+/* ==========================================================================
+   🔄 ANIMATIONS
+   ========================================================================== */
+@keyframes dripIn {
+  0% {
+    transform: translateY(-200%);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(10%);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
