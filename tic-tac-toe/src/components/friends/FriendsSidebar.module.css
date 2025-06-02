@@ -6,7 +6,8 @@
 
 .friendsSidebar {
   /* background: linear-gradient(135deg, #0e1117 0%, #000000 100%); */
-  color: #b0cfff;
+  color: #080808;
+  background-color: #000000; 
   width: 20rem;
   max-width: 100%;
   display: flex;
@@ -14,11 +15,13 @@
   border-left: 1px solid var(--border-color);
   box-shadow:
     2px 0 8px rgba(0, 170, 255, 0.15),
-    0 0 30px rgba(0, 170, 255, 0.04);
+    0 0 30px rgba(12, 12, 12, 0.04);
   backdrop-filter: blur(12px);
   z-index: 50;
   height: 100%;
   transition: transform 0.4s ease-in-out;
+  position: relative;
+  /* overflow: hidden;  */
 }
 
 @media (max-width: 1024px) {
@@ -39,14 +42,15 @@
 }
 
 .friendsSidebarHeader {
-  position: sticky;
+  position: relative;
   top: 0;
   background-color: #000;
-  padding: 0.75rem 1.25rem;
+  padding: 1rem 1.5rem;
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   height: 56px;
+  user-select: none;
   z-index: 10;
   border-bottom: 1px solid var(--border-color);
   box-shadow:
@@ -81,10 +85,28 @@
   color: #fff;
 }
 
+/* ================= Trinity Overlay Container ================= */
+/* Positioned below header, overlays sidebar content without pushing it */
+.trinityOverlayContainer {
+  max-height: 12rem; /* or whatever fits your design */
+  overflow-y: auto;
+  background-color: transparent;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  box-shadow:
+    0 4px 8px rgba(29, 161, 242, 0.2);
+  position: relative;
+  z-index: 10;
+  /* add transition if you want smooth resizing */
+  transition: max-height 0.3s ease;
+}
+
 .friendsSidebarContent {
   padding: 1.5rem 1rem;
   overflow-y: auto;
   flex-grow: 1;
+  position: relative;
+  z-index: 105;
 }
 
 .friendsSidebarSection {
@@ -106,7 +128,7 @@
 
 .friendsSidebarEmpty {
   font-size: 0.85rem;
-  color: #5a6b77;
+  color: #000000;
 }
 
 .friendsSidebarFriend {
@@ -335,4 +357,57 @@
   }
 }
 
+/* Overlay backdrop dims sidebar */
+.trinityBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 90;
+  cursor: pointer;
+}
+
+/* Slide-over panel styles */
+.trinitySlideOver {
+  position: relative;
+  top: var(--navbar-height);
+  right: 0;
+  width: 320px; /* match sidebar width or adjust */
+  height: calc(100vh - var(--navbar-height));
+  background-color: #0a0a0a;
+  box-shadow: -8px 0 24px rgba(0, 170, 255, 0.8);
+  z-index: 90;
+  animation: slideIn 0.3s forwards;
+  
+  overflow-y: auto;
+}
+
+/* Slide-in animation */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Optional: Add button style for "Ask Trinity" button in sidebar header */
+.askTrinityButton {
+  margin-left: auto;
+  background: none;
+  border: 2px solid #1da1f2;
+  color: #00ffff;
+  padding: 0.3rem 0.7rem;
+  border-radius: 8px;
+  font-family: "Share Tech Mono", monospace;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  user-select: none;
+}
+
+.askTrinityButton:hover {
+  background-color: #004466;
+  box-shadow: 0 0 12px #00ffff;
+}
 

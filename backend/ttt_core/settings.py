@@ -15,6 +15,7 @@ julia_fiesta_logs()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Security settings
+OPENAI_API_KEY = config("OPENAI_API_KEY")
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = [

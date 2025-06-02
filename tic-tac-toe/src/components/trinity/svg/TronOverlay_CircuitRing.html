@@ -1,0 +1,33 @@
+<!-- File: TronOverlay_CircuitRing.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tron AI - Circuit Ring</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <svg viewBox="0 0 400 400" width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="200" cy="200" r="180" stroke="#00f7ff" stroke-width="1.5" fill="none" stroke-dasharray="12 6">
+      <animateTransform attributeName="transform" type="rotate" from="0 200 200" to="360 200 200" dur="12s" repeatCount="indefinite"/>
+    </circle>
+
+    <circle cx="200" cy="200" r="140" stroke="#1da1f2" stroke-width="1" fill="none">
+      <animate attributeName="stroke-opacity" values="0.3;1;0.3" dur="2.5s" repeatCount="indefinite"/>
+    </circle>
+
+    <circle cx="200" cy="200" r="4" fill="#00ffff">
+      <animate attributeName="r" values="4;6;4" dur="1.6s" repeatCount="indefinite" />
+    </circle>
+  </svg>
+</body>
+</html>

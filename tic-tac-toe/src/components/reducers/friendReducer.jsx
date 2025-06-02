@@ -48,6 +48,7 @@ export function friendReducer(state, action) {
          */
         case "STATUS_UPDATE": {
         const { user_id, status } = action.payload;
+        console.log("STATUS_UPDATE for user:", user_id, "new status:", status);
 
         return {
             ...state,

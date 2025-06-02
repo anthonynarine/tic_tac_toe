@@ -1,0 +1,116 @@
+.avatarContainer {
+  position: relative; /* or absolute if sidebar is relative positioned */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  z-index: 1001;
+  margin-bottom: .5rem; /* space below */
+  margin-top: .5rem;
+  transition: transform 0.3s ease;
+  background-color: black;
+}
+
+.avatarContainer:hover {
+  transform: scale(1.07);
+}
+
+.glowRing {
+  background-color: black;
+  padding: .5rem;
+  border-radius: 50%;
+  /* border: 1px solid #1da1f2; */
+  box-shadow:
+    0 0 6px rgba(29, 161, 242, 0.6),
+    0 0 14px rgba(29, 161, 242, 0.4),
+    0 0 24px rgba(29, 161, 242, 0.2);
+  animation: pulseRing 3s ease-in-out infinite, floatBot 6s ease-in-out infinite;
+}
+
+
+.icon {
+  font-size: 1.5rem;
+  color: #1da1f2;
+  animation: glowPulse 2.5s ease-in-out infinite;
+  text-shadow:
+    0 0 6px rgba(29, 161, 242, 0.8),
+    0 0 12px rgba(29, 161, 242, 0.6),
+    0 0 20px rgba(29, 161, 242, 0.4);
+}
+.caption {
+  font-size: 0.9rem;
+  color: var(--primary-color, #00ffff);
+  margin-top: 0.5rem;
+  opacity: 0.85;
+  font-family: "Share Tech Mono", monospace;
+  letter-spacing: 1px;
+}
+
+@keyframes pulseRing {
+  0%, 100% {
+    box-shadow:
+      0 0 6px rgba(29, 161, 242, 0.6),
+      0 0 16px rgba(29, 161, 242, 0.4),
+      0 0 28px rgba(29, 161, 242, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 8px rgba(29, 161, 242, 0.8),
+      0 0 20px rgba(29, 161, 242, 0.6),
+      0 0 36px rgba(29, 161, 242, 0.4);
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    text-shadow:
+      0 0 6px rgba(29, 161, 242, 0.7),
+      0 0 14px rgba(29, 161, 242, 0.5),
+      0 0 24px rgba(29, 161, 242, 0.3);
+  }
+  50% {
+    text-shadow:
+      0 0 14px rgba(29, 161, 242, 1),
+      0 0 28px rgba(29, 161, 242, 0.8),
+      0 0 40px rgba(29, 161, 242, 0.5);
+  }
+}
+
+@keyframes floatBot {
+  0%, 100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(2px, -8px);
+  }
+  50% {
+    transform: translate(0, -10px);
+  }
+  75% {
+    transform: translate(-2px, -8px);
+  }
+}
+
+.glowRing {
+  animation: pulseRing 3s ease-in-out infinite, floatBot 5s ease-in-out infinite;
+}
+
+/* ✅ Update this */
+/* File: TrinityOverlay.module.css */
+
+.svgWrapper {
+  position: relative;
+  width: 100px;       /* 🎯 Smaller ring */
+  height: 100px;
+}
+
+@media (max-width: 600px) {
+  .svgWrapper {
+    width: 64px;
+    height: 64px;
+  }
+
+  .centerIcon {
+    font-size: 1.5rem;
+  }
+}

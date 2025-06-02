@@ -39,6 +39,9 @@ export const FriendsProvider = ({ children }) => {
     const { fetchFriends, fetchPending, sendRequest, acceptRequest, declineRequest } = useFriendAPI();
     const { user } = useUserContext();
 
+      // Log user changes
+    console.log("FriendsProvider: current user", user);
+
     // ✅ STEP 1: Establish real-time friend status listener
     useFriendStatusSocket(user, dispatch);
 
@@ -47,12 +50,16 @@ export const FriendsProvider = ({ children }) => {
      * - Called on initial load or refresh
      */
     const loadFriendData = useCallback(async () => {
+        console.log("FriendsProvider: loadFriendData called");
         dispatch({ type: "SET_LOADING", payload: true });
         try {
         const [friendsRes, pendingRes] = await Promise.all([
             fetchFriends(),
             fetchPending(),
         ]);
+
+        console.log("FriendsProvider: fetched friends", friendsRes.data);
+        console.log("FriendsProvider: fetched pending", pendingRes.data);
 
         dispatch({ type: "SET_ERROR", payload: null });
         dispatch({ type: "SET_FRIENDS", payload: friendsRes.data });

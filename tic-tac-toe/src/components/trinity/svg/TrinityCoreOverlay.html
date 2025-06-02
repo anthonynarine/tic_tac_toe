@@ -1,0 +1,57 @@
+<!-- File: TrinityCoreOverlay.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Trinity Core</title>
+  <style>
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at center, #000000 0%, #020d12 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .glow {
+      filter: drop-shadow(0 0 8px #00f7ff);
+      animation: pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.04); }
+    }
+
+    svg {
+      max-width: 600px;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" class="glow">
+    <!-- Halo -->
+    <circle cx="300" cy="300" r="250" stroke="#00f7ff" stroke-width="1.5" fill="none" />
+    
+    <!-- AI Face Outline -->
+    <path d="M200,400 Q210,250 390,250 Q400,400 300,420 Q200,400 200,400 Z"
+      fill="none" stroke="#00f7ff" stroke-width="2" />
+
+    <!-- Eyes -->
+    <circle cx="250" cy="330" r="5" fill="#00f7ff" />
+    <circle cx="350" cy="330" r="5" fill="#00f7ff" />
+
+    <!-- Inner grid lines -->
+    <line x1="200" y1="400" x2="300" y2="300" stroke="#00f7ff" stroke-opacity="0.2" />
+    <line x1="300" y1="300" x2="400" y2="400" stroke="#00f7ff" stroke-opacity="0.2" />
+
+    <!-- Orbiting Particle -->
+    <circle r="5" fill="#00f7ff">
+      <animateMotion dur="6s" repeatCount="indefinite" path="M300,100 A200,200 0 1,1 299.9,100" />
+    </circle>
+  </svg>
+</body>
+</html>

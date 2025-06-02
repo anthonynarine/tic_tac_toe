@@ -1,0 +1,71 @@
+<!-- File: HokageTronOverlay.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hokage Tron</title>
+  <style>
+    body {
+      margin: 0;
+      background: radial-gradient(circle at center, #000000 0%, #050505 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    svg {
+      width: 500px;
+      height: auto;
+      filter: drop-shadow(0 0 10px #ffaa00);
+    }
+
+    .chakraFire {
+      animation: flicker 2s infinite ease-in-out;
+      opacity: 0.5;
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
+
+    .float {
+      animation: floatUp 5s ease-in-out infinite;
+    }
+
+    @keyframes floatUp {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+  </style>
+</head>
+<body>
+  <svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" class="float">
+    <!-- Hokage Robe -->
+    <path d="M220,400 Q300,480 380,400 Q370,340 230,340 Q220,400 220,400 Z"
+          fill="none" stroke="#ffaa00" stroke-width="2" />
+
+    <!-- Spiky Hokage Hair -->
+    <path d="M240,270 L250,240 L270,260 L285,230 L300,260 L315,230 L330,260 L350,240 L360,270"
+          fill="none" stroke="#ffaa00" stroke-width="2" />
+
+    <!-- Eyes -->
+    <circle cx="270" cy="310" r="4" fill="#ffaa00" />
+    <circle cx="330" cy="310" r="4" fill="#ffaa00" />
+
+    <!-- Headband plate -->
+    <rect x="260" y="290" width="80" height="20" rx="5" stroke="#ffaa00" fill="none" stroke-width="1.5" />
+    <text x="300" y="305" text-anchor="middle" font-size="12" fill="#ffaa00">火</text>
+
+    <!-- Flame Chakra -->
+    <path d="M300,500 Q290,520 280,540 Q310,560 340,540 Q330,520 320,500 Q310,480 300,500 Z"
+          fill="#ffaa00" opacity="0.1" class="chakraFire" />
+
+    <!-- Floating Kanji Title -->
+    <text x="300" y="100" text-anchor="middle" font-size="24" fill="#ffaa00" font-family="sans-serif">
+      火影
+    </text>
+  </svg>
+</body>
+</html>

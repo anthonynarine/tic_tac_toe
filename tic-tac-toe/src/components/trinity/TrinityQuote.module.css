@@ -1,0 +1,22 @@
+.quote {
+  font-size: 0.85rem;
+  color: #00bfff;
+  font-family: "Share Tech Mono", monospace;
+  letter-spacing: 1px;
+  margin-top: 0.25rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  /* border-right: 1px solid #00ffff; */
+  animation: caret 3s steps(1) infinite;
+  height: 1.5rem;
+}
+
+@keyframes caret {
+  0%, 100% {
+    border-color: transparent;
+  }
+  50% {
+    border-color: #00ffff;
+  }
+}

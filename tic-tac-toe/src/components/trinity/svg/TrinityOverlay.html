@@ -1,0 +1,93 @@
+<!-- File: TronOracleOverlay.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tron Oracle AI</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .oracleContainer {
+      width: 500px;
+      height: 500px;
+    }
+
+    .pulse {
+      animation: pulseGlow 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% {
+        stroke-opacity: 0.4;
+        filter: drop-shadow(0 0 6px #00f7ff);
+      }
+      50% {
+        stroke-opacity: 1;
+        filter: drop-shadow(0 0 16px #00f7ff);
+      }
+    }
+
+    .glow {
+      filter: drop-shadow(0 0 10px #00f7ff);
+      animation: floaty 6s ease-in-out infinite;
+    }
+
+    @keyframes floaty {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="oracleContainer">
+    <svg
+      viewBox="0 0 500 500"
+      xmlns="http://www.w3.org/2000/svg"
+      class="glow"
+    >
+      <!-- Outer circuit ring -->
+      <circle cx="250" cy="250" r="200" stroke="#00f7ff" stroke-width="2" fill="none" class="pulse" />
+
+      <!-- Inner AI face (stylized) -->
+      <path
+        d="M180,320 C190,230 310,230 320,320 Q310,370 250,370 Q190,370 180,320 Z"
+        stroke="#00ffff"
+        fill="none"
+        stroke-width="2"
+        class="pulse"
+      />
+
+      <!-- Eyes -->
+      <circle cx="215" cy="290" r="4" fill="#00f7ff" />
+      <circle cx="285" cy="290" r="4" fill="#00f7ff" />
+
+      <!-- Headset lines -->
+      <line x1="140" y1="250" x2="180" y2="270" stroke="#00f7ff" stroke-width="2" />
+      <line x1="360" y1="250" x2="320" y2="270" stroke="#00f7ff" stroke-width="2" />
+
+      <!-- Animated orbit arc -->
+      <path d="M250,50 A200,200 0 0,1 450,250"
+        stroke="#00ffff"
+        stroke-width="2"
+        fill="none"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 250 250"
+          to="360 250 250"
+          dur="12s"
+          repeatCount="indefinite"
+        />
+      </path>
+    </svg>
+  </div>
+</body>
+</html>

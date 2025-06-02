@@ -50,6 +50,8 @@ const useFriendStatusSocket = (user, dispatch) => {
         const backendHost = process.env.REACT_APP_BACKEND_WS || "localhost:8000";
         const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
 
+        console.log(`Connecting to WS: ${wsScheme}://${backendHost}/ws/friends/status/?token=${token}`);
+
         // Establish the WebSocket connection to the FriendStatusConsumer
         const socket = new WebSocket(
             `${wsScheme}://${backendHost}/ws/friends/status/?token=${token}`
@@ -65,6 +67,7 @@ const useFriendStatusSocket = (user, dispatch) => {
         // 📬 Handle incoming messages from the server
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            console.log("📬 Received WS message:", data);
 
             if (data.type === "status_update") {
                 // Dispatch action to update friend's status in context
@@ -83,7 +86,10 @@ const useFriendStatusSocket = (user, dispatch) => {
         };
 
         // 🧹 Clean up connection on unmount or user change
-        return () => socket.close();
+        return () => {
+        console.log("Closing Friend status WebSocket");
+        socket.close();
+        };
     }, [user?.id, dispatch]);
 };
 
