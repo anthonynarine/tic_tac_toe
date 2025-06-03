@@ -75,7 +75,7 @@ const TrinityDrawer = () => {
                 <div className={styles.icon}>
                     <TronNeuralRing className={styles.glowSvg} />
                 </div>
-                <span className={styles.title}>Trinity Code Assistant</span>
+                {/* <span className={styles.title}>Trinity Code Assistant</span> */}
                 <button className={styles.closeBtn} onClick={() => setTrinityOpen(false)}>
                     <IoCloseSharp />
                 </button>
