@@ -4,7 +4,7 @@ import styles from "./TrinityDrawer.module.css";
 import { IoCloseSharp, IoSend } from "react-icons/io5";
 import useAuthAxios from "../hooks/useAuthAxios";
 import { useUI } from "../context/uiContext";
-
+import TronNeuralRing from "./svg/TronNeuralRing";
 /**
  * TrinityDrawer
  * - Floating assistant drawer
@@ -72,6 +72,9 @@ const TrinityDrawer = () => {
     return (
         <div className={styles.drawer}>
             <div className={styles.header}>
+                <div className={styles.icon}>
+                    <TronNeuralRing className={styles.glowSvg} />
+                </div>
                 <span className={styles.title}>Trinity Code Assistant</span>
                 <button className={styles.closeBtn} onClick={() => setTrinityOpen(false)}>
                     <IoCloseSharp />

@@ -1,29 +1,30 @@
-/* File: FriendsSidebar.module.css - Tron Redesign with Color Adjustments */
-
 :root {
   --navbar-height: 96px;
 }
 
+/* ==========================================================================
+ 🌌 BASE SIDEBAR CONTAINER (Shared across screen sizes)
+========================================================================== */
 .friendsSidebar {
-  /* background: linear-gradient(135deg, #0e1117 0%, #000000 100%); */
   color: #080808;
-  background-color: #000000; 
+  background-color: #000000;
   width: 20rem;
   max-width: 100%;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border-color);
-  box-shadow:
-    2px 0 8px rgba(0, 170, 255, 0.15),
-    0 0 30px rgba(12, 12, 12, 0.04);
+  box-shadow: 2px 0 8px rgba(0, 170, 255, 0.15),
+              0 0 30px rgba(12, 12, 12, 0.04);
   backdrop-filter: blur(12px);
   z-index: 50;
   height: 100%;
   transition: transform 0.4s ease-in-out;
   position: relative;
-  /* overflow: hidden;  */
 }
 
+/* ==========================================================================
+ 🎯 ENTRY ANIMATION
+========================================================================== */
 @media (max-width: 1024px) {
   .friendsSidebar {
     animation: slideInSidebar 0.5s ease-in-out;
@@ -41,6 +42,9 @@
   }
 }
 
+/* ==========================================================================
+ 🧱 SIDEBAR HEADER (Sticky at Top)
+========================================================================== */
 .friendsSidebarHeader {
   position: relative;
   top: 0;
@@ -50,12 +54,11 @@
   justify-content: space-between;
   align-items: center;
   height: 56px;
-  user-select: none;
-  z-index: 10;
   border-bottom: 1px solid var(--border-color);
   box-shadow:
     0 2px 4px var(--glow-color-soft),
     0 4px 8px var(--glow-color);
+  z-index: 10;
 }
 
 .friendsSidebarTitle {
@@ -75,32 +78,33 @@
   margin-left: auto;
 }
 
+.friendsSidebarClose:hover {
+  color: #fff;
+}
+
 @media (min-width: 1025px) {
   .friendsSidebarClose {
     display: none;
   }
 }
 
-.friendsSidebarClose:hover {
-  color: #fff;
-}
-
-/* ================= Trinity Overlay Container ================= */
-/* Positioned below header, overlays sidebar content without pushing it */
+/* ==========================================================================
+ 👁️‍🗨️ TRINITY OVERLAY + ASIDE SECTION
+========================================================================== */
 .trinityOverlayContainer {
-  max-height: 12rem; /* or whatever fits your design */
+  max-height: 12rem;
   overflow-y: auto;
   background-color: transparent;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-color);
-  box-shadow:
-    0 4px 8px rgba(29, 161, 242, 0.2);
-  position: relative;
+  box-shadow: 0 4px 8px rgba(29, 161, 242, 0.2);
   z-index: 10;
-  /* add transition if you want smooth resizing */
   transition: max-height 0.3s ease;
 }
 
+/* ==========================================================================
+ 📜 MAIN SCROLLABLE CONTENT
+========================================================================== */
 .friendsSidebarContent {
   padding: 1.5rem 1rem;
   overflow-y: auto;
@@ -121,9 +125,8 @@
   font-weight: 600;
   letter-spacing: 0.5px;
   margin-bottom: 0.75rem;
-  text-shadow:
-    0 0 6px rgba(29, 161, 242, 0.4),
-    0 0 12px rgba(29, 161, 242, 0.2);
+  text-shadow: 0 0 6px rgba(29, 161, 242, 0.4),
+               0 0 12px rgba(29, 161, 242, 0.2);
 }
 
 .friendsSidebarEmpty {
@@ -131,6 +134,9 @@
   color: #000000;
 }
 
+/* ==========================================================================
+ 👤 FRIEND ROW STYLING
+========================================================================== */
 .friendsSidebarFriend {
   margin-bottom: 0.75rem;
   padding-left: 0.25rem;
@@ -183,6 +189,9 @@
   color: #444;
 }
 
+/* ==========================================================================
+ 🔁 FRIEND REQUEST ACTIONS
+========================================================================== */
 .friendsSidebarRequest {
   display: flex;
   justify-content: space-between;
@@ -208,43 +217,38 @@
   justify-content: center;
 }
 
-/* ✅ Accept button styles */
+/* 🎉 Accept button */
 .acceptBtn {
   color: #00ff9d;
   border: 2px solid #00ff9d;
-  box-shadow:
-    0 0 6px rgba(0, 255, 157, 0.3),
-    0 0 12px rgba(0, 255, 157, 0.6);
+  box-shadow: 0 0 6px rgba(0, 255, 157, 0.3),
+              0 0 12px rgba(0, 255, 157, 0.6);
 }
 
 .acceptBtn:hover {
   background-color: #0d0d0d;
   transform: translateY(-3px) scale(1.05);
-  box-shadow:
-    0 0 12px #00ff9d,
-    0 0 20px rgba(0, 255, 157, 0.4),
-    0 0 32px rgba(0, 255, 157, 0.8);
+  box-shadow: 0 0 12px #00ff9d,
+              0 0 20px rgba(0, 255, 157, 0.4),
+              0 0 32px rgba(0, 255, 157, 0.8);
 }
 
-/* ✅ Decline button styles */
+/* ❌ Decline button */
 .declineBtn {
   color: #ff4d4d;
   border: 2px solid #ff4d4d;
-  box-shadow:
-    0 0 6px rgba(255, 77, 77, 0.3),
-    0 0 12px rgba(255, 77, 77, 0.6);
+  box-shadow: 0 0 6px rgba(255, 77, 77, 0.3),
+              0 0 12px rgba(255, 77, 77, 0.6);
 }
 
 .declineBtn:hover {
   background-color: #0d0d0d;
   transform: translateY(-3px) scale(1.05);
-  box-shadow:
-    0 0 12px #ff4d4d,
-    0 0 20px rgba(255, 77, 77, 0.4),
-    0 0 32px rgba(255, 77, 77, 0.8);
+  box-shadow: 0 0 12px #ff4d4d,
+              0 0 20px rgba(255, 77, 77, 0.4),
+              0 0 32px rgba(255, 77, 77, 0.8);
 }
 
-/* ✅ Shared icon transitions */
 .acceptBtn svg,
 .declineBtn svg {
   color: currentColor;
@@ -257,8 +261,9 @@
   filter: drop-shadow(0 0 4px currentColor);
 }
 
-
-
+/* ==========================================================================
+ 🧾 FORM STYLING
+========================================================================== */
 .formLabel {
   font-size: 0.9rem;
   color: #8fcaff;
@@ -267,81 +272,52 @@
   display: block;
 }
 
-
 /* ==========================================================================
-   📱 MOBILE DRAWER STYLE
+ 📱 MOBILE & TABLET STYLES
 ========================================================================== */
 @media (max-width: 767px) {
-  .friends-sidebar {
+  .friendsSidebar {
     position: fixed;
-    top: var(--navbar-height);
-    right: 0;
-    width: 100%;
-    height: calc(100vh - var(--navbar-height));
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
+    z-index: 1000;
     transform: translateX(100%);
+    background-color: #000;
+    border: none;
+    box-shadow: -2px 0 10px rgba(0, 170, 255, 0.08);
     transition: transform 0.4s ease-in-out;
-    border-left: 1px solid #555;
-    box-shadow: -2px 0 10px rgba(255, 255, 255, 0.1);
+    overflow-y: auto;
   }
 
-  .friends-sidebar.open {
+  .open {
     transform: translateX(0);
-    box-shadow:
-      -4px 0 15px rgba(0, 170, 255, 0.08),
-      0 0 20px rgba(0, 170, 255, 0.06);
-  }
-
-  .friends-sidebar__close {
-    display: block;
+    box-shadow: -4px 0 15px rgba(0, 170, 255, 0.08),
+                0 0 20px rgba(0, 170, 255, 0.06);
   }
 }
 
-/* ==========================================================================
-   📱 TABLET DRAWER STYLE (70% width)
-========================================================================== */
+
 @media (min-width: 768px) and (max-width: 1024px) {
   .friends-sidebar {
-    position: fixed;
-    top: var(--navbar-height);
-    right: 0;
     width: 70%;
     max-width: 32rem;
-    height: calc(100vh - var(--navbar-height));
-    transform: translateX(100%);
-    transition: transform 0.4s ease-in-out;
     border-radius: 12px 0 0 12px;
-    box-shadow: -2px 0 20px rgba(0, 170, 255, 0.2);
-  }
-
-  .friends-sidebar.open {
-    transform: translateX(0);
-  }
-
-  .friends-sidebar__close {
-    display: block;
   }
 }
 
-/* ==========================================================================
-   🖥️ DESKTOP STATIC STYLE
-========================================================================== */
+/* Desktop */
 @media (min-width: 1025px) {
   .friends-sidebar {
     position: static;
     transform: none !important;
-    height: 100%;
     border: none;
-    /* border-left: 1px solid #555; */
-    border-radius: 0;
-  }
-
-  .friends-sidebar__close {
-    display: none;
   }
 }
 
 /* ==========================================================================
-   🔲 BACKDROP FOR MOBILE + TABLET
+ 🎭 BACKDROP & MODALS
 ========================================================================== */
 .sidebar-backdrop {
   display: none;
@@ -357,7 +333,9 @@
   }
 }
 
-/* Overlay backdrop dims sidebar */
+/* ==========================================================================
+ 💬 TRINITY SLIDEOVER
+========================================================================== */
 .trinityBackdrop {
   position: fixed;
   inset: 0;
@@ -366,22 +344,19 @@
   cursor: pointer;
 }
 
-/* Slide-over panel styles */
 .trinitySlideOver {
   position: relative;
   top: var(--navbar-height);
   right: 0;
-  width: 320px; /* match sidebar width or adjust */
+  width: 320px;
   height: calc(100vh - var(--navbar-height));
   background-color: #0a0a0a;
   box-shadow: -8px 0 24px rgba(0, 170, 255, 0.8);
   z-index: 90;
   animation: slideIn 0.3s forwards;
-  
   overflow-y: auto;
 }
 
-/* Slide-in animation */
 @keyframes slideIn {
   from {
     transform: translateX(100%);
@@ -391,7 +366,9 @@
   }
 }
 
-/* Optional: Add button style for "Ask Trinity" button in sidebar header */
+/* ==========================================================================
+ 💡 "Ask Trinity" Button (Optional)
+========================================================================== */
 .askTrinityButton {
   margin-left: auto;
   background: none;
@@ -403,11 +380,9 @@
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.3s ease, box-shadow 0.3s ease;
-  user-select: none;
 }
 
 .askTrinityButton:hover {
   background-color: #004466;
   box-shadow: 0 0 12px #00ffff;
 }
-

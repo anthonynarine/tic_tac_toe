@@ -25,7 +25,7 @@ body {
   --default-primary-border: 0.25vmin solid var(--primary-color);
   --main-title-font-size: 4vmin;
 
-  --glow-color: 
+  --glow-color: rgba(0, 170, 255, 0.2);
   --glow-color-soft: rgba(0, 170, 255, 0.1);
   --border-color: #0e1a2b;
 }

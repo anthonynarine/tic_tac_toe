@@ -12,62 +12,61 @@ import { useUserContext } from "../components/context/userContext";
 /**
  * ResponsiveLayout
  *
- * This component orchestrates the main layout structure of the app based on screen size.
- * - Renders `FriendsSidebar` and `DMDrawer` for logged-in users only
- * - On mobile/tablet, these are toggleable (slide-in)
- * - On desktop, they're statically visible
+ * Handles responsive rendering of the FriendsSidebar, MainRoutes, and DMDrawer
+ * depending on screen size and UI state.
  *
- * Automatically adapts to login state and avoids rendering
- * sidebar components without their required providers.
+ * Desktop:
+ *   - FriendsSidebar always visible
+ *   - DMDrawer slides in
  *
- * @returns {JSX.Element} Responsive container for sidebar + main routes
+ * Tablet/Mobile:
+ *   - Only Sidebar or MainRoutes is visible at one time
+ *   - Sidebar takes over full screen
+ *
+ * @returns {JSX.Element}
  */
 const ResponsiveLayout = () => {
-    const isDesktop = useIsDesktop(); // Media query check for screen size
+    const isDesktop = useIsDesktop();
     const {
         isSidebarOpen,
-        setSidebarOpen,
         isDMOpen,
         setDMOpen
-    } = useUI(); // UI state from context
-    const { isLoggedIn } = useUserContext(); // Prevents rendering if not logged in
+    } = useUI();
+
+    const { isLoggedIn } = useUserContext();
 
     return (
-        <div className={`frame-body ${isDesktop && isDMOpen ? 'dm-drawer-open' : ''}`}>
-        {isDesktop ? (
-            <>
-            {/* Desktop layout: sidebar always visible */}
-            {isLoggedIn && <FriendsSidebar />}
-            <div className="main-content">
-                <MainRoutes />
-            </div>
-            {isLoggedIn && (
-                <DMDrawer isOpen={isDMOpen} onClose={() => setDMOpen(false)} />
-            )}
-            </>
-        ) : (
-            <>
-            {/* Mobile/tablet layout: toggled sidebar and drawer */}
-            {isSidebarOpen && isLoggedIn && (
+        <div className={`frame-body ${isDesktop && isDMOpen ? "dm-drawer-open" : ""}`}>
+            {isDesktop ? (
                 <>
-                <div
-                    className="sidebar-backdrop"
-                    onClick={() => setSidebarOpen(false)}
-                />
-                <FriendsSidebar />
+                    {/* === 💻 DESKTOP: Sidebar and Main Content Side by Side === */}
+                    {isLoggedIn && <FriendsSidebar />}
+                    <div className="main-content">
+                        <MainRoutes />
+                    </div>
+                    {isLoggedIn && (
+                        <DMDrawer isOpen={isDMOpen} onClose={() => setDMOpen(false)} />
+                    )}
+                </>
+            ) : (
+                <>
+                    {/* === 📱 MOBILE/TABLET: Sidebar or Main Content === */}
+                    {isSidebarOpen && isLoggedIn ? (
+                        <div className="friends-sidebar-wrapper">
+                            <FriendsSidebar />
+                        </div>
+                    ) : (
+                        <div className="main-content">
+                            <MainRoutes />
+                        </div>
+                    )}
+                    {isLoggedIn && (
+                        <DMDrawer isOpen={isDMOpen} onClose={() => setDMOpen(false)} />
+                    )}
                 </>
             )}
-            <div className="main-content">
-                <MainRoutes />
-            </div>
-            {isLoggedIn && (
-                <DMDrawer isOpen={isDMOpen} onClose={() => setDMOpen(false)} />
-            )}
-            </>
-        )}
         </div>
     );
 };
-
 
 export default ResponsiveLayout;

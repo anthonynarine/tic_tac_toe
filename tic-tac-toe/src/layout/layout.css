@@ -115,6 +115,16 @@
   }
 }
 
+/* 📱 Fullscreen Sidebar Wrapper for Mobile/Tablet */
+.friends-sidebar-wrapper {
+  width: 100%;
+  height: 100vh;
+  overflow-y: auto;
+  background-color: black;
+  position: relative;
+  z-index: 1000;
+}
+
 /* ==========================================================================
    📱 RESPONSIVE LAYOUT BEHAVIOR
 ========================================================================== */

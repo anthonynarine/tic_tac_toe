@@ -14,21 +14,41 @@ from langchain_community.llms import OpenAI
 
 logger = logging.getLogger(__name__)
 
-# === 📁 Project Base Directory ===
-PROJECT_ROOT = Path(__file__).parents[2].resolve()
+# === 📁 Project Base Directory (Compatible with Heroku & Local Dev) ===
+if settings.DEBUG:
+    PROJECT_ROOT = Path(__file__).parents[2].resolve()  # ✅ Dev: /yourproject/backend
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent  # ✅ Heroku: /app/backend
 
-# === 🎯 Target Directories to Crawl ===
-TARGET_DIRS = [
-    PROJECT_ROOT / "backend" / "chat",
-    PROJECT_ROOT / "backend" / "game",
-    PROJECT_ROOT / "backend" / "friends",
-    PROJECT_ROOT / "backend" / "users",
-    PROJECT_ROOT / "backend" / "utils",
-    PROJECT_ROOT / "backend" / "ai_agent",  # ✅ Added for agent source code
-    PROJECT_ROOT / "tic-tac-toe" / "src" / "components",
-    PROJECT_ROOT / "tic-tac-toe" / "src" / "reducers",
-    PROJECT_ROOT / "tic-tac-toe" / "src" / "context",
-]
+logger.info(f"[DEBUG] PROJECT_ROOT resolved to: {PROJECT_ROOT}")
+
+if settings.DEBUG:
+    logger.info("🔧 DEBUG mode ON — including frontend directories for dev.")
+    TARGET_DIRS = [
+        PROJECT_ROOT / "backend" / "ai_agent",
+        PROJECT_ROOT / "backend" / "chat",
+        PROJECT_ROOT / "backend" / "friends",
+        PROJECT_ROOT / "backend" / "game",
+        PROJECT_ROOT / "backend" / "users",
+        PROJECT_ROOT / "backend" / "utils",
+        PROJECT_ROOT / "tic-tac-toe" / "src" / "components",
+        PROJECT_ROOT / "tic-tac-toe" / "src" / "reducers",
+        PROJECT_ROOT / "tic-tac-toe" / "src" / "context",
+    ]
+else:
+    logger.info("🚀 Production mode — loading all backend apps for LangChain agent.")
+    TARGET_DIRS = [
+        PROJECT_ROOT / "ai_agent",
+        PROJECT_ROOT / "chat",
+        PROJECT_ROOT / "friends",
+        PROJECT_ROOT / "game",
+        PROJECT_ROOT / "users",
+        PROJECT_ROOT / "utils",
+    ]
+
+# Debug log to validate path resolution
+for path in TARGET_DIRS:
+    logger.debug(f"[CHECK] Path: {path} | Exists: {path.exists()}")
 
 # Optional: Print path check for dev
 # for dir in TARGET_DIRS:
