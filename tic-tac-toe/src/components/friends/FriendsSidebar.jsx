@@ -9,6 +9,7 @@ import { useUI } from "../context/uiContext";
 import TrinityOverlay from "../trinity/TrinityOverlay";
 // import TrinityDrawer from "../trinity/TrinityDrawer"// 
 
+
 import { FaUserCheck, FaUserTimes } from "react-icons/fa";
 
 import styles from "./FriendsSidebar.module.css";

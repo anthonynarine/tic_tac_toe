@@ -62,11 +62,18 @@
 }
 
 .friendsSidebarTitle {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: #00bfff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   margin: 0 auto;
+
+  text-shadow:
+    0 0 6px rgba(0, 191, 255, 0.4),
+    0 0 12px rgba(0, 191, 255, 0.2);
 }
+
 
 .friendsSidebarClose {
   background: none;

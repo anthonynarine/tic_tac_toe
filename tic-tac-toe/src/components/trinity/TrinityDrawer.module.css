@@ -23,7 +23,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  animation: tetrisSlideUp 0.6s ease-in-out forwards;
+  
+  animation: slideInDrawer 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 @keyframes slideUp {
@@ -42,7 +43,28 @@
   60% { transform: translate(-50%, 50%); }
   80% { transform: translate(-50%, 30%); }
   100% { transform: translate(-50%, 0%); }
+  
 }
+
+/* === Smooth Drawer Entrance Animation === */
+@keyframes slideInDrawer {
+  from {
+    transform: translate(-50%, 100%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0%);
+    opacity: 1;
+  }
+}
+
+.drawer {
+  /* ...existing styles... */
+  animation: slideInDrawer 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+
+
 
 .header {
   padding: 0.5rem 1rem;

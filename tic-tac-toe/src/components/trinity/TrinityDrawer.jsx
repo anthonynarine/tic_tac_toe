@@ -5,6 +5,7 @@ import { IoCloseSharp, IoSend } from "react-icons/io5";
 import useAuthAxios from "../hooks/useAuthAxios";
 import { useUI } from "../context/uiContext";
 import TronNeuralRing from "./svg/TronNeuralRing";
+
 /**
  * TrinityDrawer
  * - Floating assistant drawer
@@ -86,7 +87,7 @@ const TrinityDrawer = () => {
                     {messages.map((msg, i) => (
                         <div key={i} className={styles.line}>
                             <span className={msg.type === "user" ? styles.prompt : styles.label}>
-                                {msg.type === "user" ? ">" : "Trinity:"}
+                                {msg.type === "user" ? "User:" : "Trinity:"}
                             </span>
                             <span className={styles.text}>{msg.text}</span>
                         </div>
