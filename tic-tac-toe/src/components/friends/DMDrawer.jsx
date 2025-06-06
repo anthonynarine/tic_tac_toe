@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useDirectMessage } from "../context/directMessageContext";
 import { IoIosSend } from "react-icons/io";
+import { useUserContext } from "../context/userContext";
+import MessageBubble from "./MessageBubble"
 import "./DMDrawer.css";
 
 const DMDrawer = ({ isOpen, onClose = () => {} }) => {
@@ -12,6 +14,7 @@ const DMDrawer = ({ isOpen, onClose = () => {} }) => {
     } = useDirectMessage();
 
     const [newMessage, setNewMessage] = useState("");
+    const { user } = useUserContext();
     const messagesEndRef = useRef(null);
 
     // Scroll to bottom whenever new messages arrive
@@ -45,12 +48,7 @@ const DMDrawer = ({ isOpen, onClose = () => {} }) => {
         {/* Message history */}
         <div className="dm-messages">
             {messages.map((msg, index) => (
-            <div
-                key={index}
-                className={`dm-message ${msg.sender_id === activeChat.id ? "incoming" : "outgoing"}`}
-            >
-                <span>{msg.message}</span>
-            </div>
+                <MessageBubble key={index} msg={msg} currentUserId={user.id} />
             ))}
             <div ref={messagesEndRef} />
         </div>

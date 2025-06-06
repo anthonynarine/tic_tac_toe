@@ -2,6 +2,9 @@ from tabnanny import verbose
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.dispatch import receiver
+import logging
+
+logger = logging.getLogger("chat")
 
 User = get_user_model()
 
@@ -105,9 +108,10 @@ class Conversation(models.Model):
     def __str__(self):
         return f"Conversation between {self.user1.email} and {self.user2.email}"
 
-
     def get_participants(self):
         return [self.user1, self.user2]
 
     def includes(self, user):
+        logger.debug(f"[MODEL] Checking if user {user.id} is part of conversation {self.id} "
+                    f"(user1={self.user1.id}, user2={self.user2.id})")
         return user == self.user1 or user == self.user2

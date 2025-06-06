@@ -90,10 +90,10 @@
 }
 
 .outgoing {
-  align-self: flex-end;
   background: linear-gradient(to bottom right, #00aaff, #0088cc);
-  color: #fff;
-  border-color: #007acc;
+  color: white;
+  align-self: flex-end;
+  margin-left: auto;
 }
 
 /* ===================================================

@@ -121,17 +121,22 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
 }
 
 # JWT configuration
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),  # Token lifetime
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=20),  # Token lifetime
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),    # Refresh token lifetime
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'SIGNING_KEY': config('SECRET_KEY'),           # Ensure the signing key is secure
     'ALGORITHM': 'HS256',                          # Default algorithm
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
 
 # Static and media files

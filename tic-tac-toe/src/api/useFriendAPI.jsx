@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import useAuthAxios from "./useAuthAxios";
+import useAuthAxios from "../components/hooks/useAuthAxios";
 
 /**
  * useFriendAPI

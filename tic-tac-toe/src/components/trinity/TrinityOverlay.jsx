@@ -8,6 +8,8 @@ import useSound from "use-sound";
 import bootSound from "./sounds/bootSound.mp3";
 import { useUI } from "../context/uiContext";
 
+
+
 /**
  * TrinityOverlay
  * Floating assistant avatar with Matrix aesthetic and sound.

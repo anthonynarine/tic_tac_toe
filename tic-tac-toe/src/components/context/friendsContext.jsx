@@ -6,7 +6,7 @@ import {
     useReducer,
     useCallback,
 } from "react";
-import useFriendAPI from "../hooks/useFriendAPI";
+import useFriendAPI from "../../api/useFriendAPI"
 import { INITIAL_FRIEND_STATE, friendReducer } from "../reducers/friendReducer";
 import { useUserContext } from "../context/userContext";
 import useFriendStatusSocket from "../hooks/useFriendStatusSocket"; // ✅ Custom WebSocket hook

@@ -131,7 +131,7 @@ const FriendsSidebar = () => {
           </section>
 
           {/* Direct Message Drawer (conditionally rendered) */}
-          {activeChat && <DMDrawer isOpen={true} onClose={closeChat} />}
+          {/* {activeChat && <DMDrawer isOpen={true} onClose={closeChat} />} */}
 
           {/* Pending Friend Requests */}
           <section className={styles.friendsSidebarSection}>

@@ -1,0 +1,27 @@
+.message {
+  max-width: 80%;
+  padding: 0.6rem 0.9rem;
+  margin: 0.4rem 0;
+  border-radius: 1rem;
+  font-size: 0.95rem;
+  display: flex;
+  word-break: break-word;
+}
+
+.incoming {
+  background-color: #1f1f1f;
+  color: #eee;
+  align-self: flex-start;
+  margin-right: auto;
+}
+
+.outgoing {
+  background: linear-gradient(to bottom right, #00aaff, #0088cc);
+  color: white;
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+.text {
+  line-height: 1.4;
+}

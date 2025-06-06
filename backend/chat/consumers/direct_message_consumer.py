@@ -5,7 +5,8 @@ from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from friends.models import Friendship
-from chat.models import DirectMessage
+from chat.models import DirectMessage, Conversation
+
 
 logger = logging.getLogger("chat")
 User = get_user_model()
@@ -179,3 +180,11 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
         logger.info(f"[DM] Friendship query found {match.count()} record(s)")
         return match.exists()
 
+    @database_sync_to_async
+    def get_or_create_conversation(self):
+        """
+        Ensures a unique 1-on-1 conversation between two users for WebSocket messages.
+        """
+        user1, user2 = sorted([self.user, User.objects.get(id=self.friend_id)], key=lambda u: u.id)
+        conversation, _ = Conversation.objects.get_or_create(user1=user1, user2=user2)
+        return conversation
