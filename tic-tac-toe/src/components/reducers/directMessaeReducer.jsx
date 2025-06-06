@@ -81,26 +81,43 @@ export function directMessageReducer(state, action) {
      * Handles new incoming messages and updates the unread state.
      */
     case DmActionTypes.RECEIVE_MESSAGE: {
-        const { sender_id, receiver_id } = action.payload;
+        const { sender_id, receiver_id, isDrawerOpen, currentUserId } = action.payload;
 
-      // Check if the message belongs to the current active friend chat
-        const isCurrentChat =
-        state.activeFriendId &&
-        [sender_id, receiver_id].includes(state.activeFriendId);
+        console.log("📩 [RECEIVE_MESSAGE]");
+        console.log("  sender_id:", sender_id);
+        console.log("  receiver_id:", receiver_id);
+        console.log("  currentUserId:", currentUserId);
+        console.log("  isDrawerOpen:", isDrawerOpen);
+        console.log("  activeFriendId:", state.activeFriendId);
+
+        if (sender_id === currentUserId) {
+            console.log("🟡 Skipping self-sent message");
+            return state;
+        }
+
+        const friendId = sender_id;
+        const isCurrentChat = state.activeFriendId === friendId && isDrawerOpen;
+
+        const updatedUnread = isCurrentChat
+            ? 0
+            : (state.unread[friendId] || 0) + 1;
+
+        console.log("🧠 isCurrentChat:", isCurrentChat);
+        console.log("🔴 Updating unread count:", updatedUnread);
 
         return {
             ...state,
             messages: isCurrentChat
             ? [...state.messages, action.payload]
-            : state.messages, // Don't show message if from another chat
+            : state.messages,
             unread: {
             ...state.unread,
-            [sender_id]: isCurrentChat
-            ? 0
-            : (state.unread[sender_id] || 0) + 1, // Increment if message from unseen chat
+            [friendId]: updatedUnread,
             },
         };
     }
+
+
 
     /**
      * SET_MESSAGES

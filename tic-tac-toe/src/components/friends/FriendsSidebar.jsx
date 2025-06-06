@@ -1,5 +1,5 @@
 // FriendsSidebar.jsx
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFriends } from "../context/friendsContext";
 import AddFriendForm from "./AddFriendForm";
 import DMDrawer from "./DMDrawer";
@@ -28,7 +28,9 @@ const FriendsSidebar = () => {
   const { friends, pending, acceptRequest, declineRequest, refreshFriends } = useFriends();
 
   // Direct message context for chat drawer
-  const { activeChat, openChat, closeChat } = useDirectMessage();
+  const { activeChat, openChat, closeChat, unread: unreadMap, markAsRead } = useDirectMessage();
+
+  const [unreadSnapshot, setUnreadSnapshot] = useState({});
 
   // User info (for example, current logged-in user)
   const { user } = useUserContext();
@@ -37,11 +39,19 @@ const FriendsSidebar = () => {
     refreshFriends();
   }, [refreshFriends]);
 
+  useEffect(() => {
+    setUnreadSnapshot(unreadMap); // update local state whenever unreadMap changes
+  }, [unreadMap]);
+
   // Handler to open DM chat with a friend
-  const handleFriendClick = (friend) => {
+const handleFriendClick = (friend) => {
     if (friend.friend_status === "online") {
       openChat(friend);
       setDMOpen(true);
+
+      const isCurrentUserSender = friend.from_user === user.id;
+      const friendUserId = isCurrentUserSender ? friend.to_user : friend.from_user;
+      markAsRead(friendUserId); // ✅ Use user ID, not friendship ID
     }
   };
 
@@ -100,6 +110,15 @@ const FriendsSidebar = () => {
               {friends.length > 0 ? (
                 friends.map((friend) => {
                   const isOnline = friend.friend_status === "online";
+
+                  // Determine who the friend actually is (not the current user)
+                  const isCurrentUserSender = friend.from_user === user.id;
+                  const friendUserId = isCurrentUserSender ? friend.to_user : friend.from_user;
+
+                  const unreadCount = unreadSnapshot[friendUserId] || 0;
+                  console.log("🔔 FriendUserID:", friendUserId, "Unread Count:", unreadSnapshot[friendUserId]);
+
+
                   return (
                     <li key={friend.id} className={styles.friendsSidebarFriend}>
                       <div
@@ -110,6 +129,7 @@ const FriendsSidebar = () => {
                           opacity: isOnline ? 1 : 0.5,
                         }}
                       >
+                        {/* Friend info and status */}
                         <div className={styles.friendInfo}>
                           <span className={styles.friendName}>{friend.friend_name}</span>
                           <span
@@ -120,6 +140,11 @@ const FriendsSidebar = () => {
                             {isOnline ? "Online" : "Offline"}
                           </span>
                         </div>
+
+                        {/* 🔴 Unread message badge */}
+                        {unreadCount > 0 && (
+                          <span className={styles.unreadBadge}>{unreadCount}</span>
+                        )}
                       </div>
                     </li>
                   );
@@ -129,6 +154,7 @@ const FriendsSidebar = () => {
               )}
             </ul>
           </section>
+
 
           {/* Direct Message Drawer (conditionally rendered) */}
           {/* {activeChat && <DMDrawer isOpen={true} onClose={closeChat} />} */}

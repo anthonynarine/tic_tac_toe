@@ -1,6 +1,6 @@
 // File: context/DirectMessageProvider.jsx
 
-import { createContext, useContext, useReducer } from "react";
+import { createContext, useContext, useReducer, useEffect, useRef } from "react";
 import Cookies from "js-cookie";
 import {
   directMessageReducer,
@@ -28,11 +28,11 @@ export const DirectMessageContext = createContext(undefined);
  * Throws if used outside provider.
  */
 export const useDirectMessage = () => {
-  const context = useContext(DirectMessageContext);
-  if (!context) {
-    throw new Error("useDirectMessage must be used within a DirectMessageProvider");
-  }
-  return context;
+    const context = useContext(DirectMessageContext);
+    if (!context) {
+        throw new Error("useDirectMessage must be used within a DirectMessageProvider");
+    }
+    return context;
 };
 
 /**
@@ -48,8 +48,13 @@ export const useDirectMessage = () => {
 export const DirectMessageProvider = ({ children }) => {
     const [state, dispatch] = useReducer(directMessageReducer, initialDMState);
     const { user } = useUserContext();
-    const { setDMOpen } = useUI();
+    const userRef = useRef(user)
+    const { isDMOpen } = useUI();
     const { authAxios } = useAuthAxios();
+
+    useEffect(() => {
+        userRef.current = user; // Keep the ref updated
+        }, [user]);
 
     // Fetches token from cookies or localStorage (depends on environment)
     const getToken = () =>
@@ -86,9 +91,6 @@ export const DirectMessageProvider = ({ children }) => {
             payload: { friend, socket, friendId },
         });
 
-        // Reset unread badge
-        dispatch({ type: DmActionTypes.MARK_AS_READ, payload: friendId });
-
         // Start loading state while fetching past messages
         dispatch({ type: DmActionTypes.SET_LOADING, payload: true });
 
@@ -106,13 +108,26 @@ export const DirectMessageProvider = ({ children }) => {
         }
         };
 
-        // ✅ Incoming message received
         socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === "message") {
-            dispatch({ type: DmActionTypes.RECEIVE_MESSAGE, payload: data });
-        }
+            const data = JSON.parse(event.data);
+            const liveUserId = userRef.current?.id;
+
+            console.log("📩 WebSocket received:", data);
+            console.log("🧠 Dispatching with currentUserId:", liveUserId);
+
+            if (data.type === "message") {
+                    dispatch({
+                    type: DmActionTypes.RECEIVE_MESSAGE,
+                    payload: {
+                        ...data,
+                        isDrawerOpen: isDMOpen,
+                        currentUserId: liveUserId, // ✅ always accurate
+                    },
+                });
+            }
         };
+
+
 
         // 🔴 Socket closed cleanly
         socket.onclose = () => {
@@ -124,6 +139,11 @@ export const DirectMessageProvider = ({ children }) => {
         console.error("WebSocket error:", err);
         };
     };
+
+    
+    const markAsRead = (friendId) => {
+        dispatch({ type: DmActionTypes.MARK_AS_READ, payload: friendId });
+        };
 
     /**
      * sendMessage(content)
@@ -157,6 +177,7 @@ export const DirectMessageProvider = ({ children }) => {
             openChat,
             closeChat,
             sendMessage,
+            markAsRead, 
         }}
         >
         {children}

@@ -393,3 +393,28 @@
   background-color: #004466;
   box-shadow: 0 0 12px #00ffff;
 }
+
+/* ==========================================================================
+ 💡 Unread messages
+========================================================================== */
+.unreadBadge {
+  background-color: red;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  margin-left: auto;
+  margin-right: 0.25rem;
+  box-shadow: 0 0 6px red;
+  animation: pulseBadge 1.2s ease-in-out infinite;
+}
+
+@keyframes pulseBadge {
+  0% {
+    box-shadow: 0 0 4px red;
+  }
+  100% {
+    box-shadow: 0 0 12px red;
+  }
+}

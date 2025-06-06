@@ -14,8 +14,8 @@ import styles from "./MessageBubble.module.css"; // we’ll create this
 const MessageBubble = ({ msg, currentUserId }) => {
     // Determine if this message was sent by the current user
     const isMine = msg.sender_id === currentUserId;
-    console.log("Rendering msg:", msg.message);
-    console.log("Rendering msg:", msg);
+    // console.log("Rendering msg:", msg.message);
+    // console.log("Rendering msg:", msg);
 
 
 

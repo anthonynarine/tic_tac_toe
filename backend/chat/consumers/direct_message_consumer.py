@@ -77,12 +77,17 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
         """
         data = json.loads(text_data)
         msg_type = data.get("type")
+        
+        logger.info(f"[DM] Received WebSocket message: {data}")
 
         if msg_type == "message":
             message = data.get("message")
             if message:
                 conversation = await self.get_or_create_conversation()
                 await self.save_message(message, conversation)
+                
+                logger.info(f"[DM] Sending message to group: {self.room_group_name}")  
+                
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -109,6 +114,7 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
             logger.warning(f"[DM] Unrecognized message type received: {msg_type}")
 
     async def chat_message(self, event):
+        logger.info(f"[DM] chat_message triggered with event: {event}")
         """
         Sends a chat message back to both users in the conversation group.
         Triggered by group_send from `receive()`.
