@@ -84,7 +84,7 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
             message = data.get("message")
             if message:
                 conversation = await self.get_or_create_conversation()
-                await self.save_message(message, conversation)
+                dm = await self.save_message(message, conversation)  # ✅ capture saved message
                 
                 logger.info(f"[DM] Sending message to group: {self.room_group_name}")  
                 
@@ -95,6 +95,8 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
                         "sender_id": self.user.id,
                         "receiver_id": self.friend_id,
                         "message": message,
+                        "message_id": dm.id,  # ✅ include message_id
+                        "conversation_id": f"{self.user.id}__{self.friend_id}",  # optional but helpful
                     }
                 )
 
@@ -113,19 +115,18 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
         else:
             logger.warning(f"[DM] Unrecognized message type received: {msg_type}")
 
+
     async def chat_message(self, event):
         logger.info(f"[DM] chat_message triggered with event: {event}")
-        """
-        Sends a chat message back to both users in the conversation group.
-        Triggered by group_send from `receive()`.
-        """
         await self.send(text_data=json.dumps({
             "type": "message",
             "sender_id": event["sender_id"],
             "receiver_id": event["receiver_id"],
             "message": event["message"],
+            "message_id": event["message_id"], 
             "conversation_id": f"{min(event['sender_id'], event['receiver_id'])}__{max(event['sender_id'], event['receiver_id'])}"
         }))
+
 
     async def game_invite(self, event):
         """

@@ -1,4 +1,4 @@
-// File: context/DirectMessageProvider.jsx
+// File: context/DirectMessageProvider.jsx (clean baseline version)
 
 import { createContext, useContext, useReducer, useEffect, useRef } from "react";
 import Cookies from "js-cookie";
@@ -12,175 +12,114 @@ import { useUI } from "./uiContext";
 import chatAPI from "../../api/chatAPI";
 import useAuthAxios from "../hooks/useAuthAxios";
 
-/**
- * DirectMessageContext
- * ----------------------------------------------------------------
- * Provides global state and methods for 1-on-1 direct messaging.
- * Enables WebSocket lifecycle management, REST message hydration,
- * unread tracking, and message dispatching.
- */
 export const DirectMessageContext = createContext(undefined);
 
-/**
- * useDirectMessage
- * ----------------------------------------------------------------
- * Safely access the DirectMessage context.
- * Throws if used outside provider.
- */
 export const useDirectMessage = () => {
-    const context = useContext(DirectMessageContext);
-    if (!context) {
-        throw new Error("useDirectMessage must be used within a DirectMessageProvider");
-    }
-    return context;
+  const context = useContext(DirectMessageContext);
+  if (!context) {
+    throw new Error("useDirectMessage must be used within a DirectMessageProvider");
+  }
+  return context;
 };
 
-/**
- * DirectMessageProvider
- * ----------------------------------------------------------------
- * Manages state and side effects for direct messaging features.
- * Includes:
- * - WebSocket connection per friend
- * - Message history fetch on open
- * - Real-time message dispatch/receive
- * - Unread state tracking
- */
 export const DirectMessageProvider = ({ children }) => {
-    const [state, dispatch] = useReducer(directMessageReducer, initialDMState);
-    const { user } = useUserContext();
-    const userRef = useRef(user)
-    const { isDMOpen } = useUI();
-    const { authAxios } = useAuthAxios();
+  const [state, dispatch] = useReducer(directMessageReducer, initialDMState);
+  const { user } = useUserContext();
+  const userRef = useRef(user);
+  const { authAxios } = useAuthAxios();
 
-    useEffect(() => {
-        userRef.current = user; // Keep the ref updated
-        }, [user]);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
-    // Fetches token from cookies or localStorage (depends on environment)
-    const getToken = () =>
-        process.env.NODE_ENV === "production"
-        ? Cookies.get("access_token")
-        : localStorage.getItem("access_token");
+  const getToken = () =>
+    process.env.NODE_ENV === "production"
+      ? Cookies.get("access_token")
+      : localStorage.getItem("access_token");
 
-    /**
-     * openChat(friend)
-     * ----------------------------------------------------------------
-     * - Opens a WebSocket to the correct DM room based on friend ID
-     * - Hydrates message history via REST
-     * - Resets unread count
-     */
-    const openChat = (friend) => {
-        const token = getToken();
+  const openChat = (friend) => {
+    const token = getToken();
+    const isCurrentUserFrom = friend.from_user === user.id;
+    const friendId = isCurrentUserFrom ? friend.to_user : friend.from_user;
 
-        // Determine which user is the friend (based on direction of relationship)
-        const isCurrentUserFrom = friend.from_user === user.id;
-        const friendId = isCurrentUserFrom ? friend.to_user : friend.from_user;
+    const WS_BASE =
+      process.env.NODE_ENV === "production"
+        ? `wss://${process.env.REACT_APP_BACKEND_WS}`
+        : "ws://localhost:8000";
 
-        const WS_BASE =
-        process.env.NODE_ENV === "production"
-            ? `wss://${process.env.REACT_APP_BACKEND_WS}`
-            : "ws://localhost:8000";
+    const socket = new WebSocket(`${WS_BASE}/ws/chat/${friendId}/?token=${token}`);
 
-        const socket = new WebSocket(`${WS_BASE}/ws/chat/${friendId}/?token=${token}`);
+    socket.onopen = async () => {
+      dispatch({ type: DmActionTypes.OPEN_CHAT, payload: { friend, socket, friendId } });
+      dispatch({ type: DmActionTypes.SET_LOADING, payload: true });
 
-        // ✅ WebSocket opened
-        socket.onopen = async () => {
-        // Set activeChat and store socket
+      try {
+        const { data } = await authAxios.get(`/chat/conversation-with/${friendId}`);
+        const conversationID = data.conversation_id;
+        const res = await chatAPI.fetchConversationMessages(authAxios, conversationID);
+
         dispatch({
-            type: DmActionTypes.OPEN_CHAT,
-            payload: { friend, socket, friendId },
+          type: DmActionTypes.SET_MESSAGES,
+          payload: { friendId, messages: res.data },
         });
-
-        // Start loading state while fetching past messages
-        dispatch({ type: DmActionTypes.SET_LOADING, payload: true });
-
-        try {
-            // Ask backend for the correct conversatinID
-            const { data } = await authAxios.get(`/chat/conversation-with/${friendId}`);
-            const conversationID = data.conversation_id;
-
-            // Fetch historical messages using resolved conversation ID
-            const res = await chatAPI.fetchConversationMessages(authAxios, conversationID);
-            dispatch({ type: DmActionTypes.SET_MESSAGES, payload: res.data });
-        } catch (err) {
-            console.error("Failed to fetch conversation messages:", err);
-            dispatch({ type: DmActionTypes.SET_LOADING, payload: false });
-        }
-        };
-
-        socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            const liveUserId = userRef.current?.id;
-
-            console.log("📩 WebSocket received:", data);
-            console.log("🧠 Dispatching with currentUserId:", liveUserId);
-
-            if (data.type === "message") {
-                    dispatch({
-                    type: DmActionTypes.RECEIVE_MESSAGE,
-                    payload: {
-                        ...data,
-                        isDrawerOpen: isDMOpen,
-                        currentUserId: liveUserId, // ✅ always accurate
-                    },
-                });
-            }
-        };
-
-
-
-        // 🔴 Socket closed cleanly
-        socket.onclose = () => {
-        dispatch({ type: DmActionTypes.CLOSE_CHAT });
-        };
-
-        // 🔥 Socket encountered error
-        socket.onerror = (err) => {
-        console.error("WebSocket error:", err);
-        };
+      } catch (err) {
+        console.error("Failed to fetch conversation messages:", err);
+        dispatch({ type: DmActionTypes.SET_LOADING, payload: false });
+      }
     };
 
-    
-    const markAsRead = (friendId) => {
-        dispatch({ type: DmActionTypes.MARK_AS_READ, payload: friendId });
-        };
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const liveUserId = userRef.current?.id;
 
-    /**
-     * sendMessage(content)
-     * ----------------------------------------------------------------
-     * Sends a new message over the WebSocket if it's open.
-     */
-    const sendMessage = (content) => {
-        if (state.socket?.readyState === WebSocket.OPEN) {
-        state.socket.send(
-            JSON.stringify({
-            type: "message",
-            message: content,
-            })
-        );
-        }
+      console.log("📩 WebSocket received:", data);
+      console.log("🧠 Dispatching with currentUserId:", liveUserId);
+
+      if (data.type === "message") {
+        dispatch({
+          type: DmActionTypes.RECEIVE_MESSAGE,
+          payload: {
+            ...data,
+            currentUserId: liveUserId,
+          },
+        });
+      }
     };
 
-    /**
-     * closeChat()
-     * ----------------------------------------------------------------
-     * Closes socket connection and clears DM state.
-     */
-    const closeChat = () => {
-        dispatch({ type: DmActionTypes.CLOSE_CHAT });
+    socket.onclose = () => {
+      dispatch({ type: DmActionTypes.CLOSE_CHAT });
     };
 
-    return (
-        <DirectMessageContext.Provider
-        value={{
-            ...state,
-            openChat,
-            closeChat,
-            sendMessage,
-            markAsRead, 
-        }}
-        >
-        {children}
-        </DirectMessageContext.Provider>
-    );
+    socket.onerror = (err) => {
+      console.error("WebSocket error:", err);
+    };
+  };
+
+  const sendMessage = (content) => {
+    if (state.socket?.readyState === WebSocket.OPEN) {
+      state.socket.send(
+        JSON.stringify({
+          type: "message",
+          message: content,
+        })
+      );
+    }
+  };
+
+  const closeChat = () => {
+    dispatch({ type: DmActionTypes.CLOSE_CHAT });
+  };
+
+  return (
+    <DirectMessageContext.Provider
+      value={{
+        ...state,
+        openChat,
+        closeChat,
+        sendMessage,
+      }}
+    >
+      {children}
+    </DirectMessageContext.Provider>
+  );
 };
