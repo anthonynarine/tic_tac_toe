@@ -86,6 +86,18 @@
   /* overflow-y: auto; */
 }
 
+/* layout.css */
+.board-viewport {
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
+
 /* Shift main content left when drawer is open (desktop only) */
 @media (min-width: 1025px) {
   .frame-body.dm-drawer-open .main-content {
@@ -94,12 +106,12 @@
 }
 
 /* Game board centered */
-.game-wrapper {
+/* .game-wrapper {
   margin-left: auto;
   margin-right: auto;
-}
+} */
 
-.game-wrapper,
+/* .game-wrapper,
 #game {
   width: 100%;
   max-width: 590px;
@@ -113,7 +125,7 @@
   #game {
     padding: 0 1rem;
   }
-}
+} */
 
 /* 📱 Fullscreen Sidebar Wrapper for Mobile/Tablet */
 .friends-sidebar-wrapper {

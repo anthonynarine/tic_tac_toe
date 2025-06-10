@@ -50,9 +50,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
+  /* box-shadow:
     0 0 6px var(--glow-color-soft),
-    0 0 12px var(--glow-color);
+    0 0 12px var(--glow-color); */
 }
 
 .addBtn svg {

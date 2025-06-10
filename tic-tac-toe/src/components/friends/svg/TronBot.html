@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tron Atom Core</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    .pulse-core {
+      position: relative;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle at center, #070707 10%, #021015 100%);
+      border-radius: 50%;
+      box-shadow: 0 0 40px rgba(0, 255, 255, 0.4), inset 0 0 20px rgba(0, 255, 255, 0.5);
+      animation: floatXY 6s ease-in-out infinite;
+    }
+
+    .inner-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      background: radial-gradient(circle, #0ff 0%, #003338 70%);
+      border-radius: 50%;
+      box-shadow: inset 0 0 12px #00f0ff, 0 0 10px #00f0ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .nucleus {
+      position: relative;
+      width: 20px;
+      height: 20px;
+      background: #00ffff;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00f0ff;
+      z-index: 2;
+    }
+
+    .electron {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: #e40505;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #000;
+    }
+
+    .orbit {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      border: 1px dashed #00f0ff55;
+      border-radius: 50%;
+      animation: rotate 3s linear infinite;
+    }
+
+    .orbit:nth-child(2) {
+      width: 60px;
+      height: 60px;
+      animation-duration: 5s;
+    }
+
+    .orbit:nth-child(3) {
+      width: 70px;
+      height: 70px;
+      animation-duration: 7s;
+    }
+
+    .orbit .electron {
+      top: 50%;
+      left: 100%;
+      transform: translate(-50%, -50%);
+    }
+
+    .ring {
+      position: absolute;
+      border: 1px solid #00ffff88;
+      border-radius: 50%;
+      animation: ringPulse 4s infinite ease-in-out;
+    }
+
+    .ring:nth-child(1) {
+      width: 200px;
+      height: 200px;
+      top: -10px;
+      left: -10px;
+      animation-delay: 0s;
+    }
+
+    .ring:nth-child(2) {
+      width: 240px;
+      height: 240px;
+      top: -30px;
+      left: -30px;
+      animation-delay: 1s;
+      opacity: 0.3;
+    }
+
+    .ring:nth-child(3) {
+      width: 280px;
+      height: 280px;
+      top: -50px;
+      left: -50px;
+      animation-delay: 2s;
+      opacity: 0.1;
+    }
+
+    @keyframes floatXY {
+      0%, 100% {
+        transform: translate(0px, 0px);
+      }
+      25% {
+        transform: translate(4px, -8px);
+      }
+      50% {
+        transform: translate(-6px, -4px);
+      }
+      75% {
+        transform: translate(3px, 6px);
+      }
+    }
+
+    @keyframes ringPulse {
+      0% {
+        transform: scale(0.95);
+        opacity: 0.5;
+      }
+      50% {
+        transform: scale(1.05);
+        opacity: 0.2;
+      }
+      100% {
+        transform: scale(0.95);
+        opacity: 0.5;
+      }
+    }
+
+    @keyframes rotate {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- <div class="pulse-core"> -->
+    <!-- <div class="ring"></div>
+    <div class="ring"></div>
+    <div class="ring"></div> -->
+    <div class="inner-glow">
+      <div class="nucleus"></div>
+      <div class="orbit">
+        <div class="electron"></div>
+      </div>
+      <div class="orbit">
+        <div class="electron"></div>
+      </div>
+      <div class="orbit">
+        <div class="electron"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

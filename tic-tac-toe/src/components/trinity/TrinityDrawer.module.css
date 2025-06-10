@@ -89,6 +89,7 @@
   color: var(--accent-color);
   cursor: pointer;
   border-radius: 6px;
+  margin-right: 12px;
 }
 
 .closeBtn:hover {

@@ -1,121 +1,81 @@
-import "./Game.css";
+// File: components/game/GamePage.jsx
+
 import GameLoader from "../../utils/gameLoader/Gameloader";
-import GameBoard from "./GameBoard";
-import ResponsiveBoard from "../board/ResponsiveBoard";
-import GameResult from "./GameResult";
 import GameManager from "./GameManager";
+import GameResult from "./GameResult";
+import ResponsiveBoard from "./board/ResponsiveBoard"
 import { useParams } from "react-router-dom";
 
 /**
- * GamePage Component
- *
- * This component is responsible for rendering the main game page. It uses `GameManager`
- * to manage the game's state and logic, including handling moves, loading state,
- * and game results. The component also determines the current player's role
- * and whether the game board should be interactive.
- *
- * @returns {JSX.Element} The game page UI.
+ * GamePage
+ * --------------------------------------------
+ * Handles logic for loading a game and rendering it
+ * through ResponsiveBoard and GameResult.
  */
 export const GamePage = () => {
-    // Extract the game ID from the URL
     const { id: gameId } = useParams();
 
     return (
         <GameManager gameId={gameId}>
-            {({
-                state,
-                loading,
-                error,
-                handleCellClick,
-                playAgainAI,
-                finalizeGame,
-                requestRematch,
-            }) => {
-                console.log("Updated state in GamePage:", state);
+        {({
+            state,
+            loading,
+            error,
+            handleCellClick,
+            playAgainAI,
+            finalizeGame,
+            requestRematch,
+        }) => {
+            const {
+            game,
+            isGameOver,
+            winner,
+            winningCombination,
+            cellValues,
+            isAI,
+            } = state;
 
-                // Destructure the relevant state variables
-                const { game, isGameOver, winner, winningCombination, cellValues, isAI } = state;
+            const playerRole =
+            state.playerRole || (game?.player_x === state.userEmail ? "X" : "O");
 
-                /**
-                 * Determine the player's role in the game.
-                 * If `state.playerRole` is available, use it directly. Otherwise, fall back to
-                 * determining the role based on `game.player_x` and `state.userEmail`.
-                 */
-                const playerRole =
-                    state.playerRole || (game?.player_x === state.userEmail ? "X" : "O");
+            const isDisabled =
+            isGameOver || game?.current_turn !== playerRole;
 
-                console.log("Player Role:", playerRole);
+            const handleNewGameClicked = () => {
+            state.isAI ? playAgainAI() : requestRematch();
+            };
 
-                /**
-                 * Determine if the game board should be disabled.
-                 * The board is disabled if the game is over or if it's not the player's turn.
-                 */
-                const isDisabled =
-                    isGameOver ||
-                    (game && game.current_turn && game.current_turn !== playerRole);
+            return (
+            <>
+                <GameLoader loading={loading} error={error} />
 
-                console.log("Game State:", game);
-                console.log("Board Disabled:", isDisabled);
+                {!loading && !error && game && (
+                <>
+                    <ResponsiveBoard
+                    cellValues={cellValues}
+                    winningCombination={winningCombination}
+                    handleCellClick={handleCellClick}
+                    isDisabled={isDisabled}
+                    playerRole={playerRole}
+                    currentTurn={game.current_turn}
+                    winner={winner}
+                    isGameOver={isGameOver}
+                    />
 
-                const handleNewGameClicked = () => {
-                    if (state.isAI) {
-                        playAgainAI();
-                    } else {
-                        requestRematch()
+                    <GameResult
+                    isGameOver={isGameOver}
+                    isAI={isAI}
+                    winner={winner}
+                    onNewGameClicked={handleNewGameClicked}
+                    onCompleteGame={() =>
+                        finalizeGame(gameId, winner, state.isCompleted)
                     }
-                }
-
-                return (
-                    <div className="game-container">
-                        {/* Display a loading spinner or error message */}
-                        <GameLoader loading={loading} error={error} />
-
-                        {/* Render the main gameplay UI once loading is complete and no errors exist */}
-                        {!loading && !error && game && (
-                            <>
-                                <h1>Tic Tac Toe</h1>
-
-                                {/* Display the turn notification */}
-                                <div
-                                className={`turn-notification
-                                    ${isGameOver ? "game-over" : ""}
-                                    ${!isGameOver && game.current_turn === playerRole ? "your-turn" : ""}
-                                    ${!isGameOver && game.current_turn !== playerRole ? "opponent-turn" : ""}
-                                `}
-                                >
-                                {isGameOver
-                                    ? winner
-                                    ? `Game Over! Winner: ${winner}`
-                                    : "Game Over! It's a draw."
-                                    : game.current_turn === playerRole
-                                    ? "It's your turn"
-                                    : "Waiting for opponent's turn"}
-                                </div>
-
-
-                                {/* Render the game board */}
-                                <GameBoard
-                                    cellValues={cellValues || []}
-                                    winningCombination={winningCombination || []}
-                                    handleCellClick={handleCellClick}
-                                    isDisabled={isDisabled}
-                                />
-
-                                {/* Render the result modal if the game is over */}
-                                <GameResult
-                                    isGameOver={isGameOver}
-                                    isAI={isAI}
-                                    winner={winner}
-                                    onNewGameClicked={handleNewGameClicked  }
-                                    onCompleteGame={() =>
-                                        finalizeGame(gameId, winner, state.isCompleted)
-                                    }
-                                />
-                            </>
-                        )}
-                    </div>
-                );
-            }}
+                    />
+                </>
+                )}
+            </>
+            );
+        }}
         </GameManager>
     );
 };

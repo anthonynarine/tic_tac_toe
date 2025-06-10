@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AiOutlineUserAdd } from "react-icons/ai";
+import {  IoAddSharp } from "react-icons/io5";
 import { useFriends } from "../context/friendsContext";
 import styles from "./AddFriendForm.module.css";
 
@@ -78,7 +79,7 @@ const AddFriendForm = () => {
             />
 
             <button type="submit" className={styles.addBtn} title="Send friend request">
-            <AiOutlineUserAdd size={20} />
+            <IoAddSharp size={20} />
             </button>
         </div>
 

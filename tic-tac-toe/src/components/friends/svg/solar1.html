@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tron Galaxy System</title>
+  <style>
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at center, #000 0%, #010a12 100%);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .stars {
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      background: url('https://raw.githubusercontent.com/makinteract/particle-field/main/public/stars.png');
+      background-repeat: repeat;
+      animation: starScroll 60s linear infinite;
+      opacity: 0.25;
+      z-index: 0;
+    }
+
+
+    .orbit {
+      position: absolute;
+      border: 1px dashed #0a0a0a55;
+      border-radius: 50%;
+      animation: rotate linear infinite;
+    }
+
+    .planet {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #00ffff;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00f0ff;
+      top: 50%;
+      left: 100%;
+      transform: translate(-50%, -50%);
+    }
+
+    .orbit1 { width: 100px; height: 100px; animation-duration: 6s; }
+    .orbit2 { width: 150px; height: 150px; animation-duration: 10s; }
+    .orbit3 { width: 200px; height: 200px; animation-duration: 14s; }
+    .orbit4 { width: 260px; height: 260px; animation-duration: 18s; }
+    .orbit5 { width: 320px; height: 320px; animation-duration: 24s; }
+
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes starScroll {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(-500px, -500px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="stars"></div>
+
+  <div class="solar-center"></div>
+
+  <div class="orbit orbit1"><div class="planet"></div></div>
+  <div class="orbit orbit2"><div class="planet"></div></div>
+  <div class="orbit orbit3"><div class="planet"></div></div>
+  <div class="orbit orbit4"><div class="planet"></div></div>
+  <div class="orbit orbit5"><div class="planet"></div></div>
+</body>
+</html>

@@ -10,6 +10,7 @@ import TrinityOverlay from "../trinity/TrinityOverlay";
 import { FaUserCheck, FaUserTimes } from "react-icons/fa";
 import styles from "./FriendsSidebar.module.css";
 
+
 const FriendsSidebar = () => {
   const {
     isSidebarOpen,
@@ -55,7 +56,7 @@ const FriendsSidebar = () => {
     <div className={`${styles.friendsSidebar} ${isSidebarOpen ? styles.open : ""}`}>
       {/* Header */}
       <div className={styles.friendsSidebarHeader}>
-        <h2 className={styles.friendsSidebarTitle}>Social</h2>
+        {/* <h2 className={styles.friendsSidebarTitle}>Social</h2> */}
         <button
           className={styles.friendsSidebarClose}
           onClick={() => setSidebarOpen(false)}

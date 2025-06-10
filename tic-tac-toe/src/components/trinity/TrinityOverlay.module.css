@@ -16,7 +16,7 @@
 }
 
 .glowRing {
-  background-color: black;
+  background: #000;
   padding: .5rem;
   border-radius: 50%;
   /* border: 1px solid #1da1f2; */
@@ -30,7 +30,7 @@
 
 .icon {
   font-size: 1.5rem;
-  color: #1da1f2;
+  color: #88c0e2;
   animation: glowPulse 2.5s ease-in-out infinite;
   text-shadow:
     0 0 6px rgba(29, 161, 242, 0.8),

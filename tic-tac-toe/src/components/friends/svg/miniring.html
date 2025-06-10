@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tron Nucleus</title>
+  <style>
+    body {
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .nucleus-wrapper {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    .core {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      background: cyan;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 12px cyan, 0 0 30px cyan;
+    }
+
+    .electron {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: #00ffff;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00f0ff;
+    }
+
+    .orbit {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      border: 1px dashed rgba(0, 255, 255, 0.3);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .orbit1 {
+      width: 80px;
+      height: 80px;
+      animation: rotate 6s linear infinite;
+    }
+
+    .orbit2 {
+      width: 110px;
+      height: 110px;
+      animation: rotateReverse 8s linear infinite;
+    }
+
+    .orbit3 {
+      width: 140px;
+      height: 140px;
+      animation: rotate 12s linear infinite;
+    }
+
+    .orbit .electron {
+      top: 0%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    @keyframes rotate {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      100% { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    @keyframes rotateReverse {
+      0% { transform: translate(-50%, -50%) rotate(360deg); }
+      100% { transform: translate(-50%, -50%) rotate(0deg); }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="nucleus-wrapper">
+    <div class="core"></div>
+    <div class="orbit orbit1">
+      <div class="electron"></div>
+    </div>
+    <div class="orbit orbit2">
+      <div class="electron"></div>
+    </div>
+    <div class="orbit orbit3">
+      <div class="electron"></div>
+    </div>
+  </div>
+</body>
+</html>

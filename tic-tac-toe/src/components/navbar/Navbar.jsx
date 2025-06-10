@@ -76,7 +76,7 @@ const Navbar = () => {
             />
             <NavLinks
             isLoggedIn={isLoggedIn}
-            user={user}
+            // user={user}
             logout={logout}
             navigate={navigate}
             setSidebarOpen={setSidebarOpen}

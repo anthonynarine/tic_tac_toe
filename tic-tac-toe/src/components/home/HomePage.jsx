@@ -35,7 +35,7 @@ const Home = () => {
   return (
     <div className="layout-container">
       <div className="homepage-container">
-        <h1 className="homepage-title">Tic Tac Toe</h1>
+        <h1 className="homepage-title">Welcome</h1>
         <p className="homepage-tagline">Challenge friends or beat the AI.</p>
 
         <div className="game-modes">

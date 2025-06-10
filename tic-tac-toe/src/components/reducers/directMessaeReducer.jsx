@@ -46,6 +46,8 @@ export function directMessageReducer(state, action) {
         message,
         message_id,
         currentUserId,
+        type,
+        game_id,
       } = action.payload;
 
       const friendId = sender_id === currentUserId ? receiver_id : sender_id;
@@ -55,13 +57,16 @@ export function directMessageReducer(state, action) {
         sender_id,
         receiver_id,
         content: message,
+        type: type || "message",
+        game_id: game_id || null,
       };
 
       const thread = Array.isArray(state.messages?.[friendId])
         ? state.messages[friendId]
         : [];
 
-      if (thread.some((msg) => msg.id === message_id)) return state;
+      const alreadyExists = thread.some((msg) => msg.id === message_id);
+      if (alreadyExists) return state;
 
       return {
         ...state,
@@ -71,6 +76,7 @@ export function directMessageReducer(state, action) {
         },
       };
     }
+
 
     case DmActionTypes.SET_MESSAGES: {
       const { friendId, messages: newMessages } = action.payload;

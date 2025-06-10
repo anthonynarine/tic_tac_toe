@@ -8,9 +8,9 @@ import {
   initialDMState,
 } from "../reducers/directMessaeReducer";
 import { useUserContext } from "./userContext";
-import { useUI } from "./uiContext";
 import chatAPI from "../../api/chatAPI";
 import useAuthAxios from "../hooks/useAuthAxios";
+import useGameCreation from "../hooks/useGameCreation"
 
 export const DirectMessageContext = createContext(undefined);
 
@@ -25,6 +25,7 @@ export const useDirectMessage = () => {
 export const DirectMessageProvider = ({ children }) => {
   const [state, dispatch] = useReducer(directMessageReducer, initialDMState);
   const { user } = useUserContext();
+  const { createNewGame} = useGameCreation();
   const userRef = useRef(user);
   const { authAxios } = useAuthAxios();
 
@@ -106,6 +107,32 @@ export const DirectMessageProvider = ({ children }) => {
     }
   };
 
+  const sendGameInvite = async () => {
+    if (!state.socket || !state.activeFriendId) return;
+
+    try {
+      const game = await createNewGame(false); // multiplayer mode
+      console.log("🎯 Game object returned:", game);
+      const gameId = game?.id;
+
+      if (!gameId) throw new Error("Invalid game ID");
+
+      state.socket.send(
+        JSON.stringify({
+          type: "game_invite",
+          game_id: gameId,
+          sender_id: userRef.current?.id,
+          receiver_id: state.activeFriendId,
+        })
+      );
+
+      return gameId;
+    } catch (err) {
+      console.error("Game invite failed:", err);
+      return null;
+    }
+  };
+
   const closeChat = () => {
     dispatch({ type: DmActionTypes.CLOSE_CHAT });
   };
@@ -117,6 +144,7 @@ export const DirectMessageProvider = ({ children }) => {
         openChat,
         closeChat,
         sendMessage,
+        sendGameInvite,
       }}
     >
       {children}

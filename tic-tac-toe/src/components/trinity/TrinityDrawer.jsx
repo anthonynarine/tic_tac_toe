@@ -106,7 +106,7 @@ const TrinityDrawer = () => {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             className={styles.textarea}
-                            placeholder="Ask anything about the codebase..."
+                            placeholder="..."
                             rows={1}
                         />
                         <button

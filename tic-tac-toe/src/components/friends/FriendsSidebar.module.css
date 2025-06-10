@@ -8,7 +8,7 @@
 .friendsSidebar {
   color: #080808;
   background-color: #000000;
-  width: 20rem;
+  width: 22rem;
   max-width: 100%;
   display: flex;
   flex-direction: column;
@@ -45,7 +45,7 @@
 /* ==========================================================================
  🧱 SIDEBAR HEADER (Sticky at Top)
 ========================================================================== */
-.friendsSidebarHeader {
+/* .friendsSidebarHeader {
   position: relative;
   top: 0;
   background-color: #000;
@@ -59,7 +59,7 @@
     0 2px 4px var(--glow-color-soft),
     0 4px 8px var(--glow-color);
   z-index: 10;
-}
+} */
 
 .friendsSidebarTitle {
   font-size: 0.95rem;
@@ -100,6 +100,7 @@
 ========================================================================== */
 .trinityOverlayContainer {
   max-height: 12rem;
+  margin-top: 10px;
   overflow-y: auto;
   background-color: transparent;
   padding: 0.75rem 1rem;
@@ -409,6 +410,21 @@
   box-shadow: 0 0 6px red;
   animation: pulseBadge 1.2s ease-in-out infinite;
 }
+
+/* ==========================================================================
+ 💡 Invite badge
+========================================================================== */
+.inviteBadge {
+  margin-left: 8px;
+  font-size: 1rem;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+@keyframes pulse {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
 
 @keyframes pulseBadge {
   0% {

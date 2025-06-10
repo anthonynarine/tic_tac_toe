@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tron Solar System</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .solar-center {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      background: radial-gradient(circle, #00f0ff 0%, #00232a 100%);
+      border-radius: 50%;
+      box-shadow: 0 0 20px #00f2ff, 0 0 50px rgba(0, 255, 255, 0.6);
+      z-index: 10;
+    }
+
+    .orbit {
+      position: absolute;
+      border: 1px dashed #00f2ff55;
+      border-radius: 50%;
+      animation: rotate linear infinite;
+    }
+
+    .planet {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #00ffff;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #00f0ff;
+      top: 50%;
+      left: 100%;
+      transform: translate(-50%, -50%);
+    }
+
+    .orbit1 {
+      width: 100px;
+      height: 100px;
+      animation-duration: 6s;
+    }
+
+    .orbit2 {
+      width: 150px;
+      height: 150px;
+      animation-duration: 10s;
+    }
+
+    .orbit3 {
+      width: 200px;
+      height: 200px;
+      animation-duration: 14s;
+    }
+
+    .orbit4 {
+      width: 260px;
+      height: 260px;
+      animation-duration: 18s;
+    }
+
+    .orbit5 {
+      width: 320px;
+      height: 320px;
+      animation-duration: 24s;
+    }
+
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="solar-center"></div>
+
+  <div class="orbit orbit1">
+    <div class="planet"></div>
+  </div>
+  <div class="orbit orbit2">
+    <div class="planet"></div>
+  </div>
+  <div class="orbit orbit3">
+    <div class="planet"></div>
+  </div>
+  <div class="orbit orbit4">
+    <div class="planet"></div>
+  </div>
+  <div class="orbit orbit5">
+    <div class="planet"></div>
+  </div>
+</body>
+</html>

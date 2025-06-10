@@ -31,9 +31,7 @@ const MainRoutes = () => (
             element={
             <GameWebSocketProvider>
                 <GameProvider>
-                <div className="game-wrapper">
                     <GamePage />
-                </div>
                 </GameProvider>
             </GameWebSocketProvider>
             }
