@@ -3,6 +3,7 @@
 import React from "react";
 import classNames from "classnames";
 import "./ResponsiveBoard.css";
+import { XIcon, OIcon } from "./TronXO";
 
 /**
  * ResponsiveBoard Component
@@ -63,11 +64,15 @@ const ResponsiveBoard = ({
             disabled={!!value || isDisabled}
             aria-label={`Cell ${index + 1}`}
           >
-            <span
+            <span className="cell-content" aria-hidden="true">
+              {value === "X" && <XIcon />}
+              {value === "O" && <OIcon />}
+            </span>
+            {/* <span
               className="cell-content"
               data-value={value || ""}
               aria-hidden="true"
-            />
+            /> */}
           </button>
           );
         })}

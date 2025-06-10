@@ -9,7 +9,7 @@
   min-width: 320px;
   max-width: 590px;
   margin: 2rem auto 5rem;
-  padding: 1.5rem;
+  padding: 2rem;
   box-sizing: border-box;
 
   background: #000;
@@ -135,6 +135,8 @@
   position: relative;
   line-height: 1;
   margin: 0;
+  padding: 15%;
+  box-sizing: border-box;
 }
 
 /* Neon Glowing Letters */
@@ -168,6 +170,14 @@
                0 0 16px #00bfff,
   
 }
+
+.cell-content svg {
+  width: 80%;
+  height: 80%;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.1));
+  transition: transform 0.3s ease;
+}
+
 
 /* Winner Pulse */
 .cell.winner .cell-content::after {
@@ -248,7 +258,7 @@
 @media (min-width: 1024px) {
   .responsive-game-container {
     max-width: 460px;
-    padding: 1.25rem;
+    padding: 2.5rem;
     margin: 3rem auto 5rem;
     min-height: 520px;
   }
