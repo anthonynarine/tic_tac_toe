@@ -8,7 +8,7 @@ from friends.models import Friendship
 from chat.models import DirectMessage, Conversation
 
 
-logger = logging.getLogger("chat")
+logger = logging.getLogger("chat.direct_message_consumer")
 User = get_user_model()
 
 class DirectMessageConsumer(AsyncWebsocketConsumer):
@@ -73,20 +73,22 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
         Supports:
         - 'message': a chat message to be saved and broadcast
         - 'game_invite': a game invitation to be sent to the friend
+        Also sends notification events to the receiver's personal group.
         """
         data = json.loads(text_data)
         msg_type = data.get("type")
-        
+
         logger.info(f"[DM] Received WebSocket message: {data}")
 
         if msg_type == "message":
             message = data.get("message")
             if message:
                 conversation = await self.get_or_create_conversation()
-                dm = await self.save_message(message, conversation)  # ✅ capture saved message
+                dm = await self.save_message(message, conversation)
+
+                logger.info(f"[DM] Broadcasting message to room {self.room_group_name}")
                 
-                logger.info(f"[DM] Sending message to group: {self.room_group_name}")  
-                
+                # ✅ 1. Send to private DM group
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -94,17 +96,35 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
                         "sender_id": self.user.id,
                         "receiver_id": self.friend_id,
                         "message": message,
-                        "message_id": dm.id,  # ✅ include message_id
-                        "conversation_id": f"{self.user.id}__{self.friend_id}",  # optional but helpful
+                        "message_id": dm.id,
+                        "conversation_id": f"{self.user.id}__{self.friend_id}",
+                    }
+                )
+
+                # ✅ 2. Send separate notification to the receiver's personal group
+                await self.channel_layer.group_send(
+                    f"user_{self.friend_id}",
+                    {
+                        "type": "notify",
+                        "payload": {
+                            "type": "dm",
+                            "sender_id": self.user.id,
+                            "receiver_id": self.friend_id,
+                            "message": message,
+                            "message_id": dm.id,
+                            "conversation_id": f"{self.user.id}__{self.friend_id}",
+                            "timestamp": str(dm.timestamp),
+                        }
                     }
                 )
 
         elif msg_type == "game_invite":
             game_id = data.get("game_id")
-            lobby_id = data.get("lobby_id") or str(game_id)  # fallback to game_id
+            lobby_id = data.get("lobby_id") or str(game_id)
             logger.info(f"[DM] game_invite received for game_id={game_id}, lobby_id={lobby_id}")
 
             if game_id:
+                # ✅ 1. Send to DM room
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -112,7 +132,22 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
                         "sender_id": self.user.id,
                         "receiver_id": self.friend_id,
                         "game_id": game_id,
-                        "lobby_id": lobby_id,  
+                        "lobby_id": lobby_id,
+                    }
+                )
+
+                # ✅ 2. Also notify the receiver
+                await self.channel_layer.group_send(
+                    f"user_{self.friend_id}",
+                    {
+                        "type": "notify",
+                        "payload": {
+                            "type": "game_invite",
+                            "sender_id": self.user.id,
+                            "receiver_id": self.friend_id,
+                            "game_id": game_id,
+                            "lobby_id": lobby_id,
+                        }
                     }
                 )
         else:
@@ -142,7 +177,6 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
             "lobby_id": event.get("lobby_id", str(event["game_id"]))  # fallback if lobby_id isn't explicitly passed
         }))
         logger.info(f"[DM] Sending game_invite event: {event}")
-
 
     @staticmethod
     def get_conversation_id(id1, id2):
