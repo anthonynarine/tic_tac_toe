@@ -24,6 +24,7 @@ const useGameCreation = () => {
             try {
                 // Call the service to create a new game
                 const newGame = await createNewGameService(authAxios, isAIGame);
+                console.log("🎮 Game created:", newGame);
                 return newGame;
             } catch (error) {
                 // Pass the error object to extractErrorMessage

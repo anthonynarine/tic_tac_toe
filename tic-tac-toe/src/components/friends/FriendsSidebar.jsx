@@ -1,32 +1,50 @@
-// File: FriendsSidebar.jsx (clean baseline version)
+// File: FriendsSidebar.jsx
 
 import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useFriends } from "../context/friendsContext";
-import AddFriendForm from "./AddFriendForm";
 import { useDirectMessage } from "../context/directMessageContext";
 import { useUserContext } from "../context/userContext";
 import { useUI } from "../context/uiContext";
+// import { inviteAndNotifyFriend } from "./utils/inviteAndNotifyFriend";
+
+import AddFriendForm from "./AddFriendForm";
 import TrinityOverlay from "../trinity/TrinityOverlay";
-import { FaUserCheck, FaUserTimes } from "react-icons/fa";
+import FriendsList from "./FriendsList";
+import PendingFriendRequest from "./PendingFriendRequest";
+
 import styles from "./FriendsSidebar.module.css";
 
-
+/**
+ * FriendsSidebar
+ *
+ * Sidebar component that displays:
+ * - Trinity assistant launcher
+ * - Add friend form
+ * - List of online/offline friends
+ * - Pending friend requests
+ *
+ * Manages click behavior for opening DMs or accepting/declining requests.
+ * Controlled via global UI state (drawer open/close).
+ */
 const FriendsSidebar = () => {
-  const {
-    isSidebarOpen,
-    setSidebarOpen,
-    setDMOpen,
-    setTrinityOpen,
-  } = useUI();
-
+  const { isSidebarOpen, setSidebarOpen, setDMOpen, setTrinityOpen } = useUI();
   const { friends, pending, acceptRequest, declineRequest, refreshFriends } = useFriends();
-  const { openChat } = useDirectMessage();
+  const { openChat, unread, sendGameInvite } = useDirectMessage();
   const { user } = useUserContext();
+  const navigate = useNavigate();
 
+  /**
+   * On mount, refresh friend list from backend.
+   */
   useEffect(() => {
     refreshFriends();
   }, [refreshFriends]);
 
+  /**
+   * Handles clicking a friend row to open direct message chat.
+   * Only works if friend is online.
+   */
   const handleFriendClick = (friend) => {
     if (friend.friend_status === "online") {
       openChat(friend);
@@ -34,6 +52,24 @@ const FriendsSidebar = () => {
     }
   };
 
+
+  const handleInvite = async (friend) => {
+    const result = await sendGameInvite(friend);
+    console.log("🎯 handleInvite result:", result);
+
+    if (result?.lobby_id || result?.lobbyId) {
+      const lobbyId = result.lobby_id || result.lobbyId;
+      console.log("🚀 Navigating to lobby:", lobbyId);
+      navigate(`/lobby/${lobbyId}`);
+    } else {
+      console.warn("No lobbyId in result, not navigating.");
+    }
+  };
+
+
+  /**
+   * Accept a pending friend request by ID.
+   */
   const handleAccept = async (id) => {
     try {
       await acceptRequest(id);
@@ -43,6 +79,9 @@ const FriendsSidebar = () => {
     }
   };
 
+  /**
+   * Decline a pending friend request by ID.
+   */
   const handleDecline = async (id) => {
     try {
       await declineRequest(id);
@@ -54,9 +93,10 @@ const FriendsSidebar = () => {
 
   return (
     <div className={`${styles.friendsSidebar} ${isSidebarOpen ? styles.open : ""}`}>
-      {/* Header */}
+      {/* ─────────────────────────────────────────────
+          🔒 Sidebar Header — Close Button
+      ───────────────────────────────────────────── */}
       <div className={styles.friendsSidebarHeader}>
-        {/* <h2 className={styles.friendsSidebarTitle}>Social</h2> */}
         <button
           className={styles.friendsSidebarClose}
           onClick={() => setSidebarOpen(false)}
@@ -66,80 +106,51 @@ const FriendsSidebar = () => {
         </button>
       </div>
 
-      {/* Trinity Overlay */}
+      {/* ─────────────────────────────────────────────
+          🧠 Trinity Overlay Launcher
+      ───────────────────────────────────────────── */}
       <div className={styles.trinityOverlayContainer}>
         <TrinityOverlay onClick={() => setTrinityOpen(true)} />
       </div>
 
-      {/* Content */}
+      {/* ─────────────────────────────────────────────
+          📋 Sidebar Content — Add Friend, Lists
+      ───────────────────────────────────────────── */}
       <div className={styles.friendsSidebarContent}>
         <AddFriendForm />
 
-        {/* Friends List */}
+        {/* ─── 👥 Friends List ─────────────────────── */}
         <section className={styles.friendsSidebarSection}>
           <h3>Friends</h3>
           <ul>
             {friends.length > 0 ? (
-              friends.map((friend) => {
-                const isOnline = friend.friend_status === "online";
-                const isCurrentUserSender = friend.from_user === user.id;
-                const friendUserId = isCurrentUserSender ? friend.to_user : friend.from_user;
-
-                return (
-                  <li key={friend.id} className={styles.friendsSidebarFriend}>
-                    <div
-                      className={styles.friendRow}
-                      onClick={() => handleFriendClick(friend)}
-                      style={{
-                        cursor: isOnline ? "pointer" : "default",
-                        opacity: isOnline ? 1 : 0.5,
-                      }}
-                    >
-                      <div className={styles.friendInfo}>
-                        <span className={styles.friendName}>{friend.friend_name}</span>
-                        <span
-                          className={`${styles.friendStatusText} ${
-                            isOnline ? styles.online : styles.offline
-                          }`}
-                        >
-                          {isOnline ? "Online" : "Offline"}
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })
+              friends.map((friend) => (
+                <FriendsList
+                  key={friend.id}
+                  friend={friend}
+                  user={user}
+                  onClick={handleFriendClick}
+                  onInvite={handleInvite} 
+                />
+              ))
             ) : (
               <li className={styles.friendsSidebarEmpty}>No friends yet.</li>
             )}
           </ul>
         </section>
 
-        {/* Pending Requests */}
+        {/* ─── 📨 Pending Requests ─────────────────── */}
         <section className={styles.friendsSidebarSection}>
           <h3>Pending Requests</h3>
           <ul>
             {pending.received?.length > 0 ? (
               pending.received.map((r) => (
-                <li key={r.id} className={styles.friendsSidebarRequest}>
-                  <span>{r.from_user_name}</span>
-                  <div className={styles.friendsSidebarActions}>
-                    <button
-                      onClick={() => handleAccept(r.id)}
-                      className={styles.acceptBtn}
-                      title="Accept"
-                    >
-                      <FaUserCheck size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDecline(r.id)}
-                      className={styles.declineBtn}
-                      title="Decline"
-                    >
-                      <FaUserTimes size={14} />
-                    </button>
-                  </div>
-                </li>
+                <PendingFriendRequest
+                  key={r.id}
+                  request={r}
+                  onAccept={handleAccept}
+                  onDecline={handleDecline}
+                />
               ))
             ) : (
               <li className={styles.friendsSidebarEmpty}>No pending requests.</li>

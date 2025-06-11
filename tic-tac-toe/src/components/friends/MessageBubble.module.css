@@ -1,3 +1,4 @@
+/* Base message bubble */
 .message {
   max-width: 80%;
   padding: 0.6rem 0.9rem;
@@ -5,9 +6,13 @@
   border-radius: 1rem;
   font-size: 0.95rem;
   display: flex;
+  flex-direction: column;
   word-break: break-word;
+  line-height: 1.5;
+  position: relative;
 }
 
+/* Incoming (friend's messages) */
 .incoming {
   background-color: #1f1f1f;
   color: #eee;
@@ -15,6 +20,7 @@
   margin-right: auto;
 }
 
+/* Outgoing (current user's messages) */
 .outgoing {
   background: linear-gradient(to bottom right, #00aaff, #0088cc);
   color: white;
@@ -22,6 +28,61 @@
   margin-left: auto;
 }
 
+/* Regular text message content */
 .text {
   line-height: 1.4;
+  font-size: 0.95rem;
+}
+
+/* Invite bubble override (centralized style) */
+.invite {
+  align-self: center;
+  margin: 1rem auto;
+  padding: 0.8rem 1.2rem;
+  background: radial-gradient(circle, #0a0a0a, #111a22);
+  border: 1px solid #00ffee44;
+  border-radius: 14px;
+  box-shadow: 0 0 12px #00ffee22, inset 0 0 4px #00ffee22;
+  animation: pulse 1.2s ease-in-out infinite alternate;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  max-width: 75%;
+}
+
+/* Join link */
+.joinLink {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+  border-radius: 10px;
+  background: #000;
+  color: #00ffee;
+  text-decoration: none;
+  border: 2px solid #00ffee55;
+  box-shadow: 0 0 10px #00ffee44, inset 0 0 4px #00ffee22;
+  transition: all 0.3s ease-in-out;
+  backdrop-filter: blur(4px);
+}
+
+.joinLink:hover {
+  background: #00ffee22;
+  color: #ffffff;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 0 16px #00ffeeaa, inset 0 0 6px #00ffee66;
+}
+
+/* Pulse glow effect for invite cards */
+@keyframes pulse {
+  0% {
+    border-color: #00ffcc;
+    box-shadow: 0 0 6px #00ffcc66, inset 0 0 2px #00ffcc44;
+  }
+  100% {
+    border-color: #33ffee;
+    box-shadow: 0 0 12px #00ffe1aa, inset 0 0 4px #00ffee88;
+  }
 }

@@ -59,7 +59,6 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
         await self.accept()
         logger.info(f"[DM] {self.user} connected to room {self.room_group_name}")
 
-
     async def disconnect(self, close_code):
         """
         Called on WebSocket disconnect.
@@ -102,6 +101,9 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
 
         elif msg_type == "game_invite":
             game_id = data.get("game_id")
+            lobby_id = data.get("lobby_id") or str(game_id)  # fallback to game_id
+            logger.info(f"[DM] game_invite received for game_id={game_id}, lobby_id={lobby_id}")
+
             if game_id:
                 await self.channel_layer.group_send(
                     self.room_group_name,
@@ -110,11 +112,11 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
                         "sender_id": self.user.id,
                         "receiver_id": self.friend_id,
                         "game_id": game_id,
+                        "lobby_id": lobby_id,  
                     }
                 )
         else:
             logger.warning(f"[DM] Unrecognized message type received: {msg_type}")
-
 
     async def chat_message(self, event):
         logger.info(f"[DM] chat_message triggered with event: {event}")
@@ -127,17 +129,20 @@ class DirectMessageConsumer(AsyncWebsocketConsumer):
             "conversation_id": f"{min(event['sender_id'], event['receiver_id'])}__{max(event['sender_id'], event['receiver_id'])}"
         }))
 
-
     async def game_invite(self, event):
         """
         Sends a game invite message to both users in the conversation group.
+        Includes the game ID and lobby ID for joining the lobby.
         """
         await self.send(text_data=json.dumps({
             "type": "game_invite",
             "sender_id": event["sender_id"],
             "receiver_id": event["receiver_id"],
             "game_id": event["game_id"],
+            "lobby_id": event.get("lobby_id", str(event["game_id"]))  # fallback if lobby_id isn't explicitly passed
         }))
+        logger.info(f"[DM] Sending game_invite event: {event}")
+
 
     @staticmethod
     def get_conversation_id(id1, id2):

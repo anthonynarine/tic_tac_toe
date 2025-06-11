@@ -198,6 +198,33 @@
 }
 
 /* ==========================================================================
+ 🔁 INVITE TO GAME BTN
+========================================================================== */
+
+.inviteButton {
+  background: transparent;
+  border: none;
+  color: #00bfff;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.inviteButton:hover {
+  transform: scale(1.15);
+  background-color: transparent;
+  box-shadow:
+    0 0 6px #070707,
+    0 0 10px #080808,
+    /* 0 0 14px #00bfff; */
+}
+
+
+/* ==========================================================================
  🔁 FRIEND REQUEST ACTIONS
 ========================================================================== */
 .friendsSidebarRequest {

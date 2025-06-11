@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDirectMessage } from "../context/directMessageContext";
 import { IoIosSend } from "react-icons/io";
 import { IoCloseSharp, IoAddSharp } from "react-icons/io5";
+import { useInviteAndNotifyFriend } from '../hooks/useInviteAndNotifyFriend'; // ✅ correct
+
 
 
 
@@ -17,12 +19,12 @@ const DMDrawer = ({ isOpen, onClose = () => {} }) => {
         messages,
         sendMessage,
         closeChat,
-        sendGameInvite,
     } = useDirectMessage();
 
     const [newMessage, setNewMessage] = useState("");
     const { user } = useUserContext();
     const messagesEndRef = useRef(null);
+    const invite = useInviteAndNotifyFriend();
 
     useEffect(() => {
         if (messagesEndRef.current) {
@@ -37,11 +39,8 @@ const DMDrawer = ({ isOpen, onClose = () => {} }) => {
         }
     };
 
-    const handleSendGameInvite = async () => {
-        const gameId = await sendGameInvite();
-        if (gameId) {
-            console.log("Game invite sent with ID:", gameId);
-        }
+    const handleSendGameInvite = () => {
+    if (activeChat) invite(activeChat);
     };
 
     if (!isOpen || !activeChat) return null;

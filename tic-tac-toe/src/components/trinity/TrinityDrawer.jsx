@@ -106,7 +106,7 @@ const TrinityDrawer = () => {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             className={styles.textarea}
-                            placeholder="..."
+                            placeholder="Ask me about the app"
                             rows={1}
                         />
                         <button

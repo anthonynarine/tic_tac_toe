@@ -1,4 +1,4 @@
-// File: directMessaeReducer.js (updated with correct SET_MESSAGES handling)
+// File: directMessaeReducer.js (updated with game/lobby persistence)
 
 export const initialDMState = {
   activeChat: null,
@@ -6,6 +6,9 @@ export const initialDMState = {
   messages: {}, // { [friendId]: [message1, message2, ...] }
   isLoading: false,
   activeFriendId: null,
+  unreadCounts: {},
+  activeLobbyId: null,
+  activeGameId: null,
 };
 
 export const DmActionTypes = {
@@ -14,6 +17,10 @@ export const DmActionTypes = {
   RECEIVE_MESSAGE: "RECEIVE_MESSAGE",
   SET_MESSAGES: "SET_MESSAGES",
   SET_LOADING: "SET_LOADING",
+  INCREMENT_UNREAD: "INCREMENT_UNREAD",
+  RESET_UNREAD: "RESET_UNREAD",
+  SET_ACTIVE_LOBBY: "SET_ACTIVE_LOBBY",
+  SET_ACTIVE_GAME: "SET_ACTIVE_GAME",
 };
 
 export function directMessageReducer(state, action) {
@@ -56,7 +63,7 @@ export function directMessageReducer(state, action) {
         id: message_id,
         sender_id,
         receiver_id,
-        content: message,
+        content: type === "game_invite" ? null : message,
         type: type || "message",
         game_id: game_id || null,
       };
@@ -77,6 +84,30 @@ export function directMessageReducer(state, action) {
       };
     }
 
+    case DmActionTypes.INCREMENT_UNREAD: {
+      const { friendId } = action.payload;
+      const count = state.unreadCounts?.[friendId] || 0;
+
+      return {
+        ...state,
+        unreadCounts: {
+          ...state.unreadCounts,
+          [friendId]: count + 1,
+        },
+      };
+    }
+
+    case DmActionTypes.RESET_UNREAD: {
+      const { friendId } = action.payload;
+
+      return {
+        ...state,
+        unreadCounts: {
+          ...state.unreadCounts,
+          [friendId]: 0,
+        },
+      };
+    }
 
     case DmActionTypes.SET_MESSAGES: {
       const { friendId, messages: newMessages } = action.payload;
@@ -94,6 +125,20 @@ export function directMessageReducer(state, action) {
       return {
         ...state,
         isLoading: action.payload,
+      };
+
+    case DmActionTypes.SET_ACTIVE_LOBBY:
+      localStorage.setItem("activeLobbyId", action.payload);
+      return {
+        ...state,
+        activeLobbyId: action.payload,
+      };
+
+    case DmActionTypes.SET_ACTIVE_GAME:
+      localStorage.setItem("activeGameId", action.payload);
+      return {
+        ...state,
+        activeGameId: action.payload,
       };
 
     default:

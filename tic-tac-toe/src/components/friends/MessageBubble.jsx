@@ -1,35 +1,57 @@
 import React from "react";
-import styles from "./MessageBubble.module.css"; // we’ll create this
+import { Link } from "react-router-dom";
+import styles from "./MessageBubble.module.css";
+
 /**
  * MessageBubble Component
- * ----------------------------------------------------
- * Displays a single message bubble, styled based on
- * whether it was sent by the current user or a friend.
- *
- * Props:
- * - msg: The message object (must include sender_id and message)
- * - currentUserId: The logged-in user's ID
+ * ------------------------
+ * Handles normal messages + auto-links to /lobby/:id or /games/:id
  */
 
 const MessageBubble = ({ msg, currentUserId }) => {
-    // Determine if this message was sent by the current user
     const isMine = msg.sender_id === currentUserId;
-    // console.log("Rendering msg:", msg.message);
-    // console.log("Rendering msg:", msg);
 
+    // Only apply fallback if not a game_invite
+    const content =
+        msg.type === "game_invite"
+            ? null
+            : msg.content || msg.message || "[No message]";
 
+    const lobbyMatch = msg.content?.match(/\/lobby\/\d+/) || [];
+    const gameMatch = msg.content?.match(/\/games\/\d+/) || [];
+    const extractedLink = lobbyMatch[0] || gameMatch[0];
 
+    // 🛑 Skip rendering if message is not a game_invite and has no content
+    if (
+        (msg.type === "game_invite" && !msg.lobby_id && !msg.content) ||
+        (msg.type !== "game_invite" &&
+            (!content || content.trim() === "" || content === "[No message]"))
+    ) {
+        return null;
+        
+    }
     return (
         <div
             className={`
                 ${styles.message}
                 ${isMine ? styles.outgoing : styles.incoming}
-                `}
+            `}
         >
-        {/* ✅ Display the actual text content of the message */}
-        <span className={styles.text}>{msg.content || msg.message || "[No message]"}</span>
+            {msg.type === "game_invite" && msg.lobby_id ? (
+                <Link to={`/lobby/${msg.lobby_id}`} className={styles.joinLink}>
+                    Join Lobby →
+                </Link>
+            ) : extractedLink ? (
+                <Link to={extractedLink} className={styles.joinLink}>
+                    {extractedLink.includes("/lobby/")
+                        ? "Join Lobby →"
+                        : "Accept Challenge →"}
+                </Link>
+            ) : (
+                <span className={styles.text}>{content}</span>
+            )}
         </div>
-    )
-}
+    );
+};
 
 export default MessageBubble;

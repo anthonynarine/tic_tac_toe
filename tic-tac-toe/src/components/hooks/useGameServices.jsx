@@ -134,6 +134,8 @@ const useGameServices = () => {
         } catch (error) {
             // Handle any errors that occur during the request
             setError(extractErrorMessage(error));
+            console.error("🔥 Game creation failed:", error.response?.data || error.message);
+            throw error; // 💥 needed for upstream to react
         } finally {
             // Ensure loading state is stopped, whether the request succeeds or fails
             stopLoading();
