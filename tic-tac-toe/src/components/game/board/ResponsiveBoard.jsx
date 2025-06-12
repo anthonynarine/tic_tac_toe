@@ -30,7 +30,7 @@ const ResponsiveBoard = ({
     }
 
     if (currentTurn === playerRole) return "Your turn";
-    return "🕒 Opponent's turn";
+    return "Opponent's turn";
   };
 
   return (

@@ -3,12 +3,13 @@
 /* ==========================================================================
    🌌 REGISTER PAGE — MATCH LOGIN GLOW THEME
    ========================================================================== */
+
 #registration-container {
   width: 100%;
   max-width: 500px;
   min-width: 280px;
   padding: 2rem;
-  margin: 8rem auto 4rem auto;
+  margin: 3rem auto 4rem auto;
   background-color: black;
   color: var(--primary-color);
   border-radius: 15px;
@@ -97,12 +98,14 @@
     0 0 30px var(--glow-color-soft);
 }
 
-/* Mobile / Tablet refinements */
+/* ==========================================================================
+   📱 MOBILE STYLES
+   ========================================================================== */
 @media (max-width: 480px) {
   #registration-container {
     width: 90%;
     padding: 1.5rem 1rem;
-    margin-top: 3rem;
+    margin-top: .5rem; /* ⬆️ Less margin — moves form higher */
     box-shadow:
       0 0 4px rgba(29, 161, 242, 0.25),
       0 0 10px rgba(29, 161, 242, 0.15),
@@ -110,7 +113,7 @@
   }
 
   #registration-form {
-    gap: 1rem; /* ⬅️ tighten form spacing */
+    gap: 1rem;
   }
 
   #registration-form h2 {
@@ -129,18 +132,21 @@
   #registration-form button {
     font-size: 0.95rem;
     padding: 0.7rem;
+    width: 100%;
   }
 
   #registration-form button {
     margin-top: 0.5rem;
   }
 }
-
-
+/* ==========================================================================
+   📱 SMALL TABLET STYLES
+   ========================================================================== */
 @media (min-width: 481px) and (max-width: 768px) {
   #registration-container {
     width: 85%;
     padding: 2rem 1.75rem;
+    margin-top: 2.5rem; /* ⬆️ Less margin — moves form higher */
   }
 
   #registration-form h2 {

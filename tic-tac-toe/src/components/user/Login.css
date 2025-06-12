@@ -171,9 +171,9 @@ html, body {
 /* Mobile (<=480px) */
 @media (max-width: 480px) {
   #login-container {
-    width: 90%;
+    width: 100%;
     padding: 2rem 1.25rem;
-    margin-top: 4rem;
+    margin-top: 1rem;
     box-shadow:
       0 0 4px rgba(29, 161, 242, 0.25),
       0 0 10px rgba(29, 161, 242, 0.15),
@@ -211,6 +211,7 @@ html, body {
   #login-container {
     width: 85%;
     padding: 2rem 1.75rem;
+    margin-top: 3rem;
   }
 
   #login-form h2 {

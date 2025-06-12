@@ -32,18 +32,23 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
 
     const { message, rematchRequestedBy } = rawRematchOffer;
 
+    console.log("🔥 Rematch Offer Received:");
+    console.log("Current Player Role:", currentPlayerRole);
+    console.log("Requested By:", rematchRequestedBy);
+
     dispatch({
       type: "SHOW_REMATCH_MODAL",
       payload: {
         message,
         rematchRequestedBy,
         isRematchOfferVisible: true,
-        rematchPending: rematchRequestedBy === currentPlayerRole,
+        rematchPending: currentPlayerRole !== rematchRequestedBy,
       },
     });
 
     dispatch({ type: "RECEIVE_RAW_REMATCH_OFFER", payload: null });
   }, [rawRematchOffer, currentPlayerRole, dispatch]);
+
 
   useEffect(() => {
     if (!state.isCompleted) {
@@ -84,33 +89,46 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
   const resultModalClasses =
     isGameOver || isRematchOfferVisible ? styles.modalOpen : "";
 
+  console.log("🏁 isRematchOfferVisible:", isRematchOfferVisible);
+  console.log("🏁 rematchPending:", rematchPending);
+  console.log("🏁 Current Role:", currentPlayerRole);
+  console.log("🏁 Requested By:", state.rematchRequestedBy);
+
+
   return (
     <div className={`${styles.modalOverlay} ${resultModalClasses}`}>
       <div className={styles.modalBox}>
         <div className={styles.winnerText}>{resultMessage}</div>
 
         <div className={styles.buttonGroup}>
+
           {isRematchOfferVisible ? (
-            isRequester ? (
-              <p className={styles.rematchText}>{`${rematchMessage} Waiting... ${countdown}s`}</p>
-            ) : (
+            rematchPending ? (
               <>
                 <p className={styles.rematchText}>{rematchMessage}</p>
                 <div className={styles.rematchButtons}>
                   <button className={styles.modalButton} onClick={handleAccept}>
                     Accept
                   </button>
-                  <button className={`${styles.modalButton} ${styles.danger}`} onClick={handleDecline}>
+                  <button
+                    className={`${styles.modalButton} ${styles.danger}`}
+                    onClick={handleDecline}
+                  >
                     Decline
                   </button>
                 </div>
               </>
+            ) : (
+              <p className={styles.rematchText}>
+                {`${rematchMessage} Waiting... ${countdown}s`}
+              </p>
             )
           ) : (
             <button className={styles.modalButton} onClick={handleRematchRequest}>
               Rematch
             </button>
           )}
+
 
           <button className={styles.modalButton} onClick={handleGoHome}>
             <AiFillHome style={{ marginRight: 8 }} /> Home

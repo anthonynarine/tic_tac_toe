@@ -7,6 +7,7 @@ import { useLocation } from "react-router-dom";
 import { UIProvider } from "./components/context/uiContext";
 import { UserProvider } from "./components/context/userContext";
 import { DirectMessageProvider } from "./components/context/directMessageContext";
+import { NotificationProvider } from "./components/context/notificatonContext";
 
 // Route container
 import AppRoutes from "./routes/AppRoutes";
@@ -27,9 +28,11 @@ function App() {
         <ToastContainer />
         <UIProvider>
             <UserProvider>
-            <DirectMessageProvider>
-                <AppRoutes />
-            </DirectMessageProvider>
+                <DirectMessageProvider>
+                    <NotificationProvider>
+                        <AppRoutes />
+                    </NotificationProvider>
+                </DirectMessageProvider>
             </UserProvider>
         </UIProvider>
         </>

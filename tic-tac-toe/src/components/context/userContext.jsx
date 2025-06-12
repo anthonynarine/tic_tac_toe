@@ -1,4 +1,6 @@
 import { useState, useEffect, createContext, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import Cookies from "js-cookie";
 
 /**
  * Context to hold the current user data and login status globally.
@@ -42,18 +44,46 @@ export const UserProvider = ({ children }) => {
     const [isLoggedIn, setIsLoggedIn] = useState(false); // Step 2: Initialize login status state
     const [authLoaded, setAuthLoaded] = useState(false); // Step 3: Initialize auth loading state
 
-    // Step 4: On mount, check localStorage for existing user session
-    useEffect(() => {
-        const storedUser = localStorage.getItem("user");
-        const storedIsLoggedIn = localStorage.getItem("isLoggedIn");
+    const navigate = useNavigate();
 
-        if (storedUser && storedIsLoggedIn === "true") {
-            setUser(JSON.parse(storedUser)); // Step 4.1: Set user state from localStorage
-            setIsLoggedIn(true); // Step 4.2: Set logged-in status to true
+    // Step 4: On mount, validate access token and restore session
+    useEffect(() => {
+        // Step 4.1: Determine token source based on environment
+        const token =
+            process.env.NODE_ENV === "production"
+                ? Cookies.get("access_token") // In production, use secure cookies
+                : localStorage.getItem("access_token"); // In dev, use localStorage
+
+        // Step 4.2: Define which routes should NOT require auth (e.g. login/register)
+        const publicRoutes = ["/login", "/register"];
+        const currentPath = window.location.pathname;
+
+        // Step 4.3: If there's no token and user is visiting a protected page
+        if (!token) {
+            if (!publicRoutes.includes(currentPath)) {
+                // Step 4.3.1: Clear any existing auth state
+                setUser(null);
+                setIsLoggedIn(false);
+                localStorage.removeItem("user");
+                localStorage.setItem("isLoggedIn", "false");
+
+                // Step 4.3.2: Redirect to login page
+                navigate("/login");
+            }
+        } else {
+            // Step 4.4: Token exists — restore user session from localStorage
+            const storedUser = localStorage.getItem("user");
+            if (storedUser) {
+                // Step 4.4.1: Hydrate user state from localStorage
+                setUser(JSON.parse(storedUser));
+                setIsLoggedIn(true);
+            }
         }
 
-        setAuthLoaded(true); // Step 4.3: Mark auth check complete
-    }, []); // Empty dependency array means this runs once on mount
+        // Step 4.5: Mark auth check as completed (used to guard initial render)
+        setAuthLoaded(true);
+    }, []);
+
 
     // Step 5: Sync user/auth state changes with localStorage
     useEffect(() => {
@@ -64,7 +94,7 @@ export const UserProvider = ({ children }) => {
             localStorage.removeItem("user"); // Step 5.3: Clear user info if logged out
             localStorage.setItem("isLoggedIn", "false");
         }
-    }, [user, isLoggedIn]); // Re-run when either 'user' or 'isLoggedIn' changes
+    }, [user, isLoggedIn]);
 
     // Step 6: Provide context to all children
     return (
