@@ -145,3 +145,32 @@
   }
 }
 
+/* ==========================================================================
+   📱 RESPONSIVE TWEAK — SMALL SCREENS
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .homepage-container {
+    margin-top: 0rem; /* ⬆️ Was 8rem — now appears higher on mobile */
+    padding: 1.5rem 1rem;
+  }
+
+  .homepage-title {
+    font-size: 2rem;
+  }
+
+  .homepage-subtitle {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .game-mode-button {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .login-play-button,
+  .copy-button {
+    width: 100%;
+  }
+}
