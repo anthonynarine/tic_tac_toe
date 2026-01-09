@@ -227,11 +227,38 @@
 /* ==========================================================================
  🔁 FRIEND REQUEST ACTIONS
 ========================================================================== */
+/* ✅ New Code */
+/* STEP 1: Premium, readable pending-request row + username */
 .friendsSidebarRequest {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.75rem;
   margin-bottom: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(15, 22, 32, 0.55);
+  border: 1px solid rgba(29, 161, 242, 0.18);
+  border-radius: 10px;
+  box-shadow: 0 0 8px rgba(29, 161, 242, 0.08);
+  transition: transform 0.2s ease, background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.friendsSidebarRequest:hover {
+  background: rgba(29, 161, 242, 0.10);
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 10px rgba(29, 161, 242, 0.18),
+    0 0 18px rgba(29, 161, 242, 0.08);
+}
+
+.friendsSidebarRequest span {
+  color: #b0cfff;
+  font-weight: 650;
+  letter-spacing: 0.3px;
+  text-shadow:
+    0 0 6px rgba(29, 161, 242, 0.35),
+    0 0 12px rgba(29, 161, 242, 0.18);
+  -webkit-font-smoothing: antialiased;
 }
 
 .friendsSidebarActions {
