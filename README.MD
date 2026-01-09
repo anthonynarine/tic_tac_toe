@@ -1,64 +1,78 @@
-# PROJECT_MASTER.md — Full-Stack System Guide  
+Built and maintained by **Anthony Narine**.  
+Powered by Django, DRF, Channels, Redis, React, and LangChain.
+
+# Full System Guide  
 **React + Django/DRF + Channels + Redis + Trinity (RAG Agent)**
 
-This document is the “map of the universe” for the whole project: **frontend + backend**, how they interact, and where to look when something breaks.
+This is the single, recruiter-friendly map of the entire system: **frontend + backend**, how they interact, and where to look when something breaks.
+
+- **Backend deep dive:** see `docs/BACKEND_MASTER.md`
+- **This doc:** cross-system architecture + real module entry points + real-time flows + AI assistant
 
 ---
 
 ## Table of contents
 1. System overview  
 2. Live endpoints and environment switching  
-3. Architecture diagrams  
-4. Frontend architecture  
-5. Backend architecture  
-6. Core flows (Auth, Presence, Friends, Invites, Game, Rematch)  
-7. Trinity AI (RAG) architecture + flow  
+3. Architecture diagrams (Mermaid)  
+4. Frontend architecture (layout + providers + contexts)  
+5. Backend architecture (REST + WebSockets)  
+6. Core flows (Auth, Presence, Friends, DM, Notifications, Invites, Game, Rematch)  
+7. Trinity AI (RAG) architecture + UI flow  
 8. Local development runbook  
 9. Deployment notes (Netlify manual + ASGI backend)  
 10. Troubleshooting checklist  
-11. Optional files that would make docs even tighter  
+11. Optional files for “100% exact” docs  
 
 ---
 
 ## 1) System overview
 
-**What you built**
-- A real-time multiplayer/social app with:
-  - **JWT auth** via REST (SimpleJWT)
-  - **Presence + real-time features** via WebSockets (Channels + Redis)
-  - **Friends + friend requests + invites**
-  - **Game flow** (REST game state + move calls, plus WS rematch signaling)
-  - **Trinity AI agent** (LangChain RetrievalQA + FAISS over repo/docs)
+### What you built
+A real-time multiplayer/social app with:
+- **JWT auth** via REST (SimpleJWT)
+- **Presence + real-time features** via WebSockets (Channels + Redis)
+- **Friends + friend requests + invites**
+- **Direct messages (DM)**
+  - WebSocket live messages
+  - REST preload history
+  - Unread badge logic
+- **Game flow**
+  - REST-based game state + moves
+  - WebSocket rematch signaling (request/offer/start)
+- **Trinity AI agent**
+  - LangChain RetrievalQA + FAISS over repo/docs
+  - Frontend “TrinityDrawer” assistant UI
 
-**Key design principle**
+### Design principle
 - REST = “fetch/store authoritative state”
-- WebSockets = “live updates, coordination, notifications, rematch/offers, presence”
+- WebSockets = “live updates, coordination, unread badges, presence, rematch/offers”
 
 ---
 
 ## 2) Live endpoints and environment switching (from `config.js`)
 
-Your frontend switches URLs based on `NODE_ENV`:
+Your frontend switches URLs based on `NODE_ENV`.
 
 ### REST API base URL
 - **Production:** `https://tic-tac-toe-server-66c5e15cb1f1.herokuapp.com/api`
 - **Development:** `http://localhost:8000/api`
 
-### WebSocket base URL
+### WebSocket base URL (declared in config)
 - **Production:** `wss://tic-tac-toe-server-66c5e15cb1f1.herokuapp.com/ws`
 - **Development:** `ws://localhost:8000/ws`
 
-### Access token retrieval
+### Access token retrieval (declared in config)
 - **Production:** `Cookies.get("access_token")`
 - **Development:** `localStorage.getItem("access_token")`
 
-> Note: one WS hook (`useFriendStatusSocket`) currently uses `REACT_APP_BACKEND_WS` host + hardcoded `/ws/...` path. Documented below.
+> Important: some WS hooks/providers currently use `REACT_APP_BACKEND_WS` and build `WS_BASE` manually instead of using `config.websocketBaseUrl`. That’s documented in “WebSockets”.
 
 ---
 
-## 3) Architecture diagrams
+## 3) Architecture diagrams (Mermaid)
 
-### 3.1 System overview (Flowchart)
+### 3.1 System overview (flowchart)
 
 ```mermaid
 flowchart LR
@@ -68,188 +82,333 @@ flowchart LR
   BE --> DB[(Postgres/DB)]
   WS --> RL[(Redis Channel Layer)]
   WS --> DB
-  FE -->|Ask Trinity| AIAPI[Django ai_agent endpoint]
+
+  FE -->|Ask Trinity| AIAPI[Django Trinity endpoint]
   AIAPI --> AM[AgentManager singleton]
   AM --> RQA[LangChain RetrievalQA]
   RQA --> VS[FAISS VectorStore]
-  VS -->|Embeddings| OA[OpenAI]
-  RQA --> OA
+  VS --> OA[OpenAI Embeddings]
+  RQA --> OL[OpenAI LLM]
 ```
 
-### 3.2 Auth flow (Sequence)
+---
+
+### 3.2 Auth flow (sequence)
 
 ```mermaid
 sequenceDiagram
-  participant FE as React
-  participant API as DRF
+  participant FE as React (useAuth)
   participant JWT as SimpleJWT
+  participant API as DRF (profile)
 
   FE->>JWT: POST /token/ (email, password)
   JWT-->>FE: {access, refresh}
   FE->>FE: store tokens (prod cookies / dev localStorage)
   FE->>API: GET /users/profile/ (Authorization: Bearer access)
   API-->>FE: user profile
-  FE->>FE: set contexts + isLoggedIn
+  FE->>FE: set contexts + isLoggedIn + navigate("/")
 ```
 
-### 3.3 Token refresh (single-flight) — what you fixed
+---
+
+### 3.3 Token refresh (single-flight lock)
 
 ```mermaid
 sequenceDiagram
-  participant FE as React (authAxios)
+  participant FE as React (useAuthAxios)
   participant API as DRF
-  participant JWT as /token/refresh/
+  participant REF as /token/refresh/
 
   FE->>API: GET protected endpoint
-  API-->>FE: 401
-  FE->>FE: start refreshTokenPromise (lock)
-  FE->>JWT: POST /token/refresh/
-  JWT-->>FE: {access}
+  API-->>FE: 401 Unauthorized
+  FE->>FE: refreshTokenPromise lock (single-flight)
+  FE->>REF: POST /token/refresh/
+  REF-->>FE: {access}
   FE->>FE: update stored access token
   FE->>API: retry original request once
   API-->>FE: 200 OK
 ```
 
-### 3.4 Presence socket (WebSocket)
+---
+
+### 3.4 Direct messages (REST preload + WS live updates)
 
 ```mermaid
 sequenceDiagram
-  participant FE as React
+  participant FE as React (DirectMessageProvider)
+  participant API as DRF (chat endpoints)
+  participant WS as DM Consumer
+
+  FE->>WS: WS connect /ws/chat/<friendId>/?token=<access>
+  WS-->>FE: onopen
+  FE->>API: GET /chat/conversation-with/<friendId>
+  API-->>FE: {conversation_id}
+  FE->>API: GET /chat/messages/<conversation_id> (via chatAPI)
+  API-->>FE: [message history]
+  WS-->>FE: {type:"message", ...} or {type:"game_invite", ...}
+  FE->>FE: reducer: RECEIVE_MESSAGE + maybe INCREMENT_UNREAD
+```
+
+---
+
+### 3.5 Notifications (global socket → unread badge updates)
+
+```mermaid
+sequenceDiagram
+  participant FE as React (NotificationProvider)
+  participant WS as Notifications Consumer
+
+  FE->>WS: WS connect /ws/notifications/?token=<access>
+  WS-->>FE: {type:"dm"|"game_invite", sender_id:...}
+  FE->>FE: if DM drawer not open (or not active sender): INCREMENT_UNREAD
+```
+
+---
+
+### 3.6 Presence socket (friends online/offline)
+
+```mermaid
+sequenceDiagram
+  participant FE as React (FriendsProvider)
   participant WS as FriendStatusConsumer
   participant R as Redis
 
-  FE->>WS: WS connect /ws/friends/status/?token=access
-  WS->>WS: validate token (middleware)
-  WS->>R: join groups (user_<id>, friends groups)
-  WS-->>FE: status_update (friends online/offline)
+  FE->>WS: WS connect /ws/friends/status/?token=<access>
+  WS->>R: join groups / broadcast status
+  WS-->>FE: {type:"status_update", friend_id, is_online}
   FE->>FE: friendsReducer STATUS_UPDATE
 ```
 
 ---
 
-## 4) Frontend architecture (what renders what)
+## 4) Frontend architecture (real entry points)
 
-### 4.1 Layout composition (real modules)
+### 4.1 Layout composition
 
-- `AppShell.jsx`
-  - Wraps the entire UI
-  - Mounts **TrinityDrawer** globally (outside sidebar tree)
-- `ResponsiveLayout.jsx`
-  - Desktop: `FriendsSidebar + MainRoutes + DMDrawer`
-  - Mobile: sidebar becomes fullscreen overlay
+**AppShell**
+- Global wrapper for the app UI
+- Mounts **TrinityDrawer** globally (not tied to a route)
 
-**Layout diagram**
+**ResponsiveLayout**
+- Desktop:
+  - FriendsSidebar always visible
+  - main routes in center
+  - DMDrawer slides in and can shift layout
+- Mobile:
+  - FriendsSidebar becomes fullscreen overlay
+  - main content otherwise fills the viewport
+
+**Layout composition diagram**
 
 ```mermaid
 flowchart TB
   AppShell --> ResponsiveLayout
   ResponsiveLayout --> FriendsSidebar
-  ResponsiveLayout --> MainRoutes
+  ResponsiveLayout --> MainRoutes[MainRoutes (not provided)]
   ResponsiveLayout --> DMDrawer
-  AppShell -->|when isTrinityOpen| TrinityDrawer
+  AppShell -->|isTrinityOpen| TrinityDrawer
 ```
-
-### 4.2 Friends sidebar UX map
-
-`FriendsSidebar.jsx` renders:
-- TrinityOverlay “launcher”
-- AddFriendForm
-- Friends list (online/offline, unread badge, invite button)
-- Pending requests list (accept/decline)
-
-```mermaid
-flowchart TB
-  FriendsSidebar --> TrinityOverlay
-  FriendsSidebar --> AddFriendForm
-  FriendsSidebar --> FriendsList
-  FriendsSidebar --> PendingFriendRequest
-```
-
-**Interaction rules**
-- Clicking a friend row opens DM **only if online**
-- Invite button appears **only if online**
-- Pending request actions call accept/decline then refresh list
 
 ---
 
-## 5) Backend architecture (how the server is composed)
+### 4.2 Provider / context tree (how state is organized)
+
+You have a “provider-based architecture”:
+- **UserContext**: user + isLoggedIn + authLoaded
+- **UIContext**: global drawers (sidebar, DM, Trinity) with route guards
+- **FriendsContext**: friend list + pending requests + presence WS
+- **DirectMessageContext**: DM WS + message storage + unread counts + invite send
+- **NotificationContext**: global notification WS (unread badges + invites)
+- **GameContext / LobbyContext**: reducers for gameplay + lobby state
+
+**Suggested provider wrapping order (mental model)**
+
+```mermaid
+flowchart TB
+  UserProvider --> UIProvider --> FriendsProvider --> DirectMessageProvider --> NotificationProvider --> App
+  GameProvider --> App
+  LobbyProvider --> App
+```
+
+> Your actual wrapping may differ, but the dependencies are real:  
+> `FriendsProvider`, `DirectMessageProvider`, `NotificationProvider` all depend on `UserContext`, and some depend on `UIContext`.
+
+---
+
+### 4.3 Friends sidebar UX map
+
+**FriendsSidebar**
+- Renders “TrinityOverlay” launcher
+- Contains:
+  - Friends list (online/offline, unread dot, invite button)
+  - Pending friend requests (accept/decline)
+  - Add friend form (if present)
+
+```mermaid
+flowchart TB
+  FriendsSidebar --> FriendsList
+  FriendsSidebar --> PendingFriendRequests
+  PendingFriendRequests --> PendingFriendRequestRow
+```
+
+---
+
+## 5) Backend architecture (high-level)
 
 ### 5.1 REST (DRF + SimpleJWT)
-- Tokens: `/token/`, `/token/refresh/`
-- Protected profile: `/users/profile/`
-- Game APIs: `/games/`, `/games/<id>/`, `/games/<id>/move/`, `/games/<id>/complete/` *(exact depends on backend router; frontend expects these paths)*
+The frontend expects these core endpoints (resolved under `config.apiBaseUrl`):
+- `POST /token/` → `{ access, refresh }`
+- `POST /token/refresh/` → `{ access }`
+- `GET /users/profile/` → user profile (protected)
+
+Game REST calls observed in frontend:
+- `POST /games/` with `{ is_ai_game: true|false }`
+- `GET /games/<id>/`
+- `POST /games/<id>/move/`
+- `POST /games/<id>/complete/`
 
 ### 5.2 WebSockets (Channels + Redis)
-- All WS routes live under `/ws/...`
-- Redis is the channel layer that allows group broadcasts across workers/instances
-- **ASGI is required** — a 404 on `/ws/...` is usually “ASGI routing wasn’t active”
+Core WS routes used by the frontend:
+- Presence: `/ws/friends/status/`
+- DMs: `/ws/chat/<friendId>/`
+- Notifications: `/ws/notifications/`
+- Game WS: (used for rematch signals; exact route depends on backend routing)
+
+**Critical reminder:** WebSockets require ASGI. A `/ws/...` 404 is usually “ASGI routing isn’t active”.
 
 ---
 
 ## 6) Core flows (frontend ↔ backend)
 
-### 6.1 Friends list + unread + invite
-**Component:** `FriendsList.jsx`  
-- `unreadCounts[friendUserId] > 0` → shows a badge (dot)  
-- if friend is online → shows invite button  
-- clicking row opens DM (online only)
+### 6.1 Auth boot (login → profile → app state)
+- Login (`useAuth`) calls `/token/`, stores tokens
+- Immediately fetches `/users/profile/`
+- Sets contexts + navigates to home
 
-### 6.2 Friend requests: accept / decline
-**Components:**  
-- `PendingFriendRequest.jsx` renders a request row with accept/decline buttons  
-- `FriendsSidebar.jsx` wires handlers:
-  - `acceptRequest(id)` → `refreshFriends()`
-  - `declineRequest(id)` → `refreshFriends()`
+**Where to debug**
+- Authorization header missing: `useAuthAxios` request interceptor
+- Refresh loops: `useAuthAxios` response interceptor
 
-### 6.3 Game load + moves + finalize
-**Modules involved**
-- `GamePage.jsx` loads `gameId` from route param and renders the game via `GameManager` render-prop.
-- `GameManager.jsx` does:
-  - `fetchGame(gameId)` on mount
-  - `makeMove(gameId, cellIndex)` when a cell is clicked (validity checks)
-  - calls `finalizeGame(...)` once when game ends (guarded by a ref)
+---
 
-**Turn validation (frontend)**
-- `GamePage` derives `playerRole` and disables interaction when it’s not your turn.
+### 6.2 Friends: REST + presence WS
+**FriendsProvider responsibilities**
+- Opens presence socket via `useFriendStatusSocket(user, dispatch)`
+- Loads friends and pending requests via REST:
+  - `fetchFriends()`
+  - `fetchPending()`
+- Accept/decline triggers refresh
 
-### 6.4 Rematch (multiplayer)
-- `GameManager.requestRematch()` sends WS message:
-  - `{ type: "rematch_request" }`
-- The backend is expected to broadcast:
-  - `rematch_offer` to the other player
-  - `rematch_start` when accepted (new game id)
+**Presence**
+- WS message type: `status_update` (frontend expects this)
+- Reducer action: `STATUS_UPDATE`
+
+---
+
+### 6.3 Direct messages: REST preload + WS send/receive
+**DirectMessageProvider**
+- Opens a DM socket to a specific friend:
+  - `/ws/chat/<friendId>/?token=<access>`
+- Preloads message history (optional):
+  1) `GET /chat/conversation-with/<friendId>`
+  2) `GET conversation messages` via `chatAPI.fetchConversationMessages(...)`
+
+**Live WS messages handled**
+- `type: "message"`
+- `type: "game_invite"`
+
+**Unread logic**
+- If a message is received and:
+  - receiver is current user, and
+  - DM drawer is closed OR activeFriendId isn’t the sender  
+  → dispatch `INCREMENT_UNREAD`.
+
+---
+
+### 6.4 DM drawer UX (how it renders messages)
+**DMDrawer**
+- Only renders when `isOpen && activeChat`  
+- Determines `friendId` from `activeChat` and current `user.id`
+- Renders messages from `messages[friendId]`
+- Send message:
+  - `sendMessage(newMessage)`
+- Invite to game:
+  - uses `useInviteAndNotifyFriend()` to send invite + DM link, then navigate
+
+---
+
+### 6.5 Notifications: global unread badge channel
+**NotificationProvider**
+- Opens one socket for the whole user:
+  - `/ws/notifications/?token=<access>`
+- On message:
+  - if `type` is `"dm"` or `"game_invite"`
+  - and DM drawer is not already open with that user  
+  → increments unread for that sender
+
+**Why this exists**
+- You get “unread dot updates” even when a DM socket isn’t open.
+
+---
+
+### 6.6 Game creation + game loop (REST)
+**Create game**
+- `POST /games/` payload: `{ is_ai_game }`
+
+**GameManager**
+- Loads `gameId` from params (via GamePage)
+- Fetches game on mount
+- Validates turns
+- Sends moves and finalizes game once when complete
+
+**Winner calculation**
+- `WinnerCalculator` determines winner/draw and winning combination
+
+---
+
+### 6.7 Multiplayer result + rematch (WS + UI)
+**MultiplayerResultModal / GameManager**
+- Sends WS message: `{ type: "rematch_request" }`
+- Expects server events like:
+  - `rematch_offer` (to other player)
+  - `rematch_start` (when accepted, includes new game id/lobby id)
+
+**Countdown**
+- `useCountdown(10, ...)` used for “waiting” UX while rematch offer pending
 
 ---
 
 ## 7) Trinity AI (RAG Agent)
 
-### 7.1 What it is
-A Django app that exposes an endpoint (via DRF APIView) to answer questions about the project by:
-- loading repo files (with filters)
-- chunking text
-- embedding with OpenAI
-- storing vectors in FAISS
-- answering via LangChain `RetrievalQA`
+### 7.1 Trinity UI (frontend)
+**TrinityDrawer**
+- Global drawer controlled by `UIContext`:
+  - `isTrinityOpen`, `setTrinityOpen(...)`
+- Uses `authAxios` to call:
+  - `POST "/trinity/"` with `{ question }` (relative to API base URL)
+- Renders message history with a typing animation effect for the AI response
 
-### 7.2 Runtime lifecycle (singleton)
-- `AgentManager` builds the agent **once** on first request (thread-safe lock)
-- subsequent calls reuse the in-memory chain
+**Route safety**
+- `UIContext` automatically closes Trinity on restricted routes:
+  - `/technical-paper`
+  - `/games/*`
+  - `/lobby/*`
 
-### 7.3 What gets indexed
-- In **DEBUG**, it includes backend apps *and selected frontend folders* (components/reducers/context)
-- In **production**, it focuses on backend apps
+---
 
-### 7.4 Endpoint note
-Your `AskAgentView` expects JSON:
-```json
-{ "question": "..." }
-```
-and returns:
-```json
-{ "answer": "..." }
-```
+### 7.2 Trinity backend (high-level)
+- Django endpoint receives `{ question }`
+- `AgentManager` builds/reuses a RetrievalQA chain:
+  - loads files
+  - chunks
+  - embeds
+  - indexes in FAISS
+  - answers via OpenAI LLM
 
-The exact URL path is defined in the backend router (commonly `/trinity/` relative to the API prefix). If you want this doc to state the exact final URL, include `ai_agent/urls.py` in the docs folder.
+**Operational notes**
+- First question is slower (index build)
+- Requires `OPENAI_API_KEY` on backend
+- Currently returns `{ answer }` without citations (add sources later if desired)
 
 ---
 
@@ -261,12 +420,9 @@ docker run -p 6379:6379 redis:7
 ```
 
 ### Step 2: Run backend (ASGI server)
-Use one of:
 ```bash
 uvicorn <project>.asgi:application --host 0.0.0.0 --port 8000 --reload
-```
-or
-```bash
+# or
 daphne -b 0.0.0.0 -p 8000 <project>.asgi:application
 ```
 
@@ -289,59 +445,50 @@ npm run dev # Vite
   - CRA: `build/`
   - Vite: `dist/`
 
-### 9.2 Important: WS host mismatch to be aware of
+### 9.2 Important: WS base URL consistency
 - `config.js` defines `websocketBaseUrl`
-- `useFriendStatusSocket` uses `REACT_APP_BACKEND_WS || "localhost:8000"`
+- Some WS code uses `REACT_APP_BACKEND_WS` + hardcoded `/ws/...`
 
-If `REACT_APP_BACKEND_WS` is not set in Netlify, presence WS will try to connect to localhost in production.
-
-**Recommended fix (future):**
-- update the presence hook to use `config.websocketBaseUrl` so all WS routes use the same source of truth.
+**Recommended improvement**
+- Centralize WS base URL usage:
+  - update WS providers/hooks to use `config.websocketBaseUrl` consistently
 
 ---
 
 ## 10) Troubleshooting checklist
 
 ### A) `/ws/...` 404
-- **Cause:** running WSGI server / ASGI not active
+- **Cause:** running WSGI-only / ASGI routing not active
 - **Fix:** run uvicorn/daphne targeting `<project>.asgi:application`
 
 ### B) Login succeeds but profile 401
-- **Cause:** Authorization header missing
-- **Fix:** inspect `useAuthAxios` request interceptor + token storage retrieval
+- **Cause:** Authorization header missing (token attach issue)
+- **Fix:** inspect `useAuthAxios` request interceptor + token storage
 
 ### C) Infinite refresh loop
-- **Cause:** refresh logic intercepts public endpoints or refresh endpoint
+- **Cause:** refresh logic incorrectly catches public endpoints or refresh endpoint
 - **Fix:** confirm public allowlist + `skipAuth` usage
 
 ### D) Presence not updating
 - **Cause:** token missing/expired OR WS host mismatch
-- **Fix:** verify `REACT_APP_BACKEND_WS` in prod, and token retrieval in cookies/localStorage
+- **Fix:** verify `REACT_APP_BACKEND_WS` and token retrieval in cookies/localStorage
 
-### E) Rematch doesn’t work
-- **Cause:** WS provider not connected to the game socket, or server doesn’t broadcast expected message types
-- **Fix:** capture WS frames in browser devtools and confirm `rematch_offer/rematch_start` payloads
+### E) DM unread dots not behaving
+- **Cause:** DM socket + Notification socket both incrementing in edge cases
+- **Fix:** confirm whether backend sends both DM socket events and notification “dm” events; decide which should own unread
 
 ### F) Trinity returns 500
 - **Cause:** missing `OPENAI_API_KEY` or indexing path issues
-- **Fix:** check server logs; confirm directories exist (debug logs already print path checks)
+- **Fix:** check server logs; confirm directory path config + file filters
 
 ---
 
-## 11) Optional files that would make docs even tighter (not required)
-
-You said this is the last dump — and you *do* have enough for a strong master doc.
-
-If you ever want it to be **100% repo-perfect**, the top add-ons are:
+## 11) Optional files for “100% exact” docs
+You now provided the most important frontend files. If you ever want the doc to name *exact routes and exact API paths* without any assumptions, add:
 
 ### Frontend
-- `MainRoutes.jsx` / route map (to document recruiter click paths exactly)
-- `TrinityDrawer.jsx` (to document the Trinity UI flow and UX)
-- `DMDrawer.jsx` + direct message socket wiring (to document DM WS routes and events)
-- Contexts:
-  - `uiContext`, `userContext`, `friendsContext`, `directMessageContext`, `GameWebsocketContext`
-- WebSocket routing/actions file (where `data.type` is handled)
+- `MainRoutes.jsx` (or route map) → so recruiter click paths can list exact URLs/screens
 
 ### Backend
-- `urls.py` (project + ai_agent) to lock exact endpoint paths in documentation
-- `routing.py` per app (to list exact WS URL patterns)
+- Project `urls.py` + `ai_agent/urls.py` → locks the exact Trinity endpoint path
+- App `routing.py` for chat/friends/game/notifications → locks exact WS patterns
