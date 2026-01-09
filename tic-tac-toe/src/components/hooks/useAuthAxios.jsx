@@ -1,3 +1,4 @@
+// # Filename: useAuthAxios.jsx
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import Cookies from "js-cookie";
@@ -68,6 +69,41 @@ const useAuthAxios = () => {
         navigate("/login");
     };
 
+
+    /**
+     * Determine if a request should NOT include Authorization headers.
+     * We only treat these as public:
+     * - POST /users/ (registration)
+     * - POST /token/ (login)
+     * - POST /token/refresh/ (refresh)
+     *
+     * Args:
+     *   config (object): Axios request configuration.
+     *
+     * Returns:
+     *   boolean: True if request is public, otherwise false.
+     */
+    const isPublicRequest = (config) => {
+        const method = (config?.method || "get").toLowerCase();
+        const rawUrl = config?.url || "";
+
+        let path = rawUrl;
+        try {
+            const base = authAxios?.defaults?.baseURL || window.location.origin;
+            path = new URL(rawUrl, base).pathname;
+        } catch (e) {
+            path = rawUrl;
+        }
+
+        const isToken = path === "/token/" || path === "/api/token/";
+        const isRefresh =
+            path === "/token/refresh/" || path === "/api/token/refresh/";
+        const isRegister =
+            (path === "/users/" || path === "/api/users/") && method === "post";
+
+        return isToken || isRefresh || isRegister;
+    };
+
     /**
      * Attach access token to outgoing request headers.
      *
@@ -78,10 +114,28 @@ const useAuthAxios = () => {
      *   object: Modified request config with Authorization header.
      */
     const requestInterceptor = (config) => {
+
+        // STEP 1: Ensure headers exist
+        config.headers = config.headers || {};
+
+
+        // STEP 2: If public (or explicitly skipped), do not attach Authorization
+        if (config.skipAuth || isPublicRequest(config)) {
+            if (config.headers.Authorization) {
+                delete config.headers.Authorization;
+            }
+            if (config.headers["Authorization"]) {
+                delete config.headers["Authorization"];
+            }
+            return config;
+        }
+
+        // STEP 3: Attach Authorization for protected endpoints
         const accessToken = getToken("access_token");
         if (accessToken) {
             config.headers["Authorization"] = `Bearer ${accessToken}`;
         }
+
         return config;
     };
 
@@ -95,15 +149,23 @@ const useAuthAxios = () => {
      *   object: The original response.
      */
     const responseInterceptor = (response) => {
-        const accessToken = response.data.access;
-        const refreshToken = response.data.refresh;
 
-        if (accessToken) {
-            setToken("access_token", accessToken);
-        }
+        // STEP 1: Only store tokens for token endpoints (avoid accidental overwrites)
+        const url = response?.config?.url || "";
+        const isTokenResponse =
+            url.includes("/token/") || url.includes("/token/refresh/");
 
-        if (refreshToken) {
-            setToken("refresh_token", refreshToken, { expires: 7 });
+        if (isTokenResponse) {
+            const accessToken = response.data.access;
+            const refreshToken = response.data.refresh;
+
+            if (accessToken) {
+                setToken("access_token", accessToken);
+            }
+
+            if (refreshToken) {
+                setToken("refresh_token", refreshToken, { expires: 7 });
+            }
         }
 
         if (response.config.url.includes("/logout/")) {
@@ -129,6 +191,18 @@ const useAuthAxios = () => {
     const responseErrorInterceptor = async (error) => {
         const originalRequest = error.config;
 
+        // STEP 1: Never attempt refresh for public endpoints (prevents loops)
+        if (originalRequest?.skipAuth || isPublicRequest(originalRequest)) {
+            return Promise.reject(error);
+        }
+
+
+        // STEP 2: If refresh endpoint itself fails, force logout
+        if (originalRequest?.url?.includes("/token/refresh/")) {
+            handleAuthError();
+            return Promise.reject(error);
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
@@ -142,7 +216,7 @@ const useAuthAxios = () => {
                 refreshTokenPromise = authAxios.post(
                     "/token/refresh/",
                     { refresh: refreshToken },
-                    { withCredentials: true }
+                    { withCredentials: true, skipAuth: true } 
                 );
             }
 
@@ -152,11 +226,15 @@ const useAuthAxios = () => {
 
                 const newAccessToken = response.data.access;
                 setToken("access_token", newAccessToken);
+
+                originalRequest.headers = originalRequest.headers || {};
                 originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
+
                 return authAxios(originalRequest);
             } catch (refreshError) {
                 refreshTokenPromise = null;
                 handleAuthError();
+                return Promise.reject(refreshError);
             }
         }
 

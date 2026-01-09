@@ -1,3 +1,4 @@
+// # Filename: LoginPage.jsx
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
@@ -5,17 +6,23 @@ import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import "./Login.css";
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const { login, isLoading, error } = useAuth(); 
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  const { name, value } = e.target;
+
+  // STEP 1: Merge the previous form state with the updated field
+  setFormData((prev) => ({ ...prev, [name]: value }));
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+
+    if (isLoading) return;
+
     await login(formData);
   };
 
@@ -26,7 +33,9 @@ const LoginPage = () => {
 
         {/* Email Input */}
         <div className="input-group">
-          <label htmlFor="email" className="form-label">Email</label>
+          <label htmlFor="email" className="form-label">
+            Email
+          </label>
           <input
             id="email"
             name="email"
@@ -40,7 +49,9 @@ const LoginPage = () => {
 
         {/* Password Input */}
         <div className="input-group">
-          <label htmlFor="password" className="form-label">Password</label>
+          <label htmlFor="password" className="form-label">
+            Password
+          </label>
           <input
             id="password"
             name="password"
@@ -52,14 +63,22 @@ const LoginPage = () => {
           />
           <span
             className="toggle-password"
-            onClick={() => setShowPassword(prev => !prev)}
+            onClick={() => setShowPassword((prev) => !prev)}
+            role="button" 
+            tabIndex={0} 
+            aria-label={showPassword ? "Hide password" : "Show password"} 
           >
             {showPassword ? <AiOutlineEyeInvisible /> : <AiOutlineEye />}
           </span>
         </div>
 
+
+        {error ? <div className="auth-error">{error}</div> : null}
+
         {/* Submit Button */}
-        <button type="submit">Login</button>
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? "Logging in..." : "Login"}
+        </button>
 
         {/* Register Link */}
         <div className="register-link">
