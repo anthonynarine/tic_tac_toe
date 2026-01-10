@@ -58,37 +58,27 @@ This architecture achieves that by introducing a **tab-scoped auth mode** using 
 
 ```mermaid
 flowchart LR
-  UI["UI / Hooks / Pages"] -->|"enableRecruiterModeForTab"| AM["authMode
-(tab policy)"]
-  UI -->|"getToken / setToken / removeToken"| TS["tokenStore
-(single source of truth)"]
+  UI["UI / Hooks / Pages"] -->|"enable recruiter mode (per tab)"| AM["authMode (tab policy)"]
+  UI -->|"token API: get/set/remove"| TS["tokenStore (single source of truth)"]
 
-  AM -->|"COOKIE | LOCAL | SESSION"| TS
+  AM -->|"selects: COOKIE / LOCAL / SESSION"| TS
 
-  TS -->|"Authorization: Bearer ...
-(LOCAL/SESSION)"| AX["Axios (authAxios)"]
-  TS -->|"withCredentials
-(COOKIE)"| AX
+  TS -->|"Authorization header (LOCAL/SESSION)"| AX["Axios (authAxios)"]
+  TS -->|"withCredentials (COOKIE)"| AX
 
-  TS -->|"WS token
-(LOCAL/SESSION)"| WS["WebSockets (Channels)"]
-  TS -->|"cookie session
-(COOKIE)"| WS
+  TS -->|"WS token (LOCAL/SESSION)"| WS["WebSockets (Channels)"]
+  TS -->|"cookie session (COOKIE)"| WS
 ```
 
 ### Mode selection rules (decision tree)
 
 ```mermaid
 flowchart TD
-  A["Start"] --> B{"sessionStorage has
- ttt_auth_mode = session?"}
-  B -- Yes --> S["SESSION mode
-(tab-scoped)"]
+  A["Start"] --> B{"sessionStorage has ttt_auth_mode = session?"}
+  B -- Yes --> S["SESSION mode (tab-scoped)"]
   B -- No --> C{"NODE_ENV == development?"}
-  C -- Yes --> L["LOCAL mode
-(localStorage)"]
-  C -- No --> K["COOKIE mode
-(prod default)"]
+  C -- Yes --> L["LOCAL mode (localStorage)"]
+  C -- No --> K["COOKIE mode (prod default)"]
 ```
 
 > If your Markdown renderer does **not** support Mermaid, keep the diagrams and also include the ASCII fallback below.
