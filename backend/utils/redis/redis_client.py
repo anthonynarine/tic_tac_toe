@@ -1,49 +1,46 @@
-# utils/redis/client.py
+# Filename: utils/redis/redis_client.py
 
 from redis import Redis
 from urllib.parse import urlparse
 import os
 
-def get_redis_client():
+
+def get_redis_client() -> Redis:
     """
     Returns a configured Redis client for both local and production environments.
 
     Why:
-    - Local (e.g., Docker): uses plain TCP via redis://, no SSL needed.
-    - Prod (e.g., Heroku, Render): uses rediss://, requires SSL but often lacks full certs.
-        We set ssl_cert_reqs=None to prevent connection errors on free tiers.
+    - Local: redis:// (no SSL)
+    - Prod (Heroku/Render): rediss:// (SSL)
 
-    Without this dynamic logic, local Redis may crash with:
-        TypeError: AbstractConnection.__init__() got an unexpected keyword argument 'ssl_cert_reqs'
-
-    Env:
-    - REDIS_URL: set in .env or Heroku config.
-        Examples:
-            redis://localhost:6379
-            rediss://:password@host.compute-1.amazonaws.com:6379
-
-    Returns:
-        Redis: A configured Redis client instance for direct use:
-            - client.hset(...)
-            - client.get(...)
-            - client.publish(...)
+    Critical:
+    - decode_responses=True ensures Redis returns strings (not bytes),
+      preventing subtle bugs when comparing user IDs / roles.
     """
+    # Step 1: Read REDIS_URL (default to local dev)
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
     parsed = urlparse(redis_url)
 
-    kwargs = {
+    # Step 2: Shared connection args
+    kwargs: dict = {
         "host": parsed.hostname,
         "port": parsed.port or 6379,
         "db": 0,
+        "decode_responses": True,
+        "encoding": "utf-8",
     }
 
+    # Step 3: Optional password
     if parsed.password:
         kwargs["password"] = parsed.password
 
+    # Step 4: SSL support for rediss://
     if parsed.scheme == "rediss":
         kwargs.update({
             "ssl": True,
-            "ssl_cert_reqs": None
+            # Common workaround on free tiers (cert chain issues)
+            "ssl_cert_reqs": None,
         })
 
+    # Step 5: Return a reusable client
     return Redis(**kwargs)

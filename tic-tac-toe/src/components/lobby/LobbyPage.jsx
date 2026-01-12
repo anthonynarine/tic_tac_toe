@@ -8,7 +8,7 @@ import { CiCirclePlus } from "react-icons/ci";
 import { IoIosSend } from "react-icons/io";
 import "./lobby.css";
 
-import Cookies from "js-cookie"
+import { getToken } from "../auth/tokenStore";
 
 /**
  * Lobby Component
@@ -36,33 +36,34 @@ const LobbyPage = () => {
     /**
      * Establish WebSocket connection for the lobby.
      */
+    // Step 1: Connect lobby WebSocket when gameId changes
     useEffect(() => {
+        const token = getToken("access_token");
 
-        const token = process.env.NODE_ENV === "production"
-            ? Cookies.get("access_token")
-            : localStorage.getItem("access_token");
-        
         if (!token) {
             console.error("Access token not found. Cannot initialize WebSocket.");
-            return;
+            return () => {};
         }
-    
+
         const webSocket = new WebSocket(
-            getWebSocketURL({ id: gameId, token, isLobby: true})
+            getWebSocketURL({ id: gameId, token, isLobby: true })
         );
-    
+
         webSocket.onopen = () => console.log("WebSocket connected.");
         webSocket.onmessage = (event) => handleWebSocketMessage(event);
         webSocket.onclose = () => console.log("WebSocket disconnected.");
-        webSocket.onerror = (error) => console.error("WebSocket encountered an error:", error);
-    
+        webSocket.onerror = (error) =>
+            console.error("WebSocket encountered an error:", error);
+
         setSocket(webSocket);
-    
+
         return () => {
             console.log("Cleaning up WebSocket connection...");
             webSocket.close();
         };
-    }, [gameId, navigate]);
+    }, [gameId]); // ✅ remove navigate unless used
+
+
     
 
     /**

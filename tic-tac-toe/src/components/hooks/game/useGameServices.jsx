@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
-import useAuthAxios from "./useAuthAxios";
-import { showToast } from "../../utils/toast/Toast";
-import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
+import useAuthAxios from "../../auth/hooks/useAuthAxios"
+import { showToast } from "../../../utils/toast/Toast";
+import { useGameWebSocketContext } from "../../websocket/GameWebsocketContext";
 import { useNavigate } from "react-router-dom";
 
 const useGameServices = () => {

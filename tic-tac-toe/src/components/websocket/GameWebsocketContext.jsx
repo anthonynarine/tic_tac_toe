@@ -1,16 +1,18 @@
+// # Filename: src/components/websocket/GameWebsocketContext.jsx
+
+
 import { createContext, useContext } from "react";
 
-
-// Create the Websocket context
+// Step 1: Create the WebSocket context
 export const GameWebSocketContext = createContext(undefined);
 
-// Hook for consuming the WebSocket context
+// Step 2: Hook for consuming the WebSocket context
 export function useGameWebSocketContext() {
-    const context = useContext(GameWebSocketContext);
+  const context = useContext(GameWebSocketContext);
 
-    if (context === undefined) {
-        throw new Error("useWebSocketContest must be used within a WebSocketProvider");
-    }
-    return context;
-};
+  if (context === undefined) {
+    throw new Error("useGameWebSocketContext must be used within a GameWebSocketProvider");
+  }
 
+  return context;
+}

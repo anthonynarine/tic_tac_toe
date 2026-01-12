@@ -4,8 +4,7 @@ import React from "react";
 import MainRoutes from "../routes/MainRoutes";
 import FriendsSidebar from "../components/friends/FriendsSidebar";
 import DMDrawer from "../components/friends/DMDrawer";
-
-import useIsDesktop from "../components/hooks/useIsDesktop";
+import useIsDesktop from "../components/hooks/ui/useIsDesktop";
 import { useUI } from "../components/context/uiContext";
 import { useUserContext } from "../components/context/userContext";
 

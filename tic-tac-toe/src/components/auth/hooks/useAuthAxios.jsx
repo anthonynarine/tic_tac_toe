@@ -1,21 +1,18 @@
 // # Filename: src/hooks/useAuthAxios.jsx
-// ✅ New Code
 
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 
 // NOTE: Update these paths if your auth folder differs.
 // Based on your screenshot, authAxios lives at: src/components/auth/authAxios.js
-import authAxios from "../components/auth/authAxios"; // ✅ New Code
-
+import authAxios from "../authAxios";
 import {
   setToken,
   getToken,
   removeToken,
   clearAuthCookies,
-} from "../components/auth/tokenStore"; // ✅ New Code
-
-import { AUTH_MODES, getAuthMode } from "../components/auth/authMode"; // ✅ New Code
+} from "../tokenStore"; 
+import { AUTH_MODES, getAuthMode } from "../authMode"; 
 
 let refreshTokenPromise = null;
 
@@ -23,7 +20,7 @@ const useAuthAxios = () => {
   const navigate = useNavigate();
 
   // Step 1: Decide whether to send cookies with requests (cookie-mode only)
-  const shouldSendCredentials = () => getAuthMode() === AUTH_MODES.COOKIE; // ✅ New Code
+  const shouldSendCredentials = () => getAuthMode() === AUTH_MODES.COOKIE; 
 
   /**
    * Clear all auth-related tokens and redirect to login.
@@ -31,7 +28,7 @@ const useAuthAxios = () => {
   const handleAuthError = () => {
     removeToken("access_token");
     removeToken("refresh_token");
-    clearAuthCookies(); // ✅ New Code
+    clearAuthCookies(); 
     navigate("/login");
   };
 
@@ -134,7 +131,7 @@ const useAuthAxios = () => {
     if (response?.config?.url?.includes("/logout/")) {
       removeToken("access_token");
       removeToken("refresh_token");
-      clearAuthCookies(); // ✅ New Code
+      clearAuthCookies(); 
     }
 
     return response;
@@ -179,7 +176,7 @@ const useAuthAxios = () => {
           "/token/refresh/",
           { refresh: refreshToken },
           {
-            withCredentials: shouldSendCredentials(), // ✅ New Code
+            withCredentials: shouldSendCredentials(), 
             skipAuth: true,
           }
         );

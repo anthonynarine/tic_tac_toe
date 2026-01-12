@@ -67,14 +67,14 @@ VALID_EXTENSIONS = {".py", ".md", ".txt", ".jsx", ".tsx", ".js", ".ts"}
 
 # === 📄 Load Project Files ===
 def load_project_documents():
-    logger.info("📚 Starting document loading process.")
+    logger.info("Starting document loading process.")
     documents = []
 
     for base_dir in TARGET_DIRS:
         base_dir_str = str(base_dir)
         logger.info(f"🔍 Scanning directory: {base_dir_str}")
         if not os.path.exists(base_dir_str):
-            logger.warning(f"⚠️ Directory does not exist: {base_dir_str}")
+            logger.warning(f"Directory does not exist: {base_dir_str}")
             continue
 
         for root, dirs, files in os.walk(base_dir_str):
@@ -84,10 +84,10 @@ def load_project_documents():
                 ext = os.path.splitext(file)[-1]
 
                 if file in EXCLUDE_FILES:
-                    logger.debug(f"⏭️ Skipping excluded file: {file_path}")
+                    logger.debug(f"Skipping excluded file: {file_path}")
                     continue
                 if ext not in VALID_EXTENSIONS:
-                    logger.debug(f"🚫 Unsupported extension {ext}: {file_path}")
+                    logger.debug(f"Unsupported extension {ext}: {file_path}")
                     continue
 
                 try:
@@ -100,12 +100,12 @@ def load_project_documents():
                 except Exception as e:
                     logger.error(f"❌ Failed to load {file_path}: {e}")
 
-    logger.info(f"🏁 Document loading complete. Total loaded: {len(documents)}")
+    logger.info(f"Document loading complete. Total loaded: {len(documents)}")
     return documents
 
 # === 🤖 Build the LangChain Agent ===
 def build_agent():
-    logger.info("🧠 Building LangChain agent.")
+    logger.info("Building LangChain agent.")
     docs = load_project_documents()
 
     splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)  # ✅ Larger chunks
@@ -113,22 +113,22 @@ def build_agent():
     logger.debug(f"Chunks created: {len(chunks)}")
 
     if not chunks:
-        logger.error("🛑 No document chunks available. Aborting agent build.")
+        logger.error("No document chunks available. Aborting agent build.")
         raise ValueError("No document chunks to embed. Check document loading.")
 
     # 🔐 Ensure API key is present
     if not settings.OPENAI_API_KEY:
-        logger.critical("❌ OPENAI_API_KEY is missing from settings.")
+        logger.critical("OPENAI_API_KEY is missing from settings.")
         raise ValueError("OPENAI_API_KEY is not set. Add it to your .env file.")
 
     embeddings = OpenAIEmbeddings(openai_api_key=settings.OPENAI_API_KEY)
-    logger.info("🔑 OpenAI Embeddings initialized.")
+    logger.info("OpenAI Embeddings initialized.")
 
     vectorstore = FAISS.from_documents(chunks, embeddings)
-    logger.info("📦 Vectorstore created using FAISS.")
+    logger.info("Vectorstore created using FAISS.")
 
     retriever = vectorstore.as_retriever()
-    logger.info("📡 Retriever ready.")
+    logger.info("Retriever ready.")
 
     chain = RetrievalQA.from_chain_type(  # 🔁 Switch to RetrievalQAWithSourcesChain if desired
         llm=OpenAI(
@@ -139,5 +139,5 @@ def build_agent():
         retriever=retriever,
     )
 
-    logger.info("✅ LangChain RetrievalQA chain successfully built.")
+    logger.info("LangChain RetrievalQA chain successfully built.")
     return chain

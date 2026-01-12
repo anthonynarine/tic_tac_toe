@@ -4,11 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useDirectMessage } from "../context/directMessageContext";
 import { IoIosSend } from "react-icons/io";
 import { IoCloseSharp, IoAddSharp } from "react-icons/io5";
-import { useInviteAndNotifyFriend } from '../hooks/useInviteAndNotifyFriend'; // ✅ correct
-
-
-
-
+import { useInviteAndNotifyFriend } from "../hooks/social/useInviteAndNotifyFriend"
 import { useUserContext } from "../context/userContext";
 import MessageBubble from "./MessageBubble";
 import "./DMDrawer.css";

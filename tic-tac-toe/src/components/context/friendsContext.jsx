@@ -9,7 +9,7 @@ import {
 import useFriendAPI from "../../api/useFriendAPI"
 import { INITIAL_FRIEND_STATE, friendReducer } from "../reducers/friendReducer";
 import { useUserContext } from "../context/userContext";
-import useFriendStatusSocket from "../hooks/useFriendStatusSocket"; // ✅ Custom WebSocket hook
+import useFriendStatusSocket from "../hooks/realtime/useFriendStatusSocket"
 
 /**
  * Context for managing and accessing friend-related state and actions

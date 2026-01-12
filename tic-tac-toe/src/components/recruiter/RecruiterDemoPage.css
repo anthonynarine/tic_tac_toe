@@ -1,0 +1,320 @@
+/* # Filename: src/components/recruiter/RecruiterDemoPage.css */
+/* ✅ New Code */
+
+/* Step 1: Theme-ish defaults (we’ll map these to Trinity tokens once you share them) */
+:root {
+  --r-bg: rgba(10, 12, 18, 0.75);
+  --r-surface: rgba(18, 20, 28, 0.72);
+  --r-surface-2: rgba(255, 255, 255, 0.06);
+  --r-border: rgba(255, 255, 255, 0.12);
+  --r-text: rgba(255, 255, 255, 0.92);
+  --r-muted: rgba(255, 255, 255, 0.72);
+  --r-dim: rgba(255, 255, 255, 0.55);
+
+  --r-accent: rgba(88, 101, 242, 0.95);
+  --r-accent-2: rgba(0, 255, 209, 0.85);
+  --r-danger: rgba(244, 63, 94, 0.9);
+
+  --r-radius: 18px;
+}
+
+.recruiter-shell {
+  padding: 28px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--r-text);
+}
+
+/* Step 2: Subtle sci-fi backdrop */
+.recruiter-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 420px at 20% 10%, rgba(88, 101, 242, 0.22), transparent 60%),
+    radial-gradient(700px 380px at 80% 20%, rgba(0, 255, 209, 0.14), transparent 55%),
+    radial-gradient(900px 520px at 50% 100%, rgba(244, 63, 94, 0.10), transparent 60%);
+  opacity: 0.9;
+}
+
+.recruiter-hero {
+  width: 100%;
+  max-width: 980px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 18px 18px 14px;
+  border-radius: var(--r-radius);
+  background: var(--r-surface);
+  border: 1px solid var(--r-border);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+
+.recruiter-hero__left {
+  flex: 1;
+  min-width: 260px;
+}
+
+.recruiter-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: var(--r-muted);
+}
+
+.recruiter-title {
+  margin: 10px 0 8px;
+  font-size: 30px;
+  line-height: 1.12;
+}
+
+.recruiter-subtitle {
+  margin: 0;
+  color: var(--r-muted);
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+.recruiter-hero__right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 240px;
+  align-items: flex-end;
+}
+
+.recruiter-pill {
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  font-size: 13px;
+  color: var(--r-muted);
+}
+
+.recruiter-pill__value {
+  color: var(--r-text);
+  font-weight: 750;
+}
+
+.recruiter-pill--muted {
+  opacity: 0.9;
+}
+
+/* Step 3: Two-panel grid */
+.recruiter-grid {
+  width: 100%;
+  max-width: 980px;
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .recruiter-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .recruiter-hero__right {
+    align-items: flex-start;
+  }
+  .recruiter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Step 4: Panels (glass + gradient border) */
+.recruiter-panel {
+  border-radius: var(--r-radius);
+  padding: 16px;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--r-surface), var(--r-surface)) padding-box,
+    linear-gradient(135deg, rgba(88, 101, 242, 0.35), rgba(0, 255, 209, 0.22), rgba(244, 63, 94, 0.18)) border-box;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.30);
+}
+
+.recruiter-panel--primary {
+  background:
+    linear-gradient(var(--r-surface), var(--r-surface)) padding-box,
+    linear-gradient(135deg, rgba(88, 101, 242, 0.55), rgba(0, 255, 209, 0.25)) border-box;
+}
+
+.recruiter-panel__header {
+  margin-bottom: 10px;
+}
+
+.recruiter-panel__title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+}
+
+.recruiter-panel__desc {
+  margin: 0;
+  color: var(--r-dim);
+  line-height: 1.4;
+}
+
+/* Step 5: Actions */
+.recruiter-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.recruiter-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.10);
+  margin: 4px 0;
+}
+
+.recruiter-btn {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--r-text);
+  background: rgba(255, 255, 255, 0.06);
+  transition: transform 0.08s ease, box-shadow 0.14s ease, opacity 0.12s ease;
+}
+
+.recruiter-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.recruiter-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.recruiter-btn--accent {
+  background: linear-gradient(135deg, rgba(88, 101, 242, 0.95), rgba(0, 255, 209, 0.24));
+  border-color: rgba(88, 101, 242, 0.35);
+  box-shadow: 0 10px 26px rgba(88, 101, 242, 0.18);
+}
+
+.recruiter-btn--ghost {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.recruiter-btn--danger {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.92), rgba(255, 255, 255, 0.10));
+  border-color: rgba(244, 63, 94, 0.35);
+  box-shadow: 0 10px 26px rgba(244, 63, 94, 0.14);
+}
+
+/* Step 6: Alerts */
+.recruiter-alert {
+  margin-top: 10px;
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.recruiter-alert__title {
+  font-weight: 800;
+  margin-bottom: 6px;
+  color: var(--r-text);
+}
+
+.recruiter-alert__text {
+  color: var(--r-muted);
+  line-height: 1.4;
+}
+
+.recruiter-alert--error {
+  border-color: rgba(244, 63, 94, 0.35);
+  background: rgba(244, 63, 94, 0.12);
+}
+
+.recruiter-alert--info {
+  border-color: rgba(0, 255, 209, 0.22);
+  background: rgba(0, 255, 209, 0.08);
+}
+
+/* Step 7: Status card */
+.recruiter-statusCard {
+  margin-top: 12px;
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--r-surface-2);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.recruiter-statusRow {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.recruiter-statusRow:last-child {
+  border-bottom: none;
+}
+
+.recruiter-label {
+  color: var(--r-dim);
+  font-size: 13px;
+}
+
+.recruiter-value {
+  color: var(--r-text);
+  font-weight: 750;
+}
+
+.recruiter-value--muted {
+  font-weight: 600;
+  color: var(--r-muted);
+}
+
+/* Step 8: Steps */
+.recruiter-steps {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recruiter-step {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.recruiter-step__num {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  color: rgba(0, 0, 0, 0.85);
+  background: linear-gradient(135deg, rgba(0, 255, 209, 0.92), rgba(88, 101, 242, 0.60));
+}
+
+.recruiter-step__text {
+  color: var(--r-muted);
+  line-height: 1.35;
+}

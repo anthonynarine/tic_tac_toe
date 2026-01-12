@@ -1,8 +1,8 @@
 // File: hooks/useInviteAndNotifyFriend.js
 
 import { useNavigate } from "react-router-dom";
-import { useDirectMessage } from "../context/directMessageContext";
-import { useUI } from "../context/uiContext";
+import { useDirectMessage } from "../../context/directMessageContext";
+import { useUI } from "../../context/uiContext";
 
 /**
  * Custom hook to invite a friend to a game and notify them via DM.

@@ -1,6 +1,11 @@
+// # Filename: src/components/context/userContext.jsx
+
+
 import { useState, useEffect, createContext, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import Cookies from "js-cookie";
+
+import { getToken } from "../auth/tokenStore"; 
+import { isRecruiterMode } from "../auth/authMode"; 
 
 /**
  * Context to hold the current user data and login status globally.
@@ -40,65 +45,86 @@ export function useUserContext() {
  * @returns {JSX.Element} UserProvider component wrapping the children with user state.
  */
 export const UserProvider = ({ children }) => {
-    const [user, setUser] = useState(null); // Step 1: Initialize user state
-    const [isLoggedIn, setIsLoggedIn] = useState(false); // Step 2: Initialize login status state
-    const [authLoaded, setAuthLoaded] = useState(false); // Step 3: Initialize auth loading state
+    // Step 1: Initialize user state
+    const [user, setUser] = useState(null);
+
+    // Step 2: Initialize login state
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    // Step 3: Initialize auth loading state
+    const [authLoaded, setAuthLoaded] = useState(false);
 
     const navigate = useNavigate();
 
+    // Step 0: Storage must be tab-scoped in Recruiter Mode
+    const getActiveStorage = () => (isRecruiterMode() ? sessionStorage : localStorage); 
+
     // Step 4: On mount, validate access token and restore session
     useEffect(() => {
-        // Step 4.1: Determine token source based on environment
-        const token =
-            process.env.NODE_ENV === "production"
-                ? Cookies.get("access_token") // In production, use secure cookies
-                : localStorage.getItem("access_token"); // In dev, use localStorage
+        // Step 4.1: Token source is controlled by tokenStore (cookie/local/session)
+        const token = getToken("access_token"); 
 
-        // Step 4.2: Define which routes should NOT require auth (e.g. login/register)
-        const publicRoutes = ["/login", "/register"];
+        // Step 4.2: Define which routes should NOT require auth
+        // NOTE: /recruiter must be public so recruiters can open two tabs freely
+        const publicRoutes = ["/login", "/register", "/recruiter"]; 
         const currentPath = window.location.pathname;
+
+        const storage = getActiveStorage(); 
 
         // Step 4.3: If there's no token and user is visiting a protected page
         if (!token) {
             if (!publicRoutes.includes(currentPath)) {
-                // Step 4.3.1: Clear any existing auth state
+                // Step 4.3.1: Clear any existing auth state (for THIS storage context)
                 setUser(null);
                 setIsLoggedIn(false);
-                localStorage.removeItem("user");
-                localStorage.setItem("isLoggedIn", "false");
+
+                storage.removeItem("user"); 
+                storage.setItem("isLoggedIn", "false");
 
                 // Step 4.3.2: Redirect to login page
                 navigate("/login");
             }
-        } else {
-            // Step 4.4: Token exists — restore user session from localStorage
-            const storedUser = localStorage.getItem("user");
-            if (storedUser) {
-                // Step 4.4.1: Hydrate user state from localStorage
-                setUser(JSON.parse(storedUser));
-                setIsLoggedIn(true);
-            }
+
+            // Step 4.3.3: Auth check finished (even if public route)
+            setAuthLoaded(true);
+            return;
+        }
+
+        // Step 4.4: Token exists — restore user session from active storage
+        const storedUser = storage.getItem("user"); 
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+            setIsLoggedIn(true);
         }
 
         // Step 4.5: Mark auth check as completed (used to guard initial render)
         setAuthLoaded(true);
-    }, []);
+    }, [navigate]);
 
-
-    // Step 5: Sync user/auth state changes with localStorage
+    // Step 5: Sync user/auth state changes with active storage
     useEffect(() => {
+        const storage = getActiveStorage(); 
+
         if (user && isLoggedIn) {
-            localStorage.setItem("user", JSON.stringify(user)); // Step 5.1: Save user info
-            localStorage.setItem("isLoggedIn", "true"); // Step 5.2: Save login status
+            storage.setItem("user", JSON.stringify(user)); 
+            storage.setItem("isLoggedIn", "true"); 
         } else {
-            localStorage.removeItem("user"); // Step 5.3: Clear user info if logged out
-            localStorage.setItem("isLoggedIn", "false");
+            storage.removeItem("user"); 
+            storage.setItem("isLoggedIn", "false"); 
         }
     }, [user, isLoggedIn]);
 
     // Step 6: Provide context to all children
     return (
-        <UserContext.Provider value={{ user, setUser, isLoggedIn, setIsLoggedIn, authLoaded }}>
+        <UserContext.Provider
+            value={{
+                user,
+                setUser,
+                isLoggedIn,
+                setIsLoggedIn,
+                authLoaded,
+            }}
+        >
             {children}
         </UserContext.Provider>
     );

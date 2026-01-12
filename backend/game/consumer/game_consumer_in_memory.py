@@ -1,15 +1,15 @@
 import logging
-from operator import truediv
+import time  
+
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.core.exceptions import ValidationError
-from asgiref.sync import async_to_sync
 
-
-from ..utils.shared_utils_game_chat import SharedUtils
-from ..utils.game_utils import GameUtils
+from utils.shared.shared_utils_game_chat import SharedUtils
+from utils.game.game_utils import GameUtils
 
 logger = logging.getLogger(__name__)
+
 
 class GameConsumer(JsonWebsocketConsumer):
     """
@@ -45,13 +45,15 @@ class GameConsumer(JsonWebsocketConsumer):
             return
 
         # Step 3: Authenticate the user.
-        if not SharedUtils.authenticate_user(self.scope):
-            self.send_json({"type": "error", "message": "Unauthenticated user. Please log in."})
+        self.user = SharedUtils.authenticate_user(self.scope)
+
+        if not self.user:
+            self.send_json({
+                "type": "error",
+                "message": "Unauthenticated user. Please log in."
+            })
             self.close(code=4001)  # Close with a specific error code for authentication failure.
             return
-        
-        # Ensure slef.user is set.
-        self.user = self.scope["user"]
 
         # Step 4: Add the WebSocket channel to the game lobby group.
         async_to_sync(self.channel_layer.group_add)(
@@ -130,7 +132,7 @@ class GameConsumer(JsonWebsocketConsumer):
                 # Validate and process the player's move.
                 self.handle_move(content)
             elif message_type == "rematch_request":
-                self.handle_rematch_request(),
+                self.handle_rematch_request()
             elif message_type == "rematch_accept":
                 self.handle_rematch_accept()
             elif message_type == "rematch_decline":
@@ -455,113 +457,138 @@ class GameConsumer(JsonWebsocketConsumer):
 
     def handle_rematch_request(self) -> None:
         """
-        Broadcast a "rematch_offer" to the other player in the same game lobby
-        indicating that self.user wants a rematch.
+        Broadcast a "rematch_offer" to the lobby group indicating that the current
+        user wants a rematch.
+
+        This in-memory consumer mirrors the Redis consumer contract so the frontend
+        can behave deterministically.
+
+        Payload includes server-authoritative identifiers:
+        - requesterUserId
+        - receiverUserId
+        - showActions (per-client, computed in rematch_offer_broadcast)
+        - uiMode ("requester" | "receiver")
         """
         logger.info(f"User {self.user.first_name} is requesting a rematch")
 
-        # Step 1: Ensure self.game is initialized to avoid AttributeError
-        if not hasattr(self, "game"):
-            try:
-                self.game = GameUtils.get_game_instance(self.game_id)
-            except Exception as e:
-                logger.error(f"[Rematch Request] Failed to fetch game instance: {e}")
-                SharedUtils.send_error(self, "Failed to find current game.")
-                return
-            
-        # Step # 2: Determine Player role ("X" or "O")
+        # Step 1: Fetch the game instance (authoritative mapping for X/O)
         try:
-            player_role = GameUtils.determine_player_role(user=self.user, game=self.game)
+            game = GameUtils.get_game_instance(game_id=self.game_id)
         except Exception as e:
-            logger.error(f"Failed to determine player role for rematch: {e}")
-            SharedUtils.send_error(self, "Unable to determine player role.")
+            logger.error(f"[Rematch Request] Failed to fetch game instance: {e}")
+            SharedUtils.send_error(self, "Failed to find current game.")
             return
 
-        # Step 3: Broadcast the rematch offer with player role
-        async_to_sync(self.channel_layer.group_send)(
-            self.lobby_group_name,
-            {
-                "type": "rematch_offer",
-                "from_user": self.user.first_name,
-                "rematchRequestedBy": player_role,  
-                "isRematchOfferVisible": True,
-                "rematchPending": True
-            }
-        )
-
-        logger.info(f"Broadcasted rematch_offer from {self.user.first_name} as {player_role}")
-
-    def rematch_offer_broadcast(self, event):
-        """
-        Called when group message of type "rematch_offer_broadcast" is received.
-        Sends the rematch offer to the connected client.
-        """
+        # Step 2: Determine requester role (stable, from DB mapping)
         try:
-            if not hasattr(self, "game"):
-                self.game = GameUtils.get_game_instance(self.game_id)
-                
-            player_role = GameUtils.determine_player_role(self.user, self.game)
-            
-            self.send_json({
-                "type": "rematch_offer",
-                "message": event.get("message", f"{self.user.first_name} wants a rematch!"),
-                "rematchRequestedBy": event.get("rematchRequestedBy"),
-                "playerRole": player_role,
-                "isRematchOfferVisible": event.get("isRematchOfferVisible", True),
-                "rematchPending": event.get("rematchPending", True),
-                "game_id": self.game_id 
-            })
-            
-            logger.info(f"Sent rematch_offer to {self.user.first_name} as {player_role}")
-            
+            requester_role = GameUtils.determine_player_role(self.user, game)
         except Exception as e:
-            logger.error(f"[rematch_offer_broadcast] Error: {e}")
-            SharedUtils.send_error(self, "Failed to broadcast rematch offer.")
-
-
-    def trigger_rematch_offer(self, event: dict) -> None:
-        """
-        Triggered when a player requests a rematch.
-        Broadcasts the rematch_offer to all users in the lobby group.
-        """
-        if not hasattr(self, "game"):
-            try:
-                self.game = GameUtils.get_game_instance(self.game_id)
-            except Exception as e:
-                logger.error(f"[Trigger_rematch_offer] Could not fetch game instance: {e}")
-                SharedUtils.send_error(self, "Could not find game.")
-                return
-        
-        try:
-            player_role = GameUtils.determine_player_role(self.user, self.game)
-        except Exception as e:
-            logger.error(f"[rematch_offer] Failed to determine player role: {e}")
+            logger.error(f"[Rematch Request] Failed to determine player role: {e}")
             SharedUtils.send_error(self, "Could not determine player role.")
             return
 
+        if requester_role not in ("X", "O"):
+            SharedUtils.send_error(self, "Only players X or O may request a rematch.")
+            return
+
+        # Step 3: Validate players exist (must have both players for a rematch)
+        if not game.player_x or not game.player_o:
+            SharedUtils.send_error(self, "Both players must be present to request a rematch.")
+            return
+
+        # Step 4: Compute receiver user id based on requester role
+        requester_user_id = self.user.id
+        receiver_user_id = (
+            game.player_o.id if requester_role == "X" else game.player_x.id
+        )
+
+        # Step 5: Broadcast the offer to the lobby group (both clients receive it)
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
-                "type": "rematch_offer_broadcast",  
+                "type": "rematch_offer_broadcast",
+                "game_id": str(self.game_id),
                 "message": f"{self.user.first_name} wants a rematch!",
+                "rematchRequestedBy": requester_role,
+                "requesterUserId": requester_user_id,
+                "receiverUserId": receiver_user_id,
+                "createdAtMs": int(time.time() * 1000),  # ✅ New Code
+                "isRematchOfferVisible": True,
+                "rematchPending": True,
+            },
+        )
+
+        logger.info(
+            f"Broadcasted rematch_offer_broadcast requester={requester_user_id} receiver={receiver_user_id}"
+        )
+    def rematch_offer_broadcast(self, event: dict) -> None:
+        """
+        Send a rematch offer message to this client.
+
+        Both clients receive the same broadcast event, but the server determines
+        which client should see Accept/Decline by setting `showActions` based on
+        receiverUserId.
+        """
+        try:
+            receiver_user_id = event.get("receiverUserId")
+            show_actions = bool(receiver_user_id and self.user.id == receiver_user_id)  # ✅ New Code
+            ui_mode = "receiver" if show_actions else "requester"
+
+            self.send_json(
+                {
+                    "type": "rematch_offer",
+                    "game_id": event.get("game_id", str(self.game_id)),
+                    "message": event.get("message", "Rematch requested."),
+                    "rematchRequestedBy": event.get("rematchRequestedBy"),
+                    "requesterUserId": event.get("requesterUserId"),
+                    "receiverUserId": receiver_user_id,
+                    "showActions": show_actions,
+                    "uiMode": ui_mode,
+                    "createdAtMs": event.get("createdAtMs"),
+                    "isRematchOfferVisible": event.get("isRematchOfferVisible", True),
+                    "rematchPending": event.get("rematchPending", True),
+                }
+            )
+
+            logger.info(
+                f"Sent rematch_offer to {self.user.first_name} ui_mode={ui_mode} showActions={show_actions}"
+            )
+
+        except Exception as e:
+            logger.error(f"[rematch_offer_broadcast] Error: {e}")
+            SharedUtils.send_error(self, "Failed to broadcast rematch offer.")
+    def trigger_rematch_offer(self, event: dict) -> None:
+        """
+        (Deprecated) Legacy handler for older rematch flows.
+
+        This exists only to prevent breakage if something still group_sends
+        a `type: rematch_offer` event. Prefer calling `handle_rematch_request`
+        which directly group_sends `rematch_offer_broadcast`.
+        """
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "rematch_offer_broadcast",
+                "game_id": str(event.get("game_id", self.game_id)),
+                "message": event.get("message", "Rematch requested."),
                 "rematchRequestedBy": event.get("rematchRequestedBy"),
-                "playerRole": player_role,
+                "requesterUserId": event.get("requesterUserId"),
+                "receiverUserId": event.get("receiverUserId"),
+                "createdAtMs": event.get("createdAtMs", int(time.time() * 1000)),
                 "isRematchOfferVisible": event.get("isRematchOfferVisible", True),
                 "rematchPending": event.get("rematchPending", True),
-            }
+            },
         )
-        
-        logger.info(f"[trigger_rematch_offer] Broadcasted rematch_offer as {player_role}")
-
-    def rematch_offer(self, event):
+    def rematch_offer(self, event: dict) -> None:
         """
-        Handles a direct WebSocket 'rematch_offer' message from the client.
-        Calls trigger_rematch_offer to broadcast to the group.
+        (Deprecated) Legacy group event handler for `type: rematch_offer`.
+
+        For backward compatibility only. For the modern flow:
+        - Client sends `rematch_request`
+        - Consumer calls `handle_rematch_request`
+        - Server group_sends `rematch_offer_broadcast`
         """
         self.trigger_rematch_offer(event)
-
-
-        
     def handle_rematch_accept(self) -> None:
         """
         Handles when the second player accepts a rematch. 
@@ -636,43 +663,88 @@ class GameConsumer(JsonWebsocketConsumer):
             "message": f"A new rematch game has been created with ID {new_game_id}"
         })
         
+    def handle_rematch_decline(self) -> None:  # ✅ New Code
+        """
+        Handle when the receiving player declines a rematch offer.
+
+        Steps:
+        1. Broadcast a rematch_declined event to all clients in the lobby group.
+        2. Frontend closes modal and clears rematch state.
+        """
+        logger.info(
+            f"User {self.user.first_name} declined a rematch in {self.lobby_group_name}"
+        )
+
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "rematch_declined_broadcast",
+                "game_id": str(self.game_id),
+                "message": f"{self.user.first_name} declined the rematch.",
+                "declinedByUserId": getattr(self.user, "id", None),
+                "isRematchOfferVisible": False,
+                "rematchPending": False,
+            },
+        )
+
+    def rematch_declined_broadcast(self, event: dict) -> None:  # ✅ New Code
+        """
+        Notify this client that a rematch was declined.
+
+        The UI should hide the rematch modal and clear any pending state.
+        """
+        self.send_json(
+            {
+                "type": "rematch_declined",
+                "game_id": event.get("game_id", str(self.game_id)),
+                "message": event.get("message", "Rematch declined."),
+                "declinedByUserId": event.get("declinedByUserId"),
+                "isRematchOfferVisible": event.get("isRematchOfferVisible", False),
+                "rematchPending": event.get("rematchPending", False),
+            }
+        )
+
     def disconnect(self, code: int) -> None:
         """
         Handles WebSocket disconnection for a game session.
 
-        This method removes the user from the WebSocket group (`lobby_group_name`)
-        when they leave the game. However, if the game is completed, the user remains
-        in the WebSocket group to allow for a rematch request.
+        This method performs the following:
+        1. Validates early disconnects (e.g., handshake failures).
+        2. Retrieves latest game state to check completion.
+        3. Removes the player from the in-memory lobby if the game is still active.
+        4. Always removes this channel from the Django Channels group to prevent ghost channels.
 
-        Parameters:
-            code (int): The WebSocket close code indicating the reason for disconnection.
-
-        Behavior:
-            - If the player disconnects before joining a game, logs a warning and exits.
-            - If the player is in an active game, removes them from the game lobby.
-            - If the game is already completed, keeps them in the WebSocket group
-            so they can request a rematch.
-            - Logs the disconnection event.
+        Note:
+            If the game is completed, we retain in-memory player data to support
+            post-game rematch UI for the remaining connected player, but we still
+            discard this socket channel from the group.
         """
-        if not hasattr(self, "lobby_group_name"):
-            logger.warning("Game user disconnected before joining a game lobby")
-            return  # Exit early since they were never in a lobby
+        # Step 1: Validate early disconnects (e.g., handshake failed)
+        if not hasattr(self, "lobby_group_name") or not self.lobby_group_name:
+            logger.warning("User disconnected before joining a game lobby.")
+            return
+
+        logger.debug(
+            f"[WS-DISCONNECT] user={getattr(self.user, 'first_name', '?')} group={self.lobby_group_name} code={code}"
+        )
 
         try:
-                    # Step 1: Always log current group state
-            logger.debug(f"[WS-DISCONNECT] Checking lobby group: {self.lobby_group_name}")
+            # Step 2: Retrieve latest game state (completion check)
+            game = GameUtils.get_game_instance(self.game_id)
 
-            # Step 1: Retrieve the latest game state to ensure it's updated
-            game = GameUtils.get_game_instance(self.game_id)  # Ensure correct completion state
-            
-            if game.is_completed:
-                logger.info(f"[WS-DISCONNECT] Game {game.id} is completed. Keeping user {self.user.first_name} in the group for rematch.")
-                return  # Do not remove from WebSocket group
+            # Step 3: If game is completed, do NOT remove player data (rematch support)
+            if getattr(game, "is_completed", False):
+                logger.info(
+                    f"[WS-DISCONNECT] Game {game.id} completed. Retaining player data for rematch support."
+                )
+                return
 
-            # Step 2: Only remove the player if the game is NOT completed
-            if self.lobby_group_name in GameUtils.lobby_players:
-                logger.info(f"[WS-DISCONNECT] Removing user {self.user.first_name} from lobby group {self.lobby_group_name}")
-                
+            # Step 4: Remove the player from the in-memory lobby (active game only)
+            if self.lobby_group_name in getattr(GameUtils, "lobby_players", {}):
+                logger.info(
+                    f"[WS-DISCONNECT] Removing user {self.user.first_name} from lobby group {self.lobby_group_name}"
+                )
+
                 GameUtils._remove_player_from_lobby(
                     user=self.user,
                     group_name=self.lobby_group_name,
@@ -680,14 +752,20 @@ class GameConsumer(JsonWebsocketConsumer):
                     channel_name=self.channel_name,
                 )
 
+        except Exception as e:
+            logger.error(
+                f"[WS-DISCONNECT] Error during disconnect for user {getattr(self.user, 'first_name', '?')}: {e}"
+            )
+
+        finally:
+            # Step 5: Always leave Django Channels group (prevents ghost channels)  # ✅ New Code
+            try:
                 async_to_sync(self.channel_layer.group_discard)(
                     self.lobby_group_name,
                     self.channel_name,
                 )
-                logger.info(f"[WS-DISCONNECT] User {self.user.first_name} removed from lobby group {self.lobby_group_name}")
-
-        except Exception as e:
-            logger.error(f"[WS-DISCONNECT] Error during disconnect for user {self.user.first_name}: {e}")
-
-
-
+                logger.info(
+                    f"[WS-DISCONNECT] User {getattr(self.user, 'first_name', '?')} removed from group {self.lobby_group_name}"
+                )
+            except Exception as e:
+                logger.error(f"[WS-DISCONNECT] Error removing user from group: {e}")

@@ -1,10 +1,9 @@
 // # Filename: src/components/auth/tokenStore.js
 
-
 import Cookies from "js-cookie";
 import { AUTH_MODES, getAuthMode } from "./authMode";
 
-// Step 1: Token helpers share one truth
+// Step 1: Set token (cookie/local/session aware)
 export const setToken = (name, value, options = {}) => {
   const mode = getAuthMode();
 
@@ -18,7 +17,7 @@ export const setToken = (name, value, options = {}) => {
     return;
   }
 
-  // Step 2: COOKIE mode (prod default)
+  // Step 1a: COOKIE mode (prod default)
   Cookies.set(name, value, {
     secure: true,
     sameSite: "None",
@@ -27,6 +26,7 @@ export const setToken = (name, value, options = {}) => {
   });
 };
 
+// Step 2: Get token (cookie/local/session aware)
 export const getToken = (name) => {
   const mode = getAuthMode();
 
@@ -36,6 +36,7 @@ export const getToken = (name) => {
   return Cookies.get(name) || null;
 };
 
+// Step 3: Remove token (cookie/local/session aware)
 export const removeToken = (name) => {
   const mode = getAuthMode();
 
@@ -52,7 +53,7 @@ export const removeToken = (name) => {
   Cookies.remove(name);
 };
 
-// Step 3: Optional cleanup helper for legacy cookie auth bits
+// Step 4: Optional cleanup helper for legacy cookie auth bits
 export const clearAuthCookies = () => {
   Cookies.remove("csrftoken");
   Cookies.remove("sessionid");

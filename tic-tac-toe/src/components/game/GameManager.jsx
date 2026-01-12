@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
-import useGameServices from "../hooks/useGameServices";
+import useGameServices from "../hooks/game/useGameServices"
 import { showToast } from "../../utils/toast/Toast";
 
 /**

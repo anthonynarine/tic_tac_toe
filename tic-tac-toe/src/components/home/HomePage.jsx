@@ -1,5 +1,5 @@
 import React from "react";
-import useGameCreation from "../hooks/useGameCreation";
+import useGameCreation from "../hooks/game/useGameCreation"
 import { useNavigate } from "react-router-dom";
 import { showToast } from "../../utils/toast/Toast";
 import { useUserContext } from "../context/userContext";

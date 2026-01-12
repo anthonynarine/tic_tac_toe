@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useUserContext } from "../context/userContext";
-import { useAuth } from "../hooks/useAuth";
+import { useAuth } from "../auth/hooks/useAuth"
 import { useUI } from "../context/uiContext";
-import useGameCreation from "../hooks/useGameCreation";
+import useGameCreation from "../hooks/game/useGameCreation";
 import { useNavigate } from "react-router-dom";
 
 import HomeButton from "./HomeButton";

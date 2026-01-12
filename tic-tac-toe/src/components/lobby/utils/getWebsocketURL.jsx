@@ -1,38 +1,57 @@
+// # Filename: src/components/lobby/utils/getWebsocketURL.jsx
+
+
 /**
  * Generates a WebSocket URL for either a direct message (DM) or game lobby chat.
  *
+ * IMPORTANT:
+ * - This function is synchronous and expects you to pass a VALID access token.
+ * - Before calling this, get a fresh token with ensureFreshAccessToken() in the caller.
+ *
  * @param {Object} params
  * @param {number|string} params.id - Friend ID (for DM) or Lobby ID (for game chat)
- * @param {string} params.token - JWT access token
+ * @param {string} params.token - JWT access token (should already be fresh)
  * @param {boolean} params.isLobby - True if generating a lobby chat URL
  * @returns {string} Fully-qualified WebSocket URL
  */
 const getWebSocketURL = ({ id, token, isLobby }) => {
-  // 🧠 Resolve the backend host from environment or fallback to localhost
-  const isProd = process.env.NODE_ENV === "production"; 
+  // Step 1: Validate inputs early (helps debugging)
+  if (!id) {
+    throw new Error("getWebSocketURL: 'id' is required.");
+  }
 
-  const host = process.env.REACT_APP_BACKEND_WS || (isProd
-    ? "tic-tac-toe-server-66c5e15cb1f1.herokuapp.com"
-    : "localhost:8000");
+  if (!token) {
+    throw new Error("getWebSocketURL: 'token' is required.");
+  }
 
-    console.log("[WebSocket] Host resolved to:", process.env.REACT_APP_BACKEND_WS);
+  // Step 2: Resolve backend host
+  const isProd = process.env.NODE_ENV === "production";
+  const host =
+    process.env.REACT_APP_BACKEND_WS ||
+    (isProd
+      ? "tic-tac-toe-server-66c5e15cb1f1.herokuapp.com"
+      : "localhost:8000");
 
-
-  // 🌐 Use 'wss' if HTTPS, else 'ws' for local/dev environments
+  // Step 3: Choose ws/wss based on page protocol
   const scheme = window.location.protocol === "https:" ? "wss" : "ws";
 
-  // 🧭 Prefix the path with 'lobby/' if it's a lobby chat route
+  // Step 4: Route path prefix for lobby chat
   const typePath = isLobby ? "lobby/" : "";
 
-    // ✅ Log your .env variable and final result
-  console.log("🧪 ENV REACT_APP_BACKEND_WS:", process.env.REACT_APP_BACKEND_WS);
-  console.log("🧪 WebSocket Host resolved to:", host);
-  console.log("💬 ENV value:", process.env.REACT_APP_BACKEND_WS);
-  console.log("📡 Final WebSocket URL:", `${scheme}://${host}/ws/chat/${typePath}${id}/?token=${token}`);
+  // Step 5: Escape URL pieces
+  const safeId = encodeURIComponent(String(id));
+  const safeToken = encodeURIComponent(String(token));
 
+  // Step 6: Build URL
+  const url = `${scheme}://${host}/ws/chat/${typePath}${safeId}/?token=${safeToken}`;
 
-  // 🔗 Build and return the complete WebSocket URL
-  return `${scheme}://${host}/ws/chat/${typePath}${id}/?token=${token}`;
+  // Step 7: Optional debug logging
+  const isDebug = String(process.env.REACT_APP_DEBUG).toLowerCase() === "true";
+  if (isDebug) {
+    console.log("📡 WebSocket URL:", url);
+  }
+
+  return url;
 };
 
 export default getWebSocketURL;

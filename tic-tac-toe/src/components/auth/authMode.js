@@ -1,5 +1,4 @@
 // # Filename: src/components/auth/authMode.js
-// ✅ New Code
 
 // Step 1: Define auth mode keys
 const AUTH_MODE_KEY = "ttt_auth_mode";
@@ -15,11 +14,12 @@ export const AUTH_MODES = {
 export const getAuthMode = () => {
   const tabMode = sessionStorage.getItem(AUTH_MODE_KEY);
 
+  // Step 3a: Recruiter tab override
   if (tabMode === AUTH_MODES.SESSION) {
     return AUTH_MODES.SESSION;
   }
 
-  // Default behavior preserved
+  // Step 3b: Preserve existing behavior
   if (process.env.NODE_ENV === "development") {
     return AUTH_MODES.LOCAL;
   }
