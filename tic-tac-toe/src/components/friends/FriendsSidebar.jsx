@@ -1,19 +1,24 @@
-// File: FriendsSidebar.jsx
+
+// # Filename: src/components/friends/FriendsSidebar.jsx
 
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { useFriends } from "../context/friendsContext";
 import { useDirectMessage } from "../context/directMessageContext";
 import { useUserContext } from "../context/userContext";
 import { useUI } from "../context/uiContext";
-// import { inviteAndNotifyFriend } from "./utils/inviteAndNotifyFriend";
 
 import AddFriendForm from "./AddFriendForm";
 import TrinityOverlay from "../trinity/TrinityOverlay";
 import FriendsList from "./FriendsList";
 import PendingFriendRequest from "./PendingFriendRequest";
+import InvitesPanel from "../notifications/InvitePanel"
 
 import styles from "./FriendsSidebar.module.css";
+
+// Step 1: Invite v2 REST API (server-authoritative)
+import { createInvite } from "../../api/inviteApi";
 
 /**
  * FriendsSidebar
@@ -24,25 +29,30 @@ import styles from "./FriendsSidebar.module.css";
  * - List of online/offline friends
  * - Pending friend requests
  *
- * Manages click behavior for opening DMs or accepting/declining requests.
- * Controlled via global UI state (drawer open/close).
+ * Invite v2:
+ * - Invites are created via REST (server-authoritative)
+ * - Lobby join uses /lobby/:id?invite=<inviteId> to satisfy WS join guard
  */
 const FriendsSidebar = () => {
   const { isSidebarOpen, setSidebarOpen, setDMOpen, setTrinityOpen } = useUI();
   const { friends, pending, acceptRequest, declineRequest, refreshFriends } = useFriends();
-  const { openChat, unread, sendGameInvite } = useDirectMessage();
+
+  // NOTE: We keep DM context for opening chats, unread, etc.
+  // Invite v2 removes DM as the "join source of truth".
+  const { openChat } = useDirectMessage();
+
   const { user } = useUserContext();
   const navigate = useNavigate();
 
   /**
-   * On mount, refresh friend list from backend.
+   * Step 1: On mount, refresh friend list from backend.
    */
   useEffect(() => {
     refreshFriends();
   }, [refreshFriends]);
 
   /**
-   * Handles clicking a friend row to open direct message chat.
+   * Step 2: Handles clicking a friend row to open direct message chat.
    * Only works if friend is online.
    */
   const handleFriendClick = (friend) => {
@@ -52,23 +62,47 @@ const FriendsSidebar = () => {
     }
   };
 
-
+  /**
+   * Step 3: Invite v2 (server-authoritative) invite handler.
+   *
+   * Flow:
+   * 1) POST /api/invites/ { to_user_id, game_type }
+   * 2) Response includes invite + lobbyId
+   * 3) Navigate to /lobby/:lobbyId?invite=:inviteId
+   *
+   * Why:
+   * - Lobby WS now requires inviteId query param (join guard)
+   * - Prevents stale /lobby/:id time-travel joins
+   */
   const handleInvite = async (friend) => {
-    const result = await sendGameInvite(friend);
-    console.log("🎯 handleInvite result:", result);
+    try {
+      // Step 1: Create invite on the server (authoritative)
+      const result = await createInvite({
+        toUserId: friend.id,
+        gameType: "tic_tac_toe",
+      });
 
-    if (result?.lobby_id || result?.lobbyId) {
-      const lobbyId = result.lobby_id || result.lobbyId;
-      console.log("🚀 Navigating to lobby:", lobbyId);
-      navigate(`/lobby/${lobbyId}`);
-    } else {
-      console.warn("No lobbyId in result, not navigating.");
+      const lobbyId = result?.lobbyId;
+      const inviteId = result?.invite?.inviteId;
+
+      if (!lobbyId || !inviteId) {
+        console.warn("Invite v2: Missing lobbyId or inviteId in response:", result);
+        return;
+      }
+
+      // Step 2: Navigate with inviteId so WS join guard passes
+      navigate(`/lobby/${lobbyId}?invite=${inviteId}`);
+    } catch (error) {
+      // Step 3: Error clarity (where/why/fix)
+      // Where: createInvite() axios call
+      // Why: likely missing/expired auth token or backend validation error
+      // Fix: ensure access token is present/valid, confirm endpoint paths match
+      console.error("Invite v2: Failed to create invite:", error);
     }
   };
 
-
   /**
-   * Accept a pending friend request by ID.
+   * Step 4: Accept a pending friend request by ID.
    */
   const handleAccept = async (id) => {
     try {
@@ -80,7 +114,7 @@ const FriendsSidebar = () => {
   };
 
   /**
-   * Decline a pending friend request by ID.
+   * Step 5: Decline a pending friend request by ID.
    */
   const handleDecline = async (id) => {
     try {
@@ -119,6 +153,8 @@ const FriendsSidebar = () => {
       <div className={styles.friendsSidebarContent}>
         <AddFriendForm />
 
+        <InvitesPanel />
+
         {/* ─── 👥 Friends List ─────────────────────── */}
         <section className={styles.friendsSidebarSection}>
           <h3>Friends</h3>
@@ -130,7 +166,7 @@ const FriendsSidebar = () => {
                   friend={friend}
                   user={user}
                   onClick={handleFriendClick}
-                  onInvite={handleInvite} 
+                  onInvite={handleInvite} // ✅ Invite v2
                 />
               ))
             ) : (

@@ -1,7 +1,7 @@
 // # Filename: src/components/lobby/Lobby.jsx
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom"; 
 import { useLobbyContext } from "../context/lobbyContext";
 import { useGameContext } from "../context/gameContext";
 import { useUserContext } from "../context/userContext";
@@ -9,10 +9,8 @@ import { showToast } from "../../utils/toast/Toast";
 import { CiCirclePlus } from "react-icons/ci";
 import "./lobby.css";
 
-
 // Step 1: Use websocketBaseUrl (no hardcoded localhost)
 import config from "../../config";
-
 
 // Step 2: Ensure WS connects with a fresh access token
 import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
@@ -22,6 +20,10 @@ import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
  *
  * Handles game lobby functionality, including WebSocket connection, chat, player management,
  * and initiating the game.
+ *
+ * Invite v2:
+ * - Lobby WS connections must include ?invite=<invite_uuid>
+ * - Backend validates invite before accepting the connection
  */
 const Lobby = () => {
   // Contexts
@@ -32,14 +34,20 @@ const Lobby = () => {
   // Hooks
   const { id: gameId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation(); 
+
+
+  // Step 3: Read inviteId from URL query string (e.g. /lobby/:id?invite=<uuid>)
+  const inviteId = useMemo(() => {
+    return new URLSearchParams(location.search).get("invite");
+  }, [location.search]);
 
   // State
   const [message, setMessage] = useState("");
   const [socket, setSocket] = useState(null);
   const chatContainerRef = useRef(null);
 
-
-  // Step 3: Keep socket + timers in refs for stable cleanup/reconnect
+  // Step 4: Keep socket + timers in refs for stable cleanup/reconnect
   const socketRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const reconnectAttemptRef = useRef(0);
@@ -53,8 +61,7 @@ const Lobby = () => {
   const BASE_DELAY_MS = 750;
   const MAX_DELAY_MS = 8000;
 
-
-  // Step 4: Detect auth-like close codes (handshake rejection often shows as 1006)
+  // Step 5: Detect auth-like close codes (handshake rejection often shows as 1006)
   const isAuthLikeClose = (event) => {
     const code = Number(event?.code);
     if (code === 4401) return true;
@@ -62,8 +69,7 @@ const Lobby = () => {
     return false;
   };
 
-
-  // Step 5: Cleanup socket + timers safely
+  // Step 6: Cleanup socket + timers safely
   const cleanupSocket = () => {
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
@@ -171,8 +177,9 @@ const Lobby = () => {
     navigate(`/games/${data.game_id}`);
   };
 
-  // ✅ New Code
-  // Step 6: Connect WS with refresh-before-connect + controlled reconnect
+
+  // Step 7: Connect WS with refresh-before-connect + controlled reconnect
+  // Invite v2: Lobby WS must include inviteId in query string
   const connectLobbySocket = async ({ forceRefresh = false } = {}) => {
     if (!gameId) return;
 
@@ -190,10 +197,19 @@ const Lobby = () => {
       return;
     }
 
-    // Step 3: Build URL from config (no hardcoded localhost)
-    const wsUrl = `${config.websocketBaseUrl}/lobby/${gameId}/?token=${encodeURIComponent(
-      token
-    )}`;
+    // Step 3: Invite v2 join guard requires inviteId
+    // If missing, we can still attempt connect (for now), but backend will reject.
+    // This makes it obvious why the lobby fails (and we can refine UI later).
+    const qs = new URLSearchParams({
+      token: encodeURIComponent(String(token)),
+    });
+
+    if (inviteId) {
+      qs.set("invite", String(inviteId));
+    }
+
+    // Step 4: Build URL from config (no hardcoded localhost)
+    const wsUrl = `${config.websocketBaseUrl}/lobby/${gameId}/?${qs.toString()}`;
 
     const webSocket = new WebSocket(wsUrl);
 
@@ -215,7 +231,7 @@ const Lobby = () => {
     webSocket.onclose = (event) => {
       console.log("WebSocket disconnected.", event?.code);
 
-      // Step 4: Auth-like close? Try ONE forced refresh reconnect
+      // Step 5: Auth-like close? Try ONE forced refresh reconnect
       if (isAuthLikeClose(event) && !authRetryAttemptRef.current) {
         authRetryAttemptRef.current = true;
 
@@ -226,7 +242,7 @@ const Lobby = () => {
         return;
       }
 
-      // Step 5: Controlled backoff reconnect (prevents infinite thrash)
+      // Step 6: Controlled backoff reconnect (prevents infinite thrash)
       reconnectAttemptRef.current += 1;
 
       if (reconnectAttemptRef.current > MAX_RECONNECT_ATTEMPTS) {
@@ -262,7 +278,7 @@ const Lobby = () => {
       cleanupSocket();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId]);
+  }, [gameId, inviteId]); // ✅ include inviteId so reconnect uses updated URL
 
   /**
    * Handles sending chat messages.
@@ -311,9 +327,16 @@ const Lobby = () => {
 
   /**
    * Copies the lobby invite link to the clipboard.
+   *
+   * Invite v2 note:
+   * - Lobby join now requires ?invite=<uuid>
+   * - So we copy the *current* URL including query string.
    */
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/lobby/${gameId}`);
+
+    // Step 1: Copy full URL including ?invite=... if present
+    const fullUrl = `${window.location.origin}${location.pathname}${location.search}`;
+    navigator.clipboard.writeText(fullUrl);
     showToast("success", "Invite link copied to clipboard!");
   };
 
@@ -353,7 +376,7 @@ const Lobby = () => {
         })}
       </div>
     ),
-    [state.players]
+    [state.players] // leaving as-is; handleCopyLink is stable enough for now
   );
 
   return (

@@ -1,12 +1,20 @@
 // # Filename: src/components/context/notificatonContext.jsx
 
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import config from "../../config";
 import { useUserContext } from "./userContext";
 import { useDirectMessage } from "./directMessageContext";
 import { useUI } from "./uiContext";
 import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
-import { DmActionTypes } from "../reducers/directMessaeReducer"; 
+import { DmActionTypes } from "../reducers/directMessaeReducer";
 
 export const NotificationContext = createContext(undefined);
 
@@ -14,11 +22,6 @@ export const NotificationContext = createContext(undefined);
  * useNotification
  * ----------------------------
  * Custom hook to access the Notification WebSocket context.
- *
- * Returns:
- *  - isConnected: boolean
- *  - reconnect: function (manual reconnect)
- *  - disconnect: function (manual disconnect)
  */
 export const useNotification = () => {
   const context = useContext(NotificationContext);
@@ -30,26 +33,92 @@ export const useNotification = () => {
   return context;
 };
 
+// Step 1: Invite v2 reducer action types
+const InviteActionTypes = {
+  UPSERT_INVITE: "UPSERT_INVITE",
+  UPSERT_INVITES_BULK: "UPSERT_INVITES_BULK",
+  CLEAR_INVITES: "CLEAR_INVITES",
+};
+
+// Step 2: Initial invite state
+const inviteInitialState = {
+  invitesById: {}, // { [inviteId]: invite }
+  inviteOrder: [], // newest-first list of inviteIds
+};
+
+// Step 3: Invite reducer (dedupe by inviteId)
+const inviteReducer = (state, action) => {
+  switch (action.type) {
+    case InviteActionTypes.UPSERT_INVITE: {
+      const invite = action.payload;
+      const inviteId = invite?.inviteId;
+
+      if (!inviteId) return state;
+
+      const exists = Boolean(state.invitesById[inviteId]);
+
+      return {
+        ...state,
+        invitesById: {
+          ...state.invitesById,
+          [inviteId]: {
+            ...state.invitesById[inviteId],
+            ...invite,
+          },
+        },
+        inviteOrder: exists ? state.inviteOrder : [inviteId, ...state.inviteOrder],
+      };
+    }
+
+    case InviteActionTypes.UPSERT_INVITES_BULK: {
+      const invites = Array.isArray(action.payload) ? action.payload : [];
+
+      let nextInvitesById = { ...state.invitesById };
+      let nextOrder = [...state.inviteOrder];
+
+      invites.forEach((invite) => {
+        const inviteId = invite?.inviteId;
+        if (!inviteId) return;
+
+        const exists = Boolean(nextInvitesById[inviteId]);
+
+        nextInvitesById[inviteId] = {
+          ...nextInvitesById[inviteId],
+          ...invite,
+        };
+
+        if (!exists) {
+          nextOrder = [inviteId, ...nextOrder];
+        }
+      });
+
+      return {
+        ...state,
+        invitesById: nextInvitesById,
+        inviteOrder: nextOrder,
+      };
+    }
+
+    case InviteActionTypes.CLEAR_INVITES: {
+      return inviteInitialState;
+    }
+
+    default:
+      return state;
+  }
+};
+
 /**
  * NotificationProvider
  * ----------------------------
  * Maintains a single WebSocket connection that delivers lightweight
  * notifications (e.g. DM message received, game invite received).
  *
- * Why this exists:
- * - DM sockets may only be opened when you actively chat with someone.
- * - This notifications socket is always-on (when logged in), so it can:
- *   - increment unread badges
- *   - wake up UI indicators
- *   - support recruiter mode (tab-scoped sessions) via tokenStore
- *
- * Expected backend messages:
- * - { type: "dm", sender_id: <id>, ... }
- * - { type: "game_invite", sender_id: <id>, ... }
- *
- * Recruiter Mode:
- * - This socket reads the access token via tokenStore.getToken()
- *   so it works whether tokens are stored in cookies/localStorage/sessionStorage.
+ * Invite v2:
+ * - Receives:
+ *   - { type: "invite_created", invite: {...} }
+ *   - { type: "invite_status", invite: {...} }
+ * - Stores invites in memory (dedupe by inviteId)
  */
 export const NotificationProvider = ({ children }) => {
   const { user } = useUserContext();
@@ -60,60 +129,63 @@ export const NotificationProvider = ({ children }) => {
   const activeFriendId = dm?.activeFriendId;
   const dispatch = dm?.dispatch;
 
-  // Step 2: WebSocket refs & state
+
+  // Step 2: Invite v2 state
+  const [inviteState, inviteDispatch] = useReducer(
+    inviteReducer,
+    inviteInitialState
+  );
+
+  // Step 3: WebSocket refs & state
   const socketRef = useRef(null);
   const retryRef = useRef(null);
 
   const [isConnected, setIsConnected] = useState(false);
 
-  // Step 3: Reconnect tuning
+  // Step 4: Reconnect tuning
   const reconnectAttemptRef = useRef(0);
   const MAX_RECONNECT_ATTEMPTS = 8; // prevents infinite thrash
   const BASE_DELAY_MS = 1000; // 1s base
   const MAX_DELAY_MS = 15000; // cap backoff
 
-  // Step 4: One-time "auth refresh + reconnect" guard
+  // Step 5: One-time "auth refresh + reconnect" guard
   const authRetryAttemptRef = useRef(false);
 
   /**
-   * Step 5: Build the notification WebSocket URL.
-   * Your config.websocketBaseUrl already ends with "/ws" in your project,
-   * so we append "/notifications/".
+   * Step 6: Build the notification WebSocket URL.
    */
   const buildNotificationUrl = (token) => {
     return `${config.websocketBaseUrl}/notifications/?token=${token}`;
   };
 
   /**
-   * Step 6: Detect auth-like close codes.
-   *
-   * Notes:
-   * - If the WS handshake is rejected by the server (403), browsers often report 1006.
-   * - If your server closes with a custom "unauthorized" code (like 4401), we handle that too.
+   * Step 7: Detect auth-like close codes.
    */
   const isAuthLikeClose = (event) => {
     const code = Number(event?.code);
 
-    // Step 1: 4401 is a common "Unauthorized" WS close code
     if (code === 4401) return true;
-
-    // Step 2: 1006 often indicates abnormal close (including handshake rejection)
     if (code === 1006) return true;
 
-    // Step 3: Anything else -> treat as non-auth by default
     return false;
   };
 
   /**
-   * Step 7: Decide whether an unread badge should increment.
+   * Step 8: Decide whether an unread badge should increment.
    *
    * Rules:
-   * - Only for DM + game_invite notifications
-   * - Only if DM drawer is not open OR active chat is not this sender
+   * - DM notifications: increment when drawer closed OR not active chat
+   * - Invite notifications: increment on invite_created using senderId logic
    */
   const shouldIncrementUnread = ({ notifType, senderId }) => {
     if (!senderId) return false;
-    if (notifType !== "dm" && notifType !== "game_invite") return false;
+
+    // Step 1: support legacy + invite v2 types
+    const isDm = notifType === "dm";
+    const isLegacyInvite = notifType === "game_invite";
+    const isInviteV2 = notifType === "invite_created";
+
+    if (!isDm && !isLegacyInvite && !isInviteV2) return false;
 
     // If the DM drawer is closed, always increment.
     if (!isDMOpen) return true;
@@ -123,9 +195,7 @@ export const NotificationProvider = ({ children }) => {
   };
 
   /**
-   * Step 8: Cleanly close socket + clear retry timers.
-   *
-   * Only reset reconnect counters when explicitly requested (logout/unmount).
+   * Step 9: Cleanly close socket + clear retry timers.
    */
   const disconnect = async ({ resetAttempts = false } = {}) => {
     try {
@@ -146,7 +216,6 @@ export const NotificationProvider = ({ children }) => {
     } finally {
       setIsConnected(false);
 
-      // Step 1: Only reset attempts when we explicitly disconnect (logout/unmount)
       if (resetAttempts) {
         reconnectAttemptRef.current = 0;
         authRetryAttemptRef.current = false;
@@ -155,24 +224,29 @@ export const NotificationProvider = ({ children }) => {
   };
 
   /**
-   * Step 9: Establish WebSocket connection.
-   * - Uses ensureFreshAccessToken so WS never connects with an expired token
-   * - reconnects with exponential backoff if closed unexpectedly
-   *
-   * - supports forceRefresh for auth-failure recovery
+   * Step 10: Invite v2 handlers
+   */
+  const upsertInvite = (invite) => {
+    inviteDispatch({ type: InviteActionTypes.UPSERT_INVITE, payload: invite });
+  };
+
+  const upsertInvitesBulk = (invites) => {
+    inviteDispatch({
+      type: InviteActionTypes.UPSERT_INVITES_BULK,
+      payload: invites,
+    });
+  };
+
+  /**
+   * Step 11: Establish WebSocket connection.
    */
   const connect = async ({ forceRefresh = false } = {}) => {
-    // Step 9.1: Always close any existing socket before reconnecting (DO NOT reset attempts)
     await disconnect({ resetAttempts: false });
 
-    // Step 9.2: Prefer a "fresh" access token (refresh if needed)
-    // If forceRefresh is true, we use a huge TTL threshold to force a refresh attempt.
     const token = await ensureFreshAccessToken({
       minTtlSeconds: forceRefresh ? 999999999 : 60,
     });
 
-    // Step 9.3: If we still have no token, do not connect
-    // (This can happen if refresh fails and tokens were cleared)
     if (!token) {
       console.warn("🔔 Notification socket: no valid token. Not connecting.");
       return;
@@ -183,11 +257,7 @@ export const NotificationProvider = ({ children }) => {
     socketRef.current = socket;
 
     socket.onopen = () => {
-      // Step 9.4: Reset reconnect counters only on success
       reconnectAttemptRef.current = 0;
-
-
-      // Step 1: Reset auth retry guard on a successful connection
       authRetryAttemptRef.current = false;
 
       setIsConnected(true);
@@ -198,13 +268,22 @@ export const NotificationProvider = ({ children }) => {
       try {
         const data = JSON.parse(event.data);
 
-        // Step 9.5: Minimal payload expectation
         const notifType = data?.type;
         const senderId = data?.sender_id;
 
         console.log("📥 Notification received:", data);
 
-        // Step 9.6: Increment badge if appropriate
+
+        // Step 1: Invite v2 — store invite objects + dedupe by inviteId
+        if (notifType === "invite_created" && data?.invite) {
+          upsertInvite(data.invite);
+        }
+
+        if (notifType === "invite_status" && data?.invite) {
+          upsertInvite(data.invite);
+        }
+
+        // Step 2: Increment badge if appropriate (keeps your existing behavior)
         if (shouldIncrementUnread({ notifType, senderId })) {
           if (typeof dispatch === "function") {
             dispatch({
@@ -229,14 +308,11 @@ export const NotificationProvider = ({ children }) => {
     socket.onclose = (event) => {
       setIsConnected(false);
 
-      // Step 9.7: If user is no longer present, don’t reconnect
       if (!user?.id) {
         console.log("🔔 Notification socket closed (no user).");
         return;
       }
 
-
-      // Step 1: If this looks like an auth failure, try ONE forced refresh + reconnect
       if (isAuthLikeClose(event) && !authRetryAttemptRef.current) {
         authRetryAttemptRef.current = true;
 
@@ -251,7 +327,6 @@ export const NotificationProvider = ({ children }) => {
         return;
       }
 
-      // Step 9.8: Controlled reconnect loop (exponential backoff)
       reconnectAttemptRef.current += 1;
 
       if (reconnectAttemptRef.current > MAX_RECONNECT_ATTEMPTS) {
@@ -277,17 +352,14 @@ export const NotificationProvider = ({ children }) => {
   };
 
   /**
-   * Step 10: Auto-connect when user becomes available.
-   * Auto-disconnect on unmount or logout.
+   * Step 12: Auto-connect when user becomes available.
    */
   useEffect(() => {
     if (!user?.id) {
-      // Step 10.1: user logged out
       disconnect({ resetAttempts: true });
       return;
     }
 
-    // Step 10.2: user logged in
     connect({ forceRefresh: false });
 
     return () => {
@@ -296,10 +368,25 @@ export const NotificationProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+
+  // Step 13: Derived list of invites (newest-first)
+  const invites = useMemo(() => {
+    return inviteState.inviteOrder
+      .map((id) => inviteState.invitesById[id])
+      .filter(Boolean);
+  }, [inviteState.inviteOrder, inviteState.invitesById]);
+
   const contextValue = {
+    // existing fields
     isConnected,
     reconnect: async () => await connect({ forceRefresh: false }),
     disconnect: async () => await disconnect({ resetAttempts: true }),
+
+
+    invites,
+    invitesById: inviteState.invitesById,
+    upsertInvite,
+    upsertInvitesBulk,
   };
 
   return (
