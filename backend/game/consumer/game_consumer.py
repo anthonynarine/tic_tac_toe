@@ -1,5 +1,6 @@
 import logging
 import time
+from urllib.parse import parse_qs
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.core.exceptions import ValidationError
@@ -8,6 +9,8 @@ from asgiref.sync import async_to_sync
 from utils.shared.shared_utils_game_chat import SharedUtils
 from utils.game.game_utils import GameUtils
 from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
+
+from invites.guards import validate_invite_for_lobby_join
 
 logger = logging.getLogger("game")
 
@@ -24,10 +27,12 @@ class GameConsumer(JsonWebsocketConsumer):
         1. Extract game ID from WebSocket URL route.
         2. Authenticate the user.
         3. Validate presence of game ID.
-        4. Add channel to Django Channels group.
-        5. Track the player and channel in Redis.
-        6. Accept the connection.
-        7. Log successful join.
+        4. Validate invite join guard (Invite v2).
+        5. Add channel to Django Channels group.
+        6. Track the player and channel in Redis.
+        7. Accept the connection.
+        8. Broadcast updated player list.
+        9. Log successful join.
         """
         # Step 1: Extract game ID and set group name
         self.game_id = self.scope["url_route"].get("kwargs", {}).get("game_id")
@@ -49,24 +54,49 @@ class GameConsumer(JsonWebsocketConsumer):
             self.close(code=4002)
             return
 
-        # Step 4: Join Django Channels group
+
+        # Step 4: Invite v2 join guard (kills time-travel joins)
+        # Require ?invite=<uuid> in the WS URL and validate server-side.
+        qs = parse_qs(self.scope.get("query_string", b"").decode())
+        invite_id = qs.get("invite", [None])[0]
+
+        if not invite_id:
+            logger.warning("WebSocket connection rejected: missing invite id.")
+            self.send_json({"type": "error", "message": "Missing invite id."})
+            self.close(code=4003)
+            return
+
+        try:
+            validate_invite_for_lobby_join(
+                user=self.user,
+                lobby_id=str(self.game_id),
+                invite_id=str(invite_id),
+            )
+        except Exception as exc:
+            logger.warning(f"WebSocket connection rejected: invalid invite. error={exc}")
+            self.send_json({"type": "error", "message": "Invalid or expired invite."})
+            self.close(code=4004)
+            return
+
+        # Step 5: Join Django Channels group
         async_to_sync(self.channel_layer.group_add)(
             self.lobby_group_name,
             self.channel_name
         )
 
-        # Step 5: Track player and channel in Redis
+        # Step 6: Track player and channel in Redis
         self.game_lobby_manager = RedisGameLobbyManager()
         self.game_lobby_manager.add_channel(self.game_id, self.channel_name)
         self.game_lobby_manager.add_player(self.game_id, self.user)
 
-        # Step 6: Accept WebSocket connection
+        # Step 7: Accept WebSocket connection
         self.accept()
-        
+
+        # Step 8: Broadcast updated player list
         self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.game_id)
         logger.info(f"[✅ BROADCAST] Sent updated player list for game lobby {self.lobby_group_name}")
 
-        # Step 7: Log success
+        # Step 9: Log success
         logger.info(f"User {self.user.first_name} connected to game lobby {self.lobby_group_name}")
 
     def receive_json(self, content: dict, **kwargs) -> None:

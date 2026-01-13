@@ -22,6 +22,10 @@ urlpatterns = [
     # Games
     path("api/games/", include("game.urls")),
 
+
+    # Invites (Invite v2)
+    path("api/invites/", include("invites.urls")),
+
     # Chat
     path("api/chat/", include("chat.urls")),
 

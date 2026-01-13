@@ -21,7 +21,7 @@ django_asgi_app = WsgiToAsgi(django_wsgi_app)
 # Import WebSocket middleware and routing
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
-from game.middleware import JWTWebSocketMiddleware
+from ttt_core.middleware import JWTWebSocketMiddleware
 import game.routing
 import chat.routing
 import friends.routing
