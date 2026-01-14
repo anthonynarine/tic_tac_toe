@@ -1,7 +1,7 @@
 // # Filename: src/components/lobby/Lobby.jsx
 
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom"; 
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useLobbyContext } from "../context/lobbyContext";
 import { useGameContext } from "../context/gameContext";
 import { useUserContext } from "../context/userContext";
@@ -34,8 +34,7 @@ const Lobby = () => {
   // Hooks
   const { id: gameId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); 
-
+  const location = useLocation();
 
   // Step 3: Read inviteId from URL query string (e.g. /lobby/:id?invite=<uuid>)
   const inviteId = useMemo(() => {
@@ -47,7 +46,12 @@ const Lobby = () => {
   const [socket, setSocket] = useState(null);
   const chatContainerRef = useRef(null);
 
-  // Step 4: Keep socket + timers in refs for stable cleanup/reconnect
+
+  // Step 4: Join guard UX state (invalid/expired invite, wrong user, etc.)
+  const [joinError, setJoinError] = useState(null);
+  // joinError shape: { title: string, detail: string, code?: number }
+
+  // Step 5: Keep socket + timers in refs for stable cleanup/reconnect
   const socketRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const reconnectAttemptRef = useRef(0);
@@ -61,7 +65,7 @@ const Lobby = () => {
   const BASE_DELAY_MS = 750;
   const MAX_DELAY_MS = 8000;
 
-  // Step 5: Detect auth-like close codes (handshake rejection often shows as 1006)
+  // Step 6: Detect auth-like close codes (handshake rejection often shows as 1006)
   const isAuthLikeClose = (event) => {
     const code = Number(event?.code);
     if (code === 4401) return true;
@@ -69,7 +73,69 @@ const Lobby = () => {
     return false;
   };
 
-  // Step 6: Cleanup socket + timers safely
+
+  // Step 7: Detect invite-guard close codes (server-authoritative rejections)
+  const isInviteGuardClose = (event) => {
+    const code = Number(event?.code);
+
+    // Step 1: Prefer explicit invite guard close codes from backend
+    // 4403 = forbidden (wrong user), 4404 = not found/invalid, 4408 = expired/policy
+    if ([4403, 4404, 4408].includes(code)) return true;
+
+    // Step 2: If inviteId is missing, treat as guard failure (no reconnect thrash)
+    if (!inviteId) return true;
+
+    return false;
+  };
+
+
+  // Step 8: Convert close code into a user-friendly message
+  const inviteGuardMessageFromClose = (event) => {
+    const code = Number(event?.code);
+
+    if (!inviteId) {
+      return {
+        title: "Invite required",
+        detail:
+          "This lobby requires a valid invite. Please accept the invite from Notifications.",
+        code,
+      };
+    }
+
+    if (code === 4408) {
+      return {
+        title: "Invite expired",
+        detail:
+          "This invite is no longer valid. Ask your friend to send a new one.",
+        code,
+      };
+    }
+
+    if (code === 4403) {
+      return {
+        title: "Not authorized",
+        detail:
+          "This invite doesn’t belong to your account. Make sure you’re logged into the correct user.",
+        code,
+      };
+    }
+
+    if (code === 4404) {
+      return {
+        title: "Invite invalid",
+        detail: "This invite could not be found or is no longer valid.",
+        code,
+      };
+    }
+
+    return {
+      title: "Invite no longer valid",
+      detail: "This lobby cannot be joined with the current invite.",
+      code,
+    };
+  };
+
+  // Step 9: Cleanup socket + timers safely
   const cleanupSocket = () => {
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
@@ -177,8 +243,7 @@ const Lobby = () => {
     navigate(`/games/${data.game_id}`);
   };
 
-
-  // Step 7: Connect WS with refresh-before-connect + controlled reconnect
+  // Step 10: Connect WS with refresh-before-connect + controlled reconnect
   // Invite v2: Lobby WS must include inviteId in query string
   const connectLobbySocket = async ({ forceRefresh = false } = {}) => {
     if (!gameId) return;
@@ -186,7 +251,10 @@ const Lobby = () => {
     // Step 1: Close any existing socket (don’t reset counters here)
     cleanupSocket();
 
-    // Step 2: Ensure a fresh access token for handshake
+    // Step 2: Clear join error on a fresh attempt
+    setJoinError(null);
+
+    // Step 3: Ensure a fresh access token for handshake
     const token = await ensureFreshAccessToken({
       minTtlSeconds: forceRefresh ? 999999999 : 60,
     });
@@ -197,9 +265,7 @@ const Lobby = () => {
       return;
     }
 
-    // Step 3: Invite v2 join guard requires inviteId
-    // If missing, we can still attempt connect (for now), but backend will reject.
-    // This makes it obvious why the lobby fails (and we can refine UI later).
+    // Step 4: Invite v2 join guard requires inviteId
     const qs = new URLSearchParams({
       token: encodeURIComponent(String(token)),
     });
@@ -208,7 +274,7 @@ const Lobby = () => {
       qs.set("invite", String(inviteId));
     }
 
-    // Step 4: Build URL from config (no hardcoded localhost)
+    // Step 5: Build URL from config (no hardcoded localhost)
     const wsUrl = `${config.websocketBaseUrl}/lobby/${gameId}/?${qs.toString()}`;
 
     const webSocket = new WebSocket(wsUrl);
@@ -231,7 +297,21 @@ const Lobby = () => {
     webSocket.onclose = (event) => {
       console.log("WebSocket disconnected.", event?.code);
 
-      // Step 5: Auth-like close? Try ONE forced refresh reconnect
+
+      // Step 6: Invite guard failure → stop reconnect + show clean UI
+      if (isInviteGuardClose(event)) {
+        const msg = inviteGuardMessageFromClose(event);
+        setJoinError(msg);
+
+        // Stop reconnect thrash entirely
+        reconnectAttemptRef.current = MAX_RECONNECT_ATTEMPTS + 1;
+
+        showToast("error", msg.title);
+        cleanupSocket();
+        return;
+      }
+
+      // Step 7: Auth-like close? Try ONE forced refresh reconnect
       if (isAuthLikeClose(event) && !authRetryAttemptRef.current) {
         authRetryAttemptRef.current = true;
 
@@ -242,7 +322,7 @@ const Lobby = () => {
         return;
       }
 
-      // Step 6: Controlled backoff reconnect (prevents infinite thrash)
+      // Step 8: Controlled backoff reconnect (prevents infinite thrash)
       reconnectAttemptRef.current += 1;
 
       if (reconnectAttemptRef.current > MAX_RECONNECT_ATTEMPTS) {
@@ -278,7 +358,7 @@ const Lobby = () => {
       cleanupSocket();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, inviteId]); // ✅ include inviteId so reconnect uses updated URL
+  }, [gameId, inviteId]);
 
   /**
    * Handles sending chat messages.
@@ -327,14 +407,8 @@ const Lobby = () => {
 
   /**
    * Copies the lobby invite link to the clipboard.
-   *
-   * Invite v2 note:
-   * - Lobby join now requires ?invite=<uuid>
-   * - So we copy the *current* URL including query string.
    */
   const handleCopyLink = () => {
-
-    // Step 1: Copy full URL including ?invite=... if present
     const fullUrl = `${window.location.origin}${location.pathname}${location.search}`;
     navigator.clipboard.writeText(fullUrl);
     showToast("success", "Invite link copied to clipboard!");
@@ -368,7 +442,10 @@ const Lobby = () => {
                 </div>
               ) : (
                 <div className="empty-slot">
-                  <CiCirclePlus className="icon-invite" onClick={handleCopyLink} />
+                  <CiCirclePlus
+                    className="icon-invite"
+                    onClick={handleCopyLink}
+                  />
                 </div>
               )}
             </div>
@@ -376,8 +453,36 @@ const Lobby = () => {
         })}
       </div>
     ),
-    [state.players] // leaving as-is; handleCopyLink is stable enough for now
+    [state.players]
   );
+
+
+  // Step 11: Join guard UX — render a clean message instead of silent reconnect loops
+  if (joinError) {
+    return (
+      <div className="lobby-container">
+        <h1 className="lobby-title">Game Lobby</h1>
+
+        <div className="lobby-error-panel">
+          <h2>{joinError.title}</h2>
+          <p>{joinError.detail}</p>
+
+          <div className="lobby-error-actions">
+            <button
+              className="lobby-button leave-lobby-button"
+              onClick={() => navigate("/")}
+            >
+              Back Home
+            </button>
+          </div>
+
+          {typeof joinError.code === "number" && (
+            <div className="lobby-error-code">Code: {joinError.code}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="lobby-container">
@@ -393,7 +498,10 @@ const Lobby = () => {
         >
           Start
         </button>
-        <button onClick={handleLeaveLobby} className="lobby-button leave-lobby-button">
+        <button
+          onClick={handleLeaveLobby}
+          className="lobby-button leave-lobby-button"
+        >
           Leave
         </button>
       </div>

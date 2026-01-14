@@ -9,6 +9,8 @@ from asgiref.sync import async_to_sync
 from utils.shared.shared_utils_game_chat import SharedUtils
 from utils.game.game_utils import GameUtils
 from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from invites.guards import validate_invite_for_lobby_join
 
@@ -72,10 +74,48 @@ class GameConsumer(JsonWebsocketConsumer):
                 lobby_id=str(self.game_id),
                 invite_id=str(invite_id),
             )
-        except Exception as exc:
-            logger.warning(f"WebSocket connection rejected: invalid invite. error={exc}")
-            self.send_json({"type": "error", "message": "Invalid or expired invite."})
-            self.close(code=4004)
+        except DRFPermissionDenied as exc:
+            # 4403 = forbidden (wrong user / not allowed)
+            logger.warning(
+                "[INVITE_GUARD] forbidden join. game_id=%s invite_id=%s user_id=%s err=%s",
+                self.game_id,
+                invite_id,
+                getattr(self.user, "id", None),
+                exc,
+            )
+            self.send_json({"type": "error", "message": str(exc)})
+            self.close(code=4403)
+            return
+
+        except DRFValidationError as exc:
+            # ValidationError.detail is often a dict like {"detail": "..."}
+            detail = None
+            try:
+                if isinstance(getattr(exc, "detail", None), dict):
+                    detail = exc.detail.get("detail")
+                elif isinstance(getattr(exc, "detail", None), list):
+                    detail = str(exc.detail[0])
+                else:
+                    detail = str(exc.detail)
+            except Exception:
+                detail = str(exc)
+
+            message = detail or "Invite validation failed."
+
+            # 4408 = expired, 4404 = invalid/not found/mismatch/not joinable
+            code = 4408 if "expired" in message.lower() else 4404
+
+            logger.warning(
+                "[INVITE_GUARD] validation failed. code=%s game_id=%s invite_id=%s user_id=%s msg=%s",
+                code,
+                self.game_id,
+                invite_id,
+                getattr(self.user, "id", None),
+                message,
+            )
+
+            self.send_json({"type": "error", "message": message})
+            self.close(code=code)
             return
 
         # Step 5: Join Django Channels group

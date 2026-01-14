@@ -264,42 +264,6 @@ export const NotificationProvider = ({ children }) => {
       console.log("🔔 Notification socket connected.");
     };
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-
-        const notifType = data?.type;
-        const senderId = data?.sender_id;
-
-        console.log("📥 Notification received:", data);
-
-
-        // Step 1: Invite v2 — store invite objects + dedupe by inviteId
-        if (notifType === "invite_created" && data?.invite) {
-          upsertInvite(data.invite);
-        }
-
-        if (notifType === "invite_status" && data?.invite) {
-          upsertInvite(data.invite);
-        }
-
-        // Step 2: Increment badge if appropriate (keeps your existing behavior)
-        if (shouldIncrementUnread({ notifType, senderId })) {
-          if (typeof dispatch === "function") {
-            dispatch({
-              type: DmActionTypes.INCREMENT_UNREAD,
-              payload: { friendId: senderId },
-            });
-          } else {
-            console.warn(
-              "Notification socket received an unread-worthy event, but DM dispatch is unavailable."
-            );
-          }
-        }
-      } catch (err) {
-        console.error("❌ Notification socket message parse error:", err);
-      }
-    };
 
     socket.onerror = (err) => {
       console.error("❌ Notification socket error:", err);

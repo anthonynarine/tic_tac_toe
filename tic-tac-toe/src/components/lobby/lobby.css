@@ -1,3 +1,5 @@
+/* # Filename: src/components/lobby/lobby.css */
+
 /* ===================================================
     🎮 LOBBY CONTAINER
 =================================================== */
@@ -10,10 +12,47 @@
   border-radius: 18px;
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
   text-align: center;
-  font-family: 'Arial', sans-serif;
+  font-family: "Arial", sans-serif;
   position: relative;
   top: 4rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ✅ New Code */
+/* ===================================================
+    🚫 JOIN GUARD ERROR PANEL
+=================================================== */
+.lobby-error-panel {
+  margin: 16px auto;
+  max-width: 520px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.lobby-error-panel h2 {
+  margin: 0 0 8px;
+  color: #00bfff;
+}
+
+.lobby-error-panel p {
+  margin: 0 0 12px;
+  opacity: 0.9;
+  color: #f0f0f0;
+}
+
+.lobby-error-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.lobby-error-code {
+  margin-top: 10px;
+  font-size: 12px;
+  opacity: 0.65;
+  color: #c0c0c0;
 }
 
 /* ===================================================
@@ -191,7 +230,7 @@
 .chat-input-container {
   width: 100%;
   background: #111;
-  border: 1px solid #C0C0C0;
+  border: 1px solid #c0c0c0;
   border-radius: 8px;
   padding: 0.5rem 0.75rem;
   display: flex;
