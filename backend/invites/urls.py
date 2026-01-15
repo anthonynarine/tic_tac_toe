@@ -3,7 +3,7 @@
 from django.urls import path
 
 # Step 2: Local imports
-from .views import InviteCreateView, InviteAcceptView, InviteDeclineView
+from .views import InviteCreateView, InviteAcceptView, InviteDeclineView, InviteInboxView
 
 urlpatterns = [
     # Step 1: POST /api/invites/
@@ -14,4 +14,5 @@ urlpatterns = [
 
     # Step 3: POST /api/invites/<invite_id>/decline/
     path("<uuid:invite_id>/decline/", InviteDeclineView.as_view(), name="invite-decline"),
+    path("inbox/", InviteInboxView.as_view(), name="invite-inbox"),
 ]

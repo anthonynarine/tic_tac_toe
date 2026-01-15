@@ -1,3 +1,4 @@
+# Filename: invites/services.py
 
 # Step 1: Standard library imports
 from datetime import timedelta
@@ -17,16 +18,22 @@ from .serializers import GameInviteSerializer
 # Step 5: Shared notification helper (your project util)
 from utils.notifications.notify import notify_user
 
+# Step 6: Canonical WS payload builders (contract-locked)
+from invites.ws_payload import (  # NOTE: keep this import path as-is for your project
+    build_invite_created_event,
+    build_invite_status_event,
+)
 
 INVITE_TTL_MINUTES = 10
 
 
 def _serialize_invite(invite: GameInvite) -> Dict:
     """
-    Serialize invite into the canonical payload used by REST + WS.
+    Serialize invite into the canonical payload used by REST responses.
 
-    We reuse GameInviteSerializer to keep naming consistent:
-    - inviteId, fromUserId, toUserId, gameType, lobbyId, status, createdAt, expiresAt...
+    Note:
+    - WS notifications MUST NOT use this directly.
+    - WS notifications must always use invites.ws_payload builders.
     """
     return GameInviteSerializer(invite).data
 
@@ -65,17 +72,17 @@ def expire_invite_if_needed(*, invite: GameInvite) -> GameInvite:
         invite.responded_at = timezone.now()
         invite.save(update_fields=["status", "responded_at"])
 
-        # Step 3: Notify both users AFTER commit succeeds
-        payload = _serialize_invite(invite)
-
+        # Step 3: Notify both users AFTER commit succeeds (canonical payload)
         transaction.on_commit(
             lambda: notify_user(
-                invite.to_user_id, {"type": "invite_status", "invite": payload}
+                user_id=invite.to_user_id,
+                payload=build_invite_status_event(invite),
             )
         )
         transaction.on_commit(
             lambda: notify_user(
-                invite.from_user_id, {"type": "invite_status", "invite": payload}
+                user_id=invite.from_user_id,
+                payload=build_invite_status_event(invite),
             )
         )
 
@@ -111,10 +118,12 @@ def create_invite(*, from_user, to_user, game_type: str, lobby_id: str) -> GameI
         expires_at=expires_at,
     )
 
-    # Step 3: Notify receiver AFTER commit succeeds
-    payload = _serialize_invite(invite)
+    # Step 3: Notify receiver AFTER commit succeeds (canonical payload)
     transaction.on_commit(
-        lambda: notify_user(to_user.id, {"type": "invite_created", "invite": payload})
+        lambda: notify_user(
+            user_id=to_user.id,
+            payload=build_invite_created_event(invite),
+        )
     )
 
     return invite
@@ -156,14 +165,18 @@ def accept_invite(*, invite: GameInvite, acting_user) -> GameInvite:
     invite.responded_at = timezone.now()
     invite.save(update_fields=["status", "responded_at"])
 
-    # Step 6: Notify both users AFTER commit succeeds
-    payload = _serialize_invite(invite)
-
+    # Step 6: Notify both users AFTER commit succeeds (canonical payload)
     transaction.on_commit(
-        lambda: notify_user(invite.to_user_id, {"type": "invite_status", "invite": payload})
+        lambda: notify_user(
+            user_id=invite.to_user_id,
+            payload=build_invite_status_event(invite),
+        )
     )
     transaction.on_commit(
-        lambda: notify_user(invite.from_user_id, {"type": "invite_status", "invite": payload})
+        lambda: notify_user(
+            user_id=invite.from_user_id,
+            payload=build_invite_status_event(invite),
+        )
     )
 
     return invite
@@ -205,14 +218,18 @@ def decline_invite(*, invite: GameInvite, acting_user) -> GameInvite:
     invite.responded_at = timezone.now()
     invite.save(update_fields=["status", "responded_at"])
 
-    # Step 6: Notify both users AFTER commit succeeds
-    payload = _serialize_invite(invite)
-
+    # Step 6: Notify both users AFTER commit succeeds (canonical payload)
     transaction.on_commit(
-        lambda: notify_user(invite.to_user_id, {"type": "invite_status", "invite": payload})
+        lambda: notify_user(
+            user_id=invite.to_user_id,
+            payload=build_invite_status_event(invite),
+        )
     )
     transaction.on_commit(
-        lambda: notify_user(invite.from_user_id, {"type": "invite_status", "invite": payload})
+        lambda: notify_user(
+            user_id=invite.from_user_id,
+            payload=build_invite_status_event(invite),
+        )
     )
 
     return invite

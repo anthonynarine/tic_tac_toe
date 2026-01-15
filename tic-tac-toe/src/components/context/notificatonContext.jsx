@@ -1,5 +1,6 @@
 // # Filename: src/components/context/notificatonContext.jsx
 
+
 import React, {
   createContext,
   useContext,
@@ -8,6 +9,7 @@ import React, {
   useReducer,
   useRef,
   useState,
+  useCallback,
 } from "react";
 import config from "../../config";
 import { useUserContext } from "./userContext";
@@ -15,6 +17,9 @@ import { useDirectMessage } from "./directMessageContext";
 import { useUI } from "./uiContext";
 import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
 import { DmActionTypes } from "../reducers/directMessaeReducer";
+
+// Step 1: Invite inbox rehydrate API (should use shared authAxios)
+import { fetchInvites } from "../../api/inviteApi";
 
 export const NotificationContext = createContext(undefined);
 
@@ -119,6 +124,10 @@ const inviteReducer = (state, action) => {
  *   - { type: "invite_created", invite: {...} }
  *   - { type: "invite_status", invite: {...} }
  * - Stores invites in memory (dedupe by inviteId)
+ *
+ * Rehydrate:
+ * - On socket connect, fetch pending invites via REST inbox
+ * - Bulk upsert into state (dedupe by inviteId)
  */
 export const NotificationProvider = ({ children }) => {
   const { user } = useUserContext();
@@ -128,7 +137,6 @@ export const NotificationProvider = ({ children }) => {
   const dm = useDirectMessage();
   const activeFriendId = dm?.activeFriendId;
   const dispatch = dm?.dispatch;
-
 
   // Step 2: Invite v2 state
   const [inviteState, inviteDispatch] = useReducer(
@@ -172,27 +180,26 @@ export const NotificationProvider = ({ children }) => {
 
   /**
    * Step 8: Decide whether an unread badge should increment.
-   *
-   * Rules:
-   * - DM notifications: increment when drawer closed OR not active chat
-   * - Invite notifications: increment on invite_created using senderId logic
    */
-  const shouldIncrementUnread = ({ notifType, senderId }) => {
-    if (!senderId) return false;
+  const shouldIncrementUnread = useCallback(
+    ({ notifType, senderId }) => {
+      if (!senderId) return false;
 
-    // Step 1: support legacy + invite v2 types
-    const isDm = notifType === "dm";
-    const isLegacyInvite = notifType === "game_invite";
-    const isInviteV2 = notifType === "invite_created";
+      // Step 1: support legacy + invite v2 types
+      const isDm = notifType === "dm";
+      const isLegacyInvite = notifType === "game_invite";
+      const isInviteV2 = notifType === "invite_created";
 
-    if (!isDm && !isLegacyInvite && !isInviteV2) return false;
+      if (!isDm && !isLegacyInvite && !isInviteV2) return false;
 
-    // If the DM drawer is closed, always increment.
-    if (!isDMOpen) return true;
+      // Step 2: If the DM drawer is closed, always increment.
+      if (!isDMOpen) return true;
 
-    // If DM drawer is open but you're not chatting with this sender, increment.
-    return String(activeFriendId) !== String(senderId);
-  };
+      // Step 3: If DM drawer is open but you're not chatting with this sender, increment.
+      return String(activeFriendId) !== String(senderId);
+    },
+    [isDMOpen, activeFriendId]
+  );
 
   /**
    * Step 9: Cleanly close socket + clear retry timers.
@@ -238,6 +245,68 @@ export const NotificationProvider = ({ children }) => {
   };
 
   /**
+   * ✅ New Code
+   * Step 10.5: Rehydrate pending invites from REST inbox.
+   */
+  const rehydratePendingInvites = useCallback(async () => {
+    try {
+      const pending = await fetchInvites({ status: "pending", role: "to_user" });
+      upsertInvitesBulk(pending);
+    } catch (err) {
+      console.error("❌ Invite rehydrate failed:", err);
+    }
+  }, []);
+
+  /**
+   * ✅ New Code
+   * Step 10.6: Handle incoming WS notifications (Invite v2 + DM).
+   */
+  const handleNotificationMessage = useCallback(
+    (rawEvent) => {
+      let data;
+
+      try {
+        data = JSON.parse(rawEvent?.data || "{}");
+      } catch (err) {
+        console.error("❌ Notification WS: invalid JSON:", err);
+        return;
+      }
+
+      // Step 1: Invite v2 contract
+      if (data?.type === "invite_created" && data?.invite) {
+        upsertInvite(data.invite);
+
+        const senderId = data.invite?.fromUserId;
+        if (shouldIncrementUnread({ notifType: "invite_created", senderId })) {
+          dispatch?.({
+            type: DmActionTypes.INCREMENT_UNREAD,
+            payload: { friendId: String(senderId) },
+          });
+        }
+        return;
+      }
+
+      if (data?.type === "invite_status" && data?.invite) {
+        upsertInvite(data.invite);
+        return;
+      }
+
+      // Step 2: DM notifications (keep existing behavior)
+      if (data?.type === "dm") {
+        const senderId = data?.senderId;
+
+        if (shouldIncrementUnread({ notifType: "dm", senderId })) {
+          dispatch?.({
+            type: DmActionTypes.INCREMENT_UNREAD,
+            payload: { friendId: String(senderId) },
+          });
+        }
+      }
+    },
+    [dispatch, shouldIncrementUnread]
+  );
+
+  /**
    * Step 11: Establish WebSocket connection.
    */
   const connect = async ({ forceRefresh = false } = {}) => {
@@ -256,14 +325,19 @@ export const NotificationProvider = ({ children }) => {
     const socket = new WebSocket(wsUrl);
     socketRef.current = socket;
 
-    socket.onopen = () => {
+    socket.onopen = async () => {
       reconnectAttemptRef.current = 0;
       authRetryAttemptRef.current = false;
 
       setIsConnected(true);
       console.log("🔔 Notification socket connected.");
+
+      // ✅ New Code: Rehydrate pending invites after WS connect
+      await rehydratePendingInvites();
     };
 
+    // ✅ New Code: attach message handler
+    socket.onmessage = handleNotificationMessage;
 
     socket.onerror = (err) => {
       console.error("❌ Notification socket error:", err);
@@ -332,7 +406,6 @@ export const NotificationProvider = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-
   // Step 13: Derived list of invites (newest-first)
   const invites = useMemo(() => {
     return inviteState.inviteOrder
@@ -341,11 +414,9 @@ export const NotificationProvider = ({ children }) => {
   }, [inviteState.inviteOrder, inviteState.invitesById]);
 
   const contextValue = {
-    // existing fields
     isConnected,
     reconnect: async () => await connect({ forceRefresh: false }),
     disconnect: async () => await disconnect({ resetAttempts: true }),
-
 
     invites,
     invitesById: inviteState.invitesById,

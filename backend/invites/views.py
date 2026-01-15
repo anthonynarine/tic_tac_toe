@@ -137,3 +137,40 @@ class InviteDeclineView(APIView):
             {"invite": GameInviteSerializer(declined).data},
             status=status.HTTP_200_OK,
         )
+
+class InviteInboxView(APIView):
+    """
+    GET /api/invites/inbox/?status=pending&role=to_user|from_user
+
+    Purpose:
+    - Rehydrate Invite v2 state after refresh / missed WS events.
+
+    Defaults:
+    - status=pending
+    - role=to_user
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # Step 1: Parse query params
+        status_filter = request.query_params.get("status", "pending")
+        role = request.query_params.get("role", "to_user")
+
+        # Step 2: Start query
+        qs = GameInvite.objects.all()
+
+        # Step 3: Role filter (receiver inbox by default)
+        if role == "from_user":
+            qs = qs.filter(from_user=request.user)
+        else:
+            qs = qs.filter(to_user=request.user)
+
+        # Step 4: Status filter
+        if status_filter:
+            qs = qs.filter(status__iexact=status_filter.upper())
+
+        # Step 5: Newest-first
+        qs = qs.order_by("-created_at")
+
+        # Step 6: Return list
+        return Response(GameInviteSerializer(qs, many=True).data, status=status.HTTP_200_OK)
