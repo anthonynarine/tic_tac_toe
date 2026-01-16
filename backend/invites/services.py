@@ -19,7 +19,7 @@ from .serializers import GameInviteSerializer
 from utils.notifications.notify import notify_user
 
 # Step 6: Canonical WS payload builders (contract-locked)
-from invites.ws_payload import (  # NOTE: keep this import path as-is for your project
+from invites.ws_payload import (
     build_invite_created_event,
     build_invite_status_event,
 )
@@ -36,6 +36,18 @@ def _serialize_invite(invite: GameInvite) -> Dict:
     - WS notifications must always use invites.ws_payload builders.
     """
     return GameInviteSerializer(invite).data
+
+
+
+def _is_status(invite: GameInvite, status_value: str) -> bool:
+    """
+    Case-safe status comparison.
+
+    Why:
+    - Some environments store status values like "pending" while constants may be "PENDING".
+    - Tests and server logic must remain deterministic.
+    """
+    return str(invite.status).lower() == str(status_value).lower()
 
 
 def _assert_receiver(invite: GameInvite, acting_user) -> None:
@@ -62,8 +74,9 @@ def expire_invite_if_needed(*, invite: GameInvite) -> GameInvite:
     - Only PENDING invites may transition to EXPIRED.
     - Notifications are sent using transaction.on_commit to avoid phantom events.
     """
-    # Step 1: Only pending invites can expire
-    if invite.status != GameInviteStatus.PENDING:
+
+    # Step 1: Only pending invites can expire (case-safe)
+    if not _is_status(invite, GameInviteStatus.PENDING):
         return invite
 
     # Step 2: Expire if time passed
@@ -129,107 +142,106 @@ def create_invite(*, from_user, to_user, game_type: str, lobby_id: str) -> GameI
     return invite
 
 
-@transaction.atomic
 def accept_invite(*, invite: GameInvite, acting_user) -> GameInvite:
     """
     Accept invite (idempotent).
 
-    Non-negotiables:
-    - Only receiver can accept.
-    - If accepted twice -> return same invite (same lobbyId).
-    - If expired -> error (frontend must disable navigation).
-    - Notifications are sent after commit via transaction.on_commit.
+    Key detail:
+    - Expiration must be allowed to COMMIT even if we raise after (no rollback).
     """
-    # Step 1: Authorization
+    # Step 1: Authorization (no DB writes)
     _assert_receiver(invite, acting_user)
 
-    # Step 2: Expire if needed (authoritative)
+    # Step 2: Expire in its OWN transaction so it persists even if we raise
     invite = expire_invite_if_needed(invite=invite)
 
-    # Step 3: Idempotent accept
-    if invite.status == GameInviteStatus.ACCEPTED:
-        return invite
-
-    # Step 4: Terminal state checks
+    # Step 3: If expired, raise AFTER expiry is committed
     if invite.status == GameInviteStatus.EXPIRED:
         raise ValidationError({"detail": "Invite expired."})
 
-    if invite.status == GameInviteStatus.DECLINED:
-        raise ValidationError({"detail": "Invite already declined."})
+    # Step 4: Now do the accept transition atomically
+    with transaction.atomic():
+        # Step 4a: Lock row for race safety
+        invite = GameInvite.objects.select_for_update().get(id=invite.id)
 
-    if invite.status != GameInviteStatus.PENDING:
-        raise ValidationError({"detail": f"Invite is not pending (status={invite.status})."})
+        # Step 4b: Idempotent accept
+        if invite.status == GameInviteStatus.ACCEPTED:
+            return invite
 
-    # Step 5: Transition to accepted
-    invite.status = GameInviteStatus.ACCEPTED
-    invite.responded_at = timezone.now()
-    invite.save(update_fields=["status", "responded_at"])
+        # Step 4c: Terminal checks
+        if invite.status == GameInviteStatus.DECLINED:
+            raise ValidationError({"detail": "Invite already declined."})
 
-    # Step 6: Notify both users AFTER commit succeeds (canonical payload)
-    transaction.on_commit(
-        lambda: notify_user(
-            user_id=invite.to_user_id,
-            payload=build_invite_status_event(invite),
+        if invite.status != GameInviteStatus.PENDING:
+            raise ValidationError({"detail": f"Invite is not pending (status={invite.status})."})
+
+        # Step 4d: Transition
+        invite.status = GameInviteStatus.ACCEPTED
+        invite.responded_at = timezone.now()
+        invite.save(update_fields=["status", "responded_at"])
+
+        # Step 4e: Notify after commit
+        transaction.on_commit(
+            lambda: notify_user(
+                user_id=invite.to_user_id,
+                payload=build_invite_status_event(invite),
+            )
         )
-    )
-    transaction.on_commit(
-        lambda: notify_user(
-            user_id=invite.from_user_id,
-            payload=build_invite_status_event(invite),
+        transaction.on_commit(
+            lambda: notify_user(
+                user_id=invite.from_user_id,
+                payload=build_invite_status_event(invite),
+            )
         )
-    )
 
-    return invite
+        return invite
 
 
-@transaction.atomic
 def decline_invite(*, invite: GameInvite, acting_user) -> GameInvite:
     """
     Decline invite (idempotent).
 
-    Non-negotiables:
-    - Only receiver can decline.
-    - Declining twice returns same invite.
-    - Expired -> error.
-    - Notifications are sent after commit via transaction.on_commit.
+    Key detail:
+    - Expiration must COMMIT even if we raise after.
     """
     # Step 1: Authorization
     _assert_receiver(invite, acting_user)
 
-    # Step 2: Expire if needed
+    # Step 2: Expire commit
     invite = expire_invite_if_needed(invite=invite)
 
-    # Step 3: Idempotent decline
-    if invite.status == GameInviteStatus.DECLINED:
-        return invite
-
-    # Step 4: Terminal state checks
+    # Step 3: If expired, raise AFTER commit
     if invite.status == GameInviteStatus.EXPIRED:
         raise ValidationError({"detail": "Invite expired."})
 
-    if invite.status == GameInviteStatus.ACCEPTED:
-        raise ValidationError({"detail": "Invite already accepted."})
+    # Step 4: Decline transition atomically
+    with transaction.atomic():
+        invite = GameInvite.objects.select_for_update().get(id=invite.id)
 
-    if invite.status != GameInviteStatus.PENDING:
-        raise ValidationError({"detail": f"Invite is not pending (status={invite.status})."})
+        if invite.status == GameInviteStatus.DECLINED:
+            return invite
 
-    # Step 5: Transition to declined
-    invite.status = GameInviteStatus.DECLINED
-    invite.responded_at = timezone.now()
-    invite.save(update_fields=["status", "responded_at"])
+        if invite.status == GameInviteStatus.ACCEPTED:
+            raise ValidationError({"detail": "Invite already accepted."})
 
-    # Step 6: Notify both users AFTER commit succeeds (canonical payload)
-    transaction.on_commit(
-        lambda: notify_user(
-            user_id=invite.to_user_id,
-            payload=build_invite_status_event(invite),
+        if invite.status != GameInviteStatus.PENDING:
+            raise ValidationError({"detail": f"Invite is not pending (status={invite.status})."})
+
+        invite.status = GameInviteStatus.DECLINED
+        invite.responded_at = timezone.now()
+        invite.save(update_fields=["status", "responded_at"])
+
+        transaction.on_commit(
+            lambda: notify_user(
+                user_id=invite.to_user_id,
+                payload=build_invite_status_event(invite),
+            )
         )
-    )
-    transaction.on_commit(
-        lambda: notify_user(
-            user_id=invite.from_user_id,
-            payload=build_invite_status_event(invite),
+        transaction.on_commit(
+            lambda: notify_user(
+                user_id=invite.from_user_id,
+                payload=build_invite_status_event(invite),
+            )
         )
-    )
 
-    return invite
+        return invite
