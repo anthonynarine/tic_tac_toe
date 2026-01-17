@@ -25,16 +25,22 @@ def asgi_application():
 
 async def _connect_and_assert_close_code(communicator, expected_code: int) -> None:
     """
-    # Step 1: Connect and assert we receive websocket.close with expected_code.
+    Connect and assert the socket is closed with expected close code.
 
-    Older Channels versions don't expose communicator.close_code.
-    Instead, we assert against the ASGI message:
-      {"type": "websocket.close", "code": <int>}
+    Note:
+    - In some Channels versions, communicator.connect() consumes websocket.close.
+    - Prefer communicator.close_code when available.
     """
-    # Step 1: Start connection (may "connect" then immediately close)
-    await communicator.connect()
+    # Step 1: Connect (may immediately close)
+    connected, _ = await communicator.connect()
 
-    # Step 2: Consume output until we see websocket.close
+    # Step 2: If Channels exposes close_code, use it (most reliable)
+    close_code = getattr(communicator, "close_code", None)
+    if close_code is not None:
+        assert close_code == expected_code
+        return
+
+    # Step 3: Fallback: read ASGI output queue for websocket.close
     close_msg = None
     for _ in range(10):
         try:
@@ -42,15 +48,10 @@ async def _connect_and_assert_close_code(communicator, expected_code: int) -> No
         except asyncio.TimeoutError:
             msg = None
 
-        if not msg:
-            continue
-
-        # Channels emits ASGI messages like: websocket.accept, websocket.send, websocket.close
-        if msg.get("type") == "websocket.close":
+        if msg and msg.get("type") == "websocket.close":
             close_msg = msg
             break
 
-    # Step 3: Assert close message exists and code matches
     assert close_msg is not None, "Expected websocket.close but never received it."
     assert close_msg.get("code") == expected_code
 

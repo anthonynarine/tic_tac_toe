@@ -38,7 +38,6 @@ def _serialize_invite(invite: GameInvite) -> Dict:
     return GameInviteSerializer(invite).data
 
 
-
 def _is_status(invite: GameInvite, status_value: str) -> bool:
     """
     Case-safe status comparison.
@@ -74,7 +73,6 @@ def expire_invite_if_needed(*, invite: GameInvite) -> GameInvite:
     - Only PENDING invites may transition to EXPIRED.
     - Notifications are sent using transaction.on_commit to avoid phantom events.
     """
-
     # Step 1: Only pending invites can expire (case-safe)
     if not _is_status(invite, GameInviteStatus.PENDING):
         return invite
@@ -118,6 +116,11 @@ def create_invite(*, from_user, to_user, game_type: str, lobby_id: str) -> GameI
     Returns:
         GameInvite: created invite instance
     """
+
+    # Step 0: Hard-stop self-invites at the service layer (defense-in-depth)
+    if getattr(from_user, "id", None) == getattr(to_user, "id", None):
+        raise ValidationError({"detail": "You cannot invite yourself."})
+
     # Step 1: TTL
     expires_at = timezone.now() + timedelta(minutes=INVITE_TTL_MINUTES)
 

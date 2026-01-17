@@ -14,6 +14,8 @@ import TrinityOverlay from "../trinity/TrinityOverlay";
 import FriendsList from "./FriendsList";
 import PendingFriendRequest from "./PendingFriendRequest";
 import InvitesPanel from "../notifications/InvitePanel"
+import { resolveRecipientUserId } from "../../invites/resolveRecipientUserId";
+import { buildInviteLobbyUrl } from "../../invites/InviteNavigation";
 
 import styles from "./FriendsSidebar.module.css";
 
@@ -76,9 +78,29 @@ const FriendsSidebar = () => {
    */
   const handleInvite = async (friend) => {
     try {
-      // Step 1: Create invite on the server (authoritative)
+      // Step 1: Resolve recipient user id safely (never trust friend.id)
+      const recipientUserId = resolveRecipientUserId(friend, user?.id);
+
+      if (!recipientUserId) {
+        console.error("Invite v2: Could not resolve recipient user id", {
+          currentUserId: user?.id,
+          friend,
+        });
+        return;
+      }
+
+      // Step 2: Prevent self-invite on the client (server must also guard)
+      if (Number(recipientUserId) === Number(user?.id)) {
+        console.warn("Invite v2: Self-invite prevented (frontend)", {
+          currentUserId: user?.id,
+          recipientUserId,
+        });
+        return;
+      }
+
+      // Step 3: Create invite on the server (authoritative)
       const result = await createInvite({
-        toUserId: friend.id,
+        toUserId: recipientUserId,
         gameType: "tic_tac_toe",
       });
 
@@ -90,13 +112,10 @@ const FriendsSidebar = () => {
         return;
       }
 
-      // Step 2: Navigate with inviteId so WS join guard passes
-      navigate(`/lobby/${lobbyId}?invite=${inviteId}`);
+      // Step 4: Navigate with inviteId so WS join guard passes
+      // ✅ New Code (use canonical builder)
+      navigate(buildInviteLobbyUrl({ lobbyId, inviteId }));
     } catch (error) {
-      // Step 3: Error clarity (where/why/fix)
-      // Where: createInvite() axios call
-      // Why: likely missing/expired auth token or backend validation error
-      // Fix: ensure access token is present/valid, confirm endpoint paths match
       console.error("Invite v2: Failed to create invite:", error);
     }
   };

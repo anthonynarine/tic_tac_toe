@@ -2,6 +2,14 @@
 
 import { showToast } from "../../utils/toast/Toast";
 
+
+// Step 1: Preserve Invite v2 query param (used by join-guard on reconnect/refresh)
+const getInviteQuery = () => {
+  const params = new URLSearchParams(window.location.search);
+  const invite = params.get("invite");
+  return invite ? `?invite=${encodeURIComponent(invite)}` : "";
+};
+
 /**
  * Game WebSocket Actions
  *
@@ -45,7 +53,9 @@ const gameWebsocketActions = (dispatch, navigate, gameId) => ({
     });
 
     if (data.game_id) {
-      navigate(`/games/${data.game_id}`);
+
+      // Step 2: Keep invite query if present (important for join-guard stability)
+      navigate(`/games/${data.game_id}${getInviteQuery()}`);
     } else {
       showToast("error", "Game ID is missing in game update.");
     }
@@ -72,7 +82,6 @@ const gameWebsocketActions = (dispatch, navigate, gameId) => ({
       console.warn("Ignoring stale rematch_offer for old game:", data.game_id);
       return;
     }
-
 
     console.log("[REMATCH][offer received]", {
       ts: Date.now(),
@@ -118,12 +127,12 @@ const gameWebsocketActions = (dispatch, navigate, gameId) => ({
     console.log("Rematch start with new game ID:", data.new_game_id);
 
     dispatch({ type: "HIDE_REMATCH_MODAL" });
-
-
     dispatch({ type: "CLEAR_REMATCH_STATE" });
 
     Promise.resolve().then(() => {
-      navigate(`/games/${data.new_game_id}`);
+
+      // Step 3: Keep invite query if present (harmless for rematch, useful for consistency)
+      navigate(`/games/${data.new_game_id}${getInviteQuery()}`);
     });
   },
 });

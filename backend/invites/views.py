@@ -1,3 +1,4 @@
+# Filename: invites/views.py
 
 # Step 1: Django imports
 from django.contrib.auth import get_user_model
@@ -33,8 +34,12 @@ class InviteCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # Step 1: Validate request payload
-        serializer = CreateInviteSerializer(data=request.data)
+
+        # Step 1: Validate request payload (MUST include request context for guards)
+        serializer = CreateInviteSerializer(
+            data=request.data,
+            context={"request": request},
+        )
         serializer.is_valid(raise_exception=True)
 
         to_user_id = serializer.validated_data["to_user_id"]
@@ -137,6 +142,7 @@ class InviteDeclineView(APIView):
             {"invite": GameInviteSerializer(declined).data},
             status=status.HTTP_200_OK,
         )
+
 
 class InviteInboxView(APIView):
     """

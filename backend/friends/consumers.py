@@ -1,15 +1,39 @@
-# friends/consumers.py
+# Filename: friends/consumers.py
 
+
+# Step 1: Standard library imports
 import json
 import logging
+
+# Step 2: Third-party imports
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+
+# Step 3: Django imports
 from django.contrib.auth import get_user_model
-from friends.models import Friendship
 from django.db.models import Q
 
+# Step 4: Local imports
+from friends.models import Friendship
+
 User = get_user_model()
-logger = logging.getLogger("friends")  
+logger = logging.getLogger("friends")
+
+
+
+# Step 1: Use a presence-specific group namespace to avoid collisions with NotificationConsumer
+def _presence_group_name(user_id: int) -> str:
+    """
+    Build the group name used exclusively for presence updates.
+
+    Args:
+        user_id (int): The target user's ID.
+
+    Returns:
+        str: The presence group name.
+    """
+    return f"presence_user_{user_id}"
+
 
 class FriendStatusConsumer(AsyncWebsocketConsumer):
     """
@@ -18,36 +42,46 @@ class FriendStatusConsumer(AsyncWebsocketConsumer):
     Responsibilities:
     - Marks a user as "online" on WebSocket connect
     - Marks them "offline" on disconnect
-    - Broadcasts status updates to all accepted friends using Redis pub/sub
-    - Allows other friends to listen for real-time status updates via group subscription
+    - Broadcasts status updates to all accepted friends (presence-only groups)
+    - Allows friends to listen for real-time status updates via group subscription
+
+    Important:
+    - Presence groups MUST NOT share the same namespace as Notifications/DM groups.
+      We use: presence_user_<id>
     """
 
     async def connect(self):
         """
         Called when the WebSocket client connects.
 
-        - Rejects unauthenticated users
-        - Adds the user to their personal channel group to receive updates
-        - Sets user status to "online"
-        - Broadcasts status update to all accepted friends
+        Steps:
+        1) Reject unauthenticated users.
+        2) Accept the socket.
+        3) Add user to their presence group.
+        4) Mark user online.
+        5) Broadcast online status to accepted friends.
         """
-        self.user = self.scope['user']
-        logger.debug(f"[connect] Attempting WebSocket connection for user: {self.user}")
+        # Step 1: Store the authenticated user
+        self.user = self.scope["user"]
+        logger.debug("[connect] Attempting presence WS connection for user=%s", self.user)
 
+        # Step 2: Reject anonymous users
         if self.user.is_anonymous:
-            logger.warning("[connect] Anonymous user attempted connection. Closing socket.")
+            logger.warning("[connect] Anonymous user attempted presence connection. Closing socket.")
             await self.close()
             return
 
+        # Step 3: Accept connection
         await self.accept()
-        logger.info(f"[connect] Connection accepted for user ID {self.user.id}")
+        logger.info("[connect] Presence connection accepted for user_id=%s", self.user.id)
 
-        await self.channel_layer.group_add(
-            f"user_{self.user.id}",  # Group name based on user ID
-            self.channel_name
-        )
-        logger.debug(f"[connect] User ID {self.user.id} joined group: user_{self.user.id}")
 
+        # Step 4: Join presence-only group (prevents collisions with NotificationConsumer user_<id>)
+        group_name = _presence_group_name(self.user.id)
+        await self.channel_layer.group_add(group_name, self.channel_name)
+        logger.debug("[connect] user_id=%s joined presence group=%s", self.user.id, group_name)
+
+        # Step 5: Mark online and notify friends
         await self.set_user_status("online")
         await self.broadcast_status_to_friends("online")
 
@@ -55,82 +89,118 @@ class FriendStatusConsumer(AsyncWebsocketConsumer):
         """
         Called when the WebSocket disconnects.
 
-        - Sets user status to "offline"
-        - Broadcasts status update to friends
-        - Removes user from their personal group
+        Steps:
+        1) Mark user offline.
+        2) Broadcast offline status to accepted friends.
+        3) Remove user from their presence group.
         """
-        if not self.user.is_anonymous:
-            logger.info(f"[disconnect] User ID {self.user.id} disconnecting")
-            await self.set_user_status("offline")
-            await self.broadcast_status_to_friends("offline")
-            await self.channel_layer.group_discard(
-                f"user_{self.user.id}",
-                self.channel_name
-            )
-            logger.debug(f"[disconnect] User ID {self.user.id} removed from group")
+        if self.user.is_anonymous:
+            return
+
+        logger.info("[disconnect] Presence disconnect for user_id=%s close_code=%s", self.user.id, close_code)
+
+        # Step 1: Mark offline
+        await self.set_user_status("offline")
+
+        # Step 2: Notify friends
+        await self.broadcast_status_to_friends("offline")
+
+
+        # Step 3: Leave presence-only group
+        group_name = _presence_group_name(self.user.id)
+        await self.channel_layer.group_discard(group_name, self.channel_name)
+        logger.debug("[disconnect] user_id=%s removed from presence group=%s", self.user.id, group_name)
 
     async def receive(self, text_data):
         """
-        Not used in this consumer — status updates are one-way.
+        Presence is one-way (server -> client). We ignore inbound messages.
         """
-        logger.debug(f"[receive] Unexpected message received: {text_data}")
+        logger.debug("[receive] Unexpected presence message received: %s", text_data)
 
     @database_sync_to_async
-    def set_user_status(self, status):
+    def set_user_status(self, status: str) -> None:
         """
         Updates the user's `status` field in the database.
+
+        Args:
+            status (str): "online" or "offline"
         """
-        logger.debug(f"[set_user_status] Setting user {self.user.id} status to '{status}'")
+        logger.debug("[set_user_status] Setting user_id=%s status=%s", self.user.id, status)
         self.user.status = status
-        self.user.save()
+        self.user.save(update_fields=["status"])
 
     @database_sync_to_async
     def get_accepted_friend_ids(self):
         """
         Returns a list of user IDs for accepted friends.
+
+        Returns:
+            list[int]: Accepted friend user IDs.
         """
-        friendships = Friendship.objects.filter(
-            is_accepted=True
-        ).filter(
+        friendships = Friendship.objects.filter(is_accepted=True).filter(
             Q(from_user=self.user) | Q(to_user=self.user)
         )
 
         friend_ids = []
-        for f in friendships:
-            if f.from_user == self.user:
-                friend_ids.append(f.to_user.id)
+        for friendship in friendships:
+            if friendship.from_user == self.user:
+                friend_ids.append(friendship.to_user.id)
             else:
-                friend_ids.append(f.from_user.id)
+                friend_ids.append(friendship.from_user.id)
 
-        logger.debug(f"[get_accepted_friend_ids] User {self.user.id} has {len(friend_ids)} accepted friends")
+        logger.debug(
+            "[get_accepted_friend_ids] user_id=%s accepted_friends=%s",
+            self.user.id,
+            len(friend_ids),
+        )
         return friend_ids
 
-    async def broadcast_status_to_friends(self, status):
+    async def broadcast_status_to_friends(self, status: str) -> None:
         """
-        Sends a `status_update` event to all accepted friends' Redis groups.
+        Sends a `status_update` event to all accepted friends' presence groups.
+
+        Args:
+            status (str): "online" or "offline"
         """
         friend_ids = await self.get_accepted_friend_ids()
 
         for friend_id in friend_ids:
-            logger.debug(f"[broadcast_status_to_friends] Notifying friend ID {friend_id} that user {self.user.id} is {status}")
+  
+            # Step 1: Broadcast ONLY to presence group (prevents NotificationConsumer crash)
+            target_group = _presence_group_name(friend_id)
+
+            logger.debug(
+                "[broadcast_status_to_friends] user_id=%s -> friend_id=%s status=%s group=%s",
+                self.user.id,
+                friend_id,
+                status,
+                target_group,
+            )
+
             await self.channel_layer.group_send(
-                f"user_{friend_id}",
+                target_group,
                 {
                     "type": "status_update",
                     "user_id": self.user.id,
-                    "status": status
-                }
+                    "status": status,
+                },
             )
 
     async def status_update(self, event):
         """
         Called when another user's status update is sent to this client.
 
-        This method sends the JSON payload to the frontend WebSocket connection.
+        Args:
+            event (dict): Must include 'user_id' and 'status'.
         """
-        logger.debug(f"[status_update] Forwarding status update to client: {event}")
-        await self.send(text_data=json.dumps({
-            "type": "status_update",
-            "user_id": event["user_id"],
-            "status": event["status"]
-        }))
+        logger.debug("[status_update] Forwarding status update to client: %s", event)
+
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "status_update",
+                    "user_id": event.get("user_id"),
+                    "status": event.get("status"),
+                }
+            )
+        )

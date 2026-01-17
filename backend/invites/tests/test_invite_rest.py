@@ -89,3 +89,39 @@ def test_decline_idempotent(user_b, pending_invite):
     assert resp2.status_code == 200
     assert resp2.data["invite"]["status"] == GameInviteStatus.DECLINED
     assert resp2.data["invite"]["respondedAt"] == first_responded_at
+  
+    
+@pytest.mark.django_db
+def test_create_invite_rejects_self_invite(user_a):
+    # Step 1: Authenticate as user_a
+    client = APIClient()
+    client.force_authenticate(user=user_a)
+
+    # Step 2: Attempt to create an invite to self
+    url = reverse("invite-create")  # must match your router name
+    resp = client.post(
+        url,
+        {"to_user_id": user_a.id, "game_type": "tic_tac_toe"},
+        format="json",
+    )
+
+    # Step 3: Assert backend blocks it
+    assert resp.status_code == 400
+    assert "yourself" in str(resp.data).lower()
+
+@pytest.mark.django_db
+def test_create_invite_rejects_self_invite(user_a):
+    # Step 1: Authenticate as sender
+    client = APIClient()
+    client.force_authenticate(user=user_a)
+
+    # Step 2: Attempt self-invite
+    resp = client.post(
+        "/api/invites/",
+        {"to_user_id": user_a.id, "game_type": "tic_tac_toe"},
+        format="json",
+    )
+
+    # Step 3: Assert 400 with clear message
+    assert resp.status_code == 400
+    assert "yourself" in str(resp.data).lower()

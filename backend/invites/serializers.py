@@ -1,9 +1,9 @@
 
-# Step 1: DRF imports
 from rest_framework import serializers
-
-# Step 2: Local imports
 from .models import GameInvite
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 
 class CreateInviteSerializer(serializers.Serializer):
@@ -16,8 +16,34 @@ class CreateInviteSerializer(serializers.Serializer):
             "game_type": "tic_tac_toe"
         }
     """
+
     to_user_id = serializers.IntegerField()
     game_type = serializers.CharField(max_length=50, default="tic_tac_toe")
+
+    def validate_to_user_id(self, value: int) -> int:
+        """
+        Validate invite recipient.
+
+        Rules:
+        - Cannot invite yourself
+        - Recipient must be a real user
+        """
+        # Step 1: Get request safely
+        request = self.context.get("request")
+        if not request or not request.user or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
+
+        current_user = request.user
+
+        # Step 2: Block self-invites
+        if int(value) == int(current_user.id):
+            raise serializers.ValidationError("You cannot invite yourself.")
+
+        # Step 3: Ensure recipient exists
+        if not User.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Recipient user does not exist.")
+
+        return value
 
 
 class InviteActionSerializer(serializers.Serializer):
@@ -66,3 +92,5 @@ class GameInviteSerializer(serializers.ModelSerializer):
             "respondedAt",
         ]
         read_only_fields = fields
+        
+

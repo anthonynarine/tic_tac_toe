@@ -21,6 +21,8 @@ class GameConsumer(JsonWebsocketConsumer):
     WebSocket consumer for managing game-specific functionality.
     """
 
+# Filename: game/consumer/game_consumer.py
+
     def connect(self):
         """
         Handle WebSocket connection for game-related functionality.
@@ -36,6 +38,9 @@ class GameConsumer(JsonWebsocketConsumer):
         8. Broadcast updated player list.
         9. Log successful join.
         """
+        # Step 0: Always define game_lobby_manager so early-close disconnects don't crash
+        self.game_lobby_manager = None
+
         # Step 1: Extract game ID and set group name
         self.game_id = self.scope["url_route"].get("kwargs", {}).get("game_id")
         self.lobby_group_name = f"game_lobby_{self.game_id}"
@@ -45,27 +50,26 @@ class GameConsumer(JsonWebsocketConsumer):
         self.user = SharedUtils.authenticate_user(self.scope)
         if not self.user:
             logger.warning("Game WebSocket connection rejected: user not authenticated.")
-            self.send_json({"type": "error", "message": "Authentication required."})
-            self.close(code=4001)
+
+            # Step 2a: Accept then close so client/tests receive the WS close code
+            self.accept()
+            self.close(code=4401)
             return
 
         # Step 3: Validate game ID
         if not self.game_id:
-            logger.error("WebSocket connection rejected: Missing game ID.")
-            self.send_json({"type": "error", "message": "Missing game ID in connection request."})
-            self.close(code=4002)
+            self.accept()
+            self.close(code=4404)
             return
 
-
         # Step 4: Invite v2 join guard (kills time-travel joins)
-        # Require ?invite=<uuid> in the WS URL and validate server-side.
         qs = parse_qs(self.scope.get("query_string", b"").decode())
         invite_id = qs.get("invite", [None])[0]
 
         if not invite_id:
             logger.warning("WebSocket connection rejected: missing invite id.")
-            self.send_json({"type": "error", "message": "Missing invite id."})
-            self.close(code=4003)
+            self.accept()
+            self.close(code=4404)
             return
 
         try:
@@ -74,8 +78,8 @@ class GameConsumer(JsonWebsocketConsumer):
                 lobby_id=str(self.game_id),
                 invite_id=str(invite_id),
             )
+
         except DRFPermissionDenied as exc:
-            # 4403 = forbidden (wrong user / not allowed)
             logger.warning(
                 "[INVITE_GUARD] forbidden join. game_id=%s invite_id=%s user_id=%s err=%s",
                 self.game_id,
@@ -83,12 +87,12 @@ class GameConsumer(JsonWebsocketConsumer):
                 getattr(self.user, "id", None),
                 exc,
             )
-            self.send_json({"type": "error", "message": str(exc)})
+
+            self.accept()
             self.close(code=4403)
             return
 
         except DRFValidationError as exc:
-            # ValidationError.detail is often a dict like {"detail": "..."}
             detail = None
             try:
                 if isinstance(getattr(exc, "detail", None), dict):
@@ -101,8 +105,6 @@ class GameConsumer(JsonWebsocketConsumer):
                 detail = str(exc)
 
             message = detail or "Invite validation failed."
-
-            # 4408 = expired, 4404 = invalid/not found/mismatch/not joinable
             code = 4408 if "expired" in message.lower() else 4404
 
             logger.warning(
@@ -114,15 +116,12 @@ class GameConsumer(JsonWebsocketConsumer):
                 message,
             )
 
-            self.send_json({"type": "error", "message": message})
+            self.accept()
             self.close(code=code)
             return
 
         # Step 5: Join Django Channels group
-        async_to_sync(self.channel_layer.group_add)(
-            self.lobby_group_name,
-            self.channel_name
-        )
+        async_to_sync(self.channel_layer.group_add)(self.lobby_group_name, self.channel_name)
 
         # Step 6: Track player and channel in Redis
         self.game_lobby_manager = RedisGameLobbyManager()
@@ -396,6 +395,9 @@ class GameConsumer(JsonWebsocketConsumer):
         # Step 5: Make the move and update the game state
         try:
             game.make_move(position=position, player=player_marker)
+            # ✅ New Code
+            # Step 5a: Refresh from DB to ensure we broadcast the final persisted state
+            game.refresh_from_db()
             logger.info(f"Move made successfully: {game.board_state}")
         except ValidationError as e:
             logger.error(f"Invalid move: {e}")
@@ -403,6 +405,29 @@ class GameConsumer(JsonWebsocketConsumer):
                 "type": "error",
                 "message": str(e) if str(e) else "Invalid move due to a validation error."
             })
+            return  # ✅ New Code (critical)
+
+        # ✅ New Code
+        # Step 6: Broadcast the updated game state to EVERY client in the lobby group
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "game_update",
+                "board_state": game.board_state,
+                "current_turn": game.current_turn,
+                "winner": game.winner,
+                "is_completed": getattr(game, "is_completed", False),
+                "winning_combination": getattr(game, "winning_combination", []),
+            },
+        )
+
+        logger.info(
+            "[BROADCAST] game_update -> group=%s board=%s turn=%s winner=%s",
+            self.lobby_group_name,
+            game.board_state,
+            game.current_turn,
+            game.winner,
+        )
 
     def update_player_list(self, event: dict) -> None:
         """
@@ -837,16 +862,40 @@ class GameConsumer(JsonWebsocketConsumer):
 
         Note: If the game is completed, disconnection does not trigger cleanup
         to preserve rematch functionality.
+
+        Important (Invite v2 / close-code tests):
+        - connect() may accept() then close() during invite-guard failures.
+        In those cases, disconnect() can run before Redis lobby manager is initialized.
+        - This method must gracefully handle that early-disconnect path.
         """
         logger.debug(
-            "Disconnect triggered for user %s | Group: %s",
+            "Disconnect triggered for user %s | Group: %s | Close code: %s",
             getattr(getattr(self, "user", None), "first_name", "?"),
             getattr(self, "lobby_group_name", "?"),
+            code,
         )
 
         # Step 1: Validate early disconnects (e.g., handshake failed)
         if not hasattr(self, "lobby_group_name") or not self.lobby_group_name:
             logger.warning("User disconnected before joining a game lobby.")
+            return
+
+
+        # Step 1.5: Guard early-close paths (invite-guard close before Redis manager init)
+        # Where this happens:
+        # - connect() accepted then closed with 4403/4404/4408 before Step 6 Redis init.
+        # Why:
+        # - self.game_lobby_manager is never assigned.
+        # Fix:
+        # - Skip Redis cleanup safely; still discard group membership in finally.
+        if not getattr(self, "game_lobby_manager", None):
+            logger.debug(
+                "Disconnect occurred before Redis lobby manager init. "
+                "Skipping Redis cleanup. game_id=%s channel=%s",
+                getattr(self, "game_id", None),
+                getattr(self, "channel_name", None),
+            )
+            # NOTE: We still run group_discard in finally.
             return
 
         try:
@@ -857,7 +906,7 @@ class GameConsumer(JsonWebsocketConsumer):
             self.game_lobby_manager.remove_channel(self.game_id, self.channel_name)
 
             # Step 4: If game is completed, do NOT remove players/roles/rematch state (support rematch UI)
-            if game.is_completed:
+            if getattr(game, "is_completed", False):
                 logger.info(
                     "Game %s is completed. Retaining player data for rematch support.",
                     getattr(game, "id", self.game_id),
@@ -903,8 +952,4 @@ class GameConsumer(JsonWebsocketConsumer):
                     self.lobby_group_name,
                 )
             except Exception as e:
-                logger.error(f"Error removing user from group: {e}")
-
-
-
-
+                logger.error("Error removing user from group: %s", e)
