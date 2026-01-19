@@ -1,6 +1,5 @@
 // # Filename: src/components/auth/ensureFreshAccessToken.js
 
-
 import publicAxios from "../auth/publicAxios";
 import { getToken, setToken, removeToken } from "./tokenStore";
 
@@ -11,7 +10,10 @@ const decodeJwtPayload = (token) => {
     if (!base64Url) return null;
 
     const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const padded = base64.padEnd(
+      base64.length + ((4 - (base64.length % 4)) % 4),
+      "="
+    );
 
     return JSON.parse(atob(padded));
   } catch (err) {
@@ -43,15 +45,24 @@ const refreshAccessToken = async () => {
 };
 
 // Step 4: Ensure access token is valid for at least N seconds
-export const ensureFreshAccessToken = async ({ minTtlSeconds = 60 } = {}) => {
+export const ensureFreshAccessToken = async ({
+  minTtlSeconds = 60,
+  forceRefresh = false, 
+} = {}) => {
+
+  // Step 1: If explicitly forcing, refresh immediately
+  if (forceRefresh) {
+    return await refreshAccessToken();
+  }
+
   const access = getToken("access_token");
 
-  // Step 1: If no access, try refresh (handles “refresh exists but access missing”)
+  // Step 2: If no access, try refresh (handles “refresh exists but access missing”)
   if (!access) {
     return await refreshAccessToken();
   }
 
-  // Step 2: Check expiry
+  // Step 3: Check expiry
   const payload = decodeJwtPayload(access);
   const expMs = payload?.exp ? payload.exp * 1000 : 0;
 
@@ -63,7 +74,7 @@ export const ensureFreshAccessToken = async ({ minTtlSeconds = 60 } = {}) => {
   const nowMs = Date.now();
   const ttlMs = expMs - nowMs;
 
-  // Step 3: If token is expiring soon, refresh before connecting WS
+  // Step 4: If token is expiring soon, refresh before connecting WS
   if (ttlMs < minTtlSeconds * 1000) {
     return await refreshAccessToken();
   }

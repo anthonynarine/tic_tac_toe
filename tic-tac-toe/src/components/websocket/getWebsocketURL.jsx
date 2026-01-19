@@ -43,20 +43,20 @@ const getWebSocketURL = ({ id, token, isLobby, inviteId = null }) => {
   // Step 4: Route path prefix for lobby chat
   const typePath = isLobby ? "lobby/" : "";
 
-  // Step 5: Escape URL pieces
+  // Step 5: Escape ONLY path parameters
   const safeId = encodeURIComponent(String(id));
-  const safeToken = encodeURIComponent(String(token));
 
+  // Step 6: Build query string (URLSearchParams handles encoding)
+  const qs = new URLSearchParams({
+    token: String(token),
+  });
 
-  // Step 6: Build query string safely (supports Invite v2 join guard)
-  const qs = new URLSearchParams({ token: safeToken });
-
-  // Step 7: Only append inviteId for lobby connections (Invite v2)
-  if (isLobby && inviteId) {
+  // Step 7: Append inviteId only when present (Invite v2)
+  if (inviteId) {
     qs.set("invite", String(inviteId));
   }
 
-  // Step 8: Build URL
+  // Step 8: Build final URL
   const url = `${scheme}://${host}/ws/chat/${typePath}${safeId}/?${qs.toString()}`;
 
   // Step 9: Optional debug logging

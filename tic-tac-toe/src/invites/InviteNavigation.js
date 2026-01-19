@@ -6,6 +6,17 @@ export const buildInviteLobbyUrl = ({ lobbyId, inviteId }) => {
 };
 
 // Step 2: Canonical GAME URL (used after Start Game)
-export const buildInviteGameUrl = ({ gameId, inviteId }) => {
-  return `/games/${encodeURIComponent(gameId)}?invite=${encodeURIComponent(inviteId)}`;
+// Invite v2: include lobbyId when it differs from gameId so the game WS can validate properly.
+export const buildInviteGameUrl = ({ gameId, inviteId, lobbyId }) => {
+  // Step 1: Build query params safely
+  const params = new URLSearchParams();
+
+  if (inviteId) params.set("invite", String(inviteId));
+  if (lobbyId) params.set("lobby", String(lobbyId));
+
+  // Step 2: Return canonical URL
+  const qs = params.toString();
+  return qs
+    ? `/games/${encodeURIComponent(gameId)}?${qs}`
+    : `/games/${encodeURIComponent(gameId)}`;
 };

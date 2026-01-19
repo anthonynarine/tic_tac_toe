@@ -33,6 +33,7 @@ class RedisGameLobbyManager:
 
     PREFIX = "lobby:game:"
     REMATCH_TTL_SECONDS = 120  # tweak as desired (prevents stale offers)
+    LOBBY_TTL_SECONDS = 600  # 10 minutes (auto-cleanup for lobby keys)
 
     def __init__(self) -> None:
         # Step 1: Create Redis client (decode_responses=True)
@@ -59,6 +60,17 @@ class RedisGameLobbyManager:
 
     def _rematch_key(self, game_id: str) -> str:
         return f"{self.PREFIX}{game_id}:rematch"
+    
+    def _touch_lobby_ttl(self, game_id: str) -> None:
+        """
+        Refresh TTL for lobby keys so they expire naturally if abandoned.
+
+        This prevents stale presence when disconnect() no longer hard-removes players.
+        """
+        # Step 1: Expire each lobby-related key
+        self.redis.expire(self._players_key(game_id), self.LOBBY_TTL_SECONDS)
+        self.redis.expire(self._channels_key(game_id), self.LOBBY_TTL_SECONDS)
+        self.redis.expire(self._roles_key(game_id), self.LOBBY_TTL_SECONDS)
 
     # ----------------------------
     # Players
@@ -69,6 +81,8 @@ class RedisGameLobbyManager:
         player = {"id": user.id, "first_name": user.first_name}
         # Step 2: Store under players hash
         self.redis.hset(self._players_key(game_id), str(user.id), json.dumps(player))
+        # Step 3: Refresh TTL for lobby keys
+        self._touch_lobby_ttl(game_id)
 
     def remove_player(self, game_id: str, user: CustomUser) -> None:
         """Removes a player from Redis."""
@@ -90,12 +104,12 @@ class RedisGameLobbyManager:
     def add_channel(self, game_id: str, channel_name: str) -> None:
         """Adds a socket channel to Redis."""
         self.redis.sadd(self._channels_key(game_id), channel_name)
+        self._touch_lobby_ttl(game_id)
 
     def remove_channel(self, game_id: str, channel_name: str) -> None:
         """Removes a socket channel from Redis."""
         self.redis.srem(self._channels_key(game_id), channel_name)
-
-
+ 
     def has_any_channels(self, game_id: str) -> bool:
         """Returns True if any socket channels remain for the game lobby."""
         # Step 1: Count active channels
@@ -127,6 +141,7 @@ class RedisGameLobbyManager:
                 # Step 3: If user already has a role, return it
                 if user_id in roles:
                     pipe.unwatch()
+                    self._touch_lobby_ttl(game_id)
                     return roles[user_id]
 
                 # Step 4: Determine which roles are taken
@@ -144,6 +159,7 @@ class RedisGameLobbyManager:
                 if assigned in ("X", "O"):
                     pipe.hset(roles_key, user_id, assigned)
                 pipe.execute()
+                self._touch_lobby_ttl(game_id)
 
                 return assigned
 
@@ -160,11 +176,29 @@ class RedisGameLobbyManager:
                 continue
 
     def get_players_with_roles(self, game_id: str) -> list[dict]:
-        """Returns player objects with their roles merged in."""
-        players = self.get_players(game_id)
-        roles: dict[str, str] = self.redis.hgetall(self._roles_key(game_id))
+        """
+        Returns player objects with their roles merged in.
 
+        Important:
+        - redis.hgetall() returns {bytes: bytes} unless decode_responses=True.
+        - We decode keys/values so role merges work reliably.
+        """
+        # Step 1: Fetch players
+        players = self.get_players(game_id)
+
+        # Step 2: Fetch role mappings from Redis
+        raw_roles = self.redis.hgetall(self._roles_key(game_id)) or {}
+
+        # normalize to {str: str}
+        roles: dict[str, str] = {}
+        for k, v in raw_roles.items():
+            key = k.decode("utf-8") if isinstance(k, (bytes, bytearray)) else str(k)
+            val = v.decode("utf-8") if isinstance(v, (bytes, bytearray)) else str(v)
+            roles[key] = val
+
+        # Step 3: Merge roles into player list
         return [{**p, "role": roles.get(str(p["id"]), "Spectator")} for p in players]
+
 
     def broadcast_player_list(self, channel_layer: BaseChannelLayer, game_id: str) -> None:
         """Broadcasts updated players+roles list to the lobby group."""

@@ -27,33 +27,24 @@ async def _connect_and_assert_close_code(communicator, expected_code: int) -> No
     """
     Connect and assert the socket is closed with expected close code.
 
-    Note:
-    - In some Channels versions, communicator.connect() consumes websocket.close.
-    - Prefer communicator.close_code when available.
+    Why:
+    - When the server rejects during the handshake, Channels may not emit a
+    websocket.close event to the output queue.
+    - communicator.wait_closed() reliably finalizes close_code.
     """
-    # Step 1: Connect (may immediately close)
+    # Step 1: Connect (may immediately close / reject)
     connected, _ = await communicator.connect()
 
-    # Step 2: If Channels exposes close_code, use it (most reliable)
-    close_code = getattr(communicator, "close_code", None)
-    if close_code is not None:
-        assert close_code == expected_code
-        return
+    # Step 2: For these tests, we expect rejection (not accepted)
+    assert connected is False, "Expected the WebSocket handshake to be rejected."
 
-    # Step 3: Fallback: read ASGI output queue for websocket.close
-    close_msg = None
-    for _ in range(10):
-        try:
-            msg = await asyncio.wait_for(communicator.receive_output(), timeout=0.5)
-        except asyncio.TimeoutError:
-            msg = None
+    # Step 3: Wait until the connection is fully closed
+    await communicator.wait_closed()
 
-        if msg and msg.get("type") == "websocket.close":
-            close_msg = msg
-            break
-
-    assert close_msg is not None, "Expected websocket.close but never received it."
-    assert close_msg.get("code") == expected_code
+    # Step 4: Assert the close code
+    assert communicator.close_code == expected_code, (
+        f"Expected close code {expected_code}, got {communicator.close_code}"
+    )
 
 
 @pytest.mark.asyncio

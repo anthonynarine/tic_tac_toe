@@ -8,12 +8,9 @@ import { useUserContext } from "../context/userContext";
 import { showToast } from "../../utils/toast/Toast";
 import { CiCirclePlus } from "react-icons/ci";
 import "./lobby.css";
-
-// Step 1: Use websocketBaseUrl (no hardcoded localhost)
 import config from "../../config";
-
-// Step 2: Ensure WS connects with a fresh access token
 import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
+import { buildInviteGameUrl } from "../../invites/InviteNavigation";
 
 /**
  * Lobby Component
@@ -26,12 +23,12 @@ import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
  * - Backend validates invite before accepting the connection
  */
 const Lobby = () => {
-  // Contexts
+  // Step 1: Contexts
   const { user } = useUserContext();
   const { state, dispatch: lobbyDispatch } = useLobbyContext();
   const { dispatch: gameDispatch } = useGameContext();
 
-  // Hooks
+  // Step 2: Router hooks
   const { id: gameId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,23 +38,22 @@ const Lobby = () => {
     return new URLSearchParams(location.search).get("invite");
   }, [location.search]);
 
-  // State
+  // Step 4: Local state
   const [message, setMessage] = useState("");
   const [socket, setSocket] = useState(null);
   const chatContainerRef = useRef(null);
 
-
-  // Step 4: Join guard UX state (invalid/expired invite, wrong user, etc.)
+  // Step 5: Join guard UX state (invalid/expired invite, wrong user, etc.)
   const [joinError, setJoinError] = useState(null);
   // joinError shape: { title: string, detail: string, code?: number }
 
-  // Step 5: Keep socket + timers in refs for stable cleanup/reconnect
+  // Step 6: Keep socket + timers in refs for stable cleanup/reconnect
   const socketRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const reconnectAttemptRef = useRef(0);
   const authRetryAttemptRef = useRef(false);
 
-  // Constants
+  // Step 7: Constants
   const MAX_PLAYERS = 2;
   const isLobbyFull = state.players.length === MAX_PLAYERS;
 
@@ -65,7 +61,7 @@ const Lobby = () => {
   const BASE_DELAY_MS = 750;
   const MAX_DELAY_MS = 8000;
 
-  // Step 6: Detect auth-like close codes (handshake rejection often shows as 1006)
+  // Step 9: Detect auth-like close codes (handshake rejection often shows as 1006)
   const isAuthLikeClose = (event) => {
     const code = Number(event?.code);
     if (code === 4401) return true;
@@ -73,8 +69,7 @@ const Lobby = () => {
     return false;
   };
 
-
-  // Step 7: Detect invite-guard close codes (server-authoritative rejections)
+  // Step 10: Detect invite-guard close codes (server-authoritative rejections)
   const isInviteGuardClose = (event) => {
     const code = Number(event?.code);
 
@@ -88,8 +83,7 @@ const Lobby = () => {
     return false;
   };
 
-
-  // Step 8: Convert close code into a user-friendly message
+  // Step 11: Convert close code into a user-friendly message
   const inviteGuardMessageFromClose = (event) => {
     const code = Number(event?.code);
 
@@ -135,7 +129,7 @@ const Lobby = () => {
     };
   };
 
-  // Step 9: Cleanup socket + timers safely
+  // Step 12: Cleanup socket + timers safely
   const cleanupSocket = () => {
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
@@ -158,11 +152,7 @@ const Lobby = () => {
     setSocket(null);
   };
 
-  /**
-   * Handles WebSocket messages.
-   *
-   * @param {Object} event - The WebSocket event containing the message data.
-   */
+  // Step 13: Handles WebSocket messages
   const handleWebSocketMessage = (event) => {
     const data = JSON.parse(event.data);
     console.log("WebSocket message received:", data);
@@ -179,39 +169,44 @@ const Lobby = () => {
     };
 
     const action = actions[data.type];
-    if (action) {
-      action();
-    } else {
-      console.warn(`Unhandled WebSocket message type: ${data.type}`);
-    }
+    if (action) action();
+    else console.warn(`Unhandled WebSocket message type: ${data.type}`);
   };
 
-  /**
-   * Handles game start acknowledgment message.
-   *
-   * @param {Object} data - WebSocket payload.
-   */
-  const handleGameStartAcknowledgment = (data) => {
-    showToast("success", data.message);
+    // Step 14: Handles game start acknowledgment message
+    const handleGameStartAcknowledgment = (data) => {
+      gameDispatch({
+        type: "SET_GAME",
+        payload: {
+          game_id: data.game_id,
+          current_turn: data.current_turn,
+          board_state: "_________",
+          winner: null,
+        },
+      });
 
-    gameDispatch({
-      type: "SET_GAME",
-      payload: {
-        game_id: data.game_id,
-        current_turn: data.current_turn,
-        board_state: "_________", // Empty board
-        winner: null,
-      },
-    });
+      // Step 1: Always derive inviteId live (avoid stale closure)
+      const liveInviteId = new URLSearchParams(window.location.search).get("invite");
 
-    navigate(`/games/${data.game_id}`);
-  };
+      // Step 2: Persist as fallback (optional)
+      if (liveInviteId) {
+        sessionStorage.setItem(`invite:${data.game_id}`, String(liveInviteId));
+      }
 
-  /**
-   * Handles game update message.
-   *
-   * @param {Object} data - WebSocket payload.
-   */
+      // Step 3: IMPORTANT: preserve lobby id so the game WS can validate properly
+      // lobbyId is the current route param `gameId` (lobby route id)
+      const nextUrl = liveInviteId
+        ? buildInviteGameUrl({
+            gameId: data.game_id,
+            inviteId: liveInviteId,
+            lobbyId: gameId,
+          })
+        : `/games/${data.game_id}?lobby=${encodeURIComponent(String(gameId))}`;
+
+      navigate(nextUrl);
+    };
+
+  // Step 15: Handles game update message
   const handleGameUpdate = (data) => {
     console.log("Game update received:", data);
 
@@ -240,11 +235,11 @@ const Lobby = () => {
       },
     });
 
-    navigate(`/games/${data.game_id}`);
+ 
+    // Step 2: NEVER navigate on game_update (gameplay). This can strip ?invite= and break WS reconnects.
   };
 
-  // Step 10: Connect WS with refresh-before-connect + controlled reconnect
-  // Invite v2: Lobby WS must include inviteId in query string
+  // Step 16: Connect WS with refresh-before-connect + controlled reconnect
   const connectLobbySocket = async ({ forceRefresh = false } = {}) => {
     if (!gameId) return;
 
@@ -297,7 +292,6 @@ const Lobby = () => {
     webSocket.onclose = (event) => {
       console.log("WebSocket disconnected.", event?.code);
 
-
       // Step 6: Invite guard failure → stop reconnect + show clean UI
       if (isInviteGuardClose(event)) {
         const msg = inviteGuardMessageFromClose(event);
@@ -343,11 +337,8 @@ const Lobby = () => {
     };
   };
 
-  /**
-   * Establish WebSocket connection for the lobby.
-   */
+  // Step 17: Establish WebSocket connection for the lobby.
   useEffect(() => {
-    // Step 1: Reset guards per lobby mount/change
     reconnectAttemptRef.current = 0;
     authRetryAttemptRef.current = false;
 
@@ -360,9 +351,7 @@ const Lobby = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId, inviteId]);
 
-  /**
-   * Handles sending chat messages.
-   */
+  // Step 18: Handles sending chat messages.
   const handleSendMessage = () => {
     const ws = socketRef.current;
 
@@ -377,9 +366,7 @@ const Lobby = () => {
     }
   };
 
-  /**
-   * Handles starting the game.
-   */
+  // Step 19: Handles starting the game.
   const handleStartGame = () => {
     if (!isLobbyFull) {
       showToast("error", "You need at least 2 players to start the game.");
@@ -393,9 +380,7 @@ const Lobby = () => {
     );
   };
 
-  /**
-   * Handles leaving the lobby.
-   */
+  // Step 20: Handles leaving the lobby.
   const handleLeaveLobby = () => {
     socketRef.current?.send(
       JSON.stringify({
@@ -405,27 +390,22 @@ const Lobby = () => {
     navigate("/");
   };
 
-  /**
-   * Copies the lobby invite link to the clipboard.
-   */
+  // Step 21: Copies the lobby invite link to the clipboard.
   const handleCopyLink = () => {
     const fullUrl = `${window.location.origin}${location.pathname}${location.search}`;
     navigator.clipboard.writeText(fullUrl);
     showToast("success", "Invite link copied to clipboard!");
   };
 
-  /**
-   * Automatically scrolls the chat container to the latest message.
-   */
+  // Step 22: Auto-scroll chat
   useEffect(() => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
     }
   }, [state.messages]);
 
-  /**
-   * Renders the list of players in the lobby.
-   */
+  // Step 23: Render players list
   const renderPlayersList = useMemo(
     () => (
       <div className="players-list">
@@ -456,8 +436,7 @@ const Lobby = () => {
     [state.players]
   );
 
-
-  // Step 11: Join guard UX — render a clean message instead of silent reconnect loops
+  // Step 24: Join guard UX
   if (joinError) {
     return (
       <div className="lobby-container">
