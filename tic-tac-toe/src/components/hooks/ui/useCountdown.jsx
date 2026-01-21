@@ -39,11 +39,10 @@ export const useCountdown = (initialValue, isActive, onComplete) => {
     }, [isActive, onComplete]);
 
     useEffect(() => {
-        // Step 5: Reset count if initial value changes
-        if (!isActive) {
-        setCount(initialValue);
+        if (isActive) {
+            setCount(initialValue);
         }
-    }, [initialValue, isActive]);
+    }, [isActive, initialValue]);
 
     return count;
 };

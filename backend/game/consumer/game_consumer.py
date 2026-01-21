@@ -299,28 +299,34 @@ class GameConsumer(JsonWebsocketConsumer):
     def receive_json(self, content: dict, **kwargs) -> None:
         """
         Handle incoming game-related messages from the WebSocket client.
-
-        This method:
-        1. Validates the incoming JSON message structure using `SharedUtils.validate_message`.
-        2. Extracts and normalizes the `type` field from the message payload.
-        3. Routes valid messages to their respective handler methods.
-        4. Sends error responses for invalid/unsupported message types.
-        5. Logs unexpected runtime errors and sends a generic error response.
-
-        Args:
-            content: The JSON message payload sent by the client.
-            **kwargs: Unused.
         """
         logger.info("GameConsumer received message: %s", content)
 
         # Step 1: Validate the incoming message structure.
         if not SharedUtils.validate_message(content):
-            # Close the connection if the message is invalid.
-            self.close(code=4003)
+            # do NOT close the socket for a bad message
+            SharedUtils.send_error(self, "Invalid message payload.")
             return
 
-        # Step 2: Ensure self.game is initialized before using it
-        if not getattr(self, "game", None):
+        # Step 2: Normalize message type.
+        message_type_raw = content.get("type")
+        if not isinstance(message_type_raw, str):
+            SharedUtils.send_error(self, "Invalid message type.")
+            return
+
+        message_type = message_type_raw.lower()
+
+        # Step 3: Only load game when needed (avoids unnecessary DB hits + false errors)
+        requires_game = message_type in {
+            "start_game",
+            "move",
+            "rematch_request",
+            "rematch_accept",
+            "rematch_decline",
+            "rematch_timeout",
+        }
+
+        if requires_game and not getattr(self, "game", None):
             try:
                 self.game = GameUtils.get_game_instance(game_id=self.game_id)
                 logger.debug(
@@ -332,14 +338,6 @@ class GameConsumer(JsonWebsocketConsumer):
                 logger.error("Failed to fetch game instance in receive_json: %s", exc)
                 SharedUtils.send_error(self, "Unable to fetch game instance.")
                 return
-
-        # Step 3: Normalize message type.
-        message_type_raw = content.get("type")
-        if not isinstance(message_type_raw, str):
-            SharedUtils.send_error(self, "Invalid message type.")
-            return
-
-        message_type = message_type_raw.lower()
 
         try:
             # Step 4: Route the message to the appropriate handler based on its type.
@@ -364,11 +362,13 @@ class GameConsumer(JsonWebsocketConsumer):
 
             elif message_type == "rematch_decline":
                 self.handle_rematch_decline()
-                
+
             elif message_type == "rematch_timeout":
                 self.handle_rematch_timeout()
+
             else:
                 SharedUtils.send_error(self, "Invalid message type.")
+                return
 
         except Exception as exc:
             logger.error("Unexpected error in GameConsumer: %s", exc)
@@ -997,26 +997,54 @@ class GameConsumer(JsonWebsocketConsumer):
     def handle_rematch_decline(self) -> None:
         """
         Handle when the receiving player declines a rematch offer.
+
+        Server-authoritative rules:
+        - Only the intended receiver may decline.
+        - Decline clears the offer in Redis.
+        - Broadcast notifies both clients to close UI + reset local state.
         """
         logger.info(
-            "[REMATCH][DECLINE] user=%s game_id=%s",
+            "[REMATCH][DECLINE] user_id=%s name=%s game_id=%s",
+            getattr(self.user, "id", None),
             getattr(self.user, "first_name", "?"),
             self.game_id,
         )
 
-        # Step 1: Read current offer (for metadata) then clear it
+        # Step 1: Load current offer
         offer = None
         try:
-            offer = self.game_lobby_manager.get_rematch_offer(self.game_id)
+            offer = self.game_lobby_manager.get_rematch_offer(str(self.game_id))
         except Exception as exc:
             logger.warning("[REMATCH][DECLINE] could not read offer: %s", exc)
 
+        if not offer:
+            # No active offer; do not crash, just inform user.
+            self.send_json(
+                {"type": "error", "message": "No active rematch offer to decline."}
+            )
+            return
+
+        # Step 2: Authorize decline (receiver-only)
+        receiver_user_id = offer.get("receiverUserId")
+        if receiver_user_id is None or int(receiver_user_id) != int(self.user.id):
+            logger.warning(
+                "[REMATCH][DECLINE][FORBIDDEN] user_id=%s is not receiver_user_id=%s game_id=%s",
+                getattr(self.user, "id", None),
+                receiver_user_id,
+                self.game_id,
+            )
+            self.send_json(
+                {"type": "error", "message": "Only the receiving player can decline."}
+            )
+            return
+
+        # Step 3: Clear offer in Redis (authoritative)
         try:
-            self.game_lobby_manager.clear_rematch_offer(self.game_id)
+            self.game_lobby_manager.clear_rematch_offer(str(self.game_id))
         except Exception as exc:
             logger.warning("[REMATCH][DECLINE] could not clear offer: %s", exc)
 
-        # Step 2: Broadcast to entire lobby so both clients close UI
+        # Step 4: Broadcast to entire lobby so both clients close UI
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
@@ -1024,9 +1052,11 @@ class GameConsumer(JsonWebsocketConsumer):
                 "game_id": str(self.game_id),
                 "message": f"{self.user.first_name} declined the rematch.",
                 "declinedByUserId": getattr(self.user, "id", None),
-                "requesterUserId": (offer or {}).get("requesterUserId"),
-                "receiverUserId": (offer or {}).get("receiverUserId"),
-                "createdAtMs": (offer or {}).get("createdAtMs"),
+                "requesterUserId": offer.get("requesterUserId"),
+                "receiverUserId": offer.get("receiverUserId"),
+                "createdAtMs": offer.get("createdAtMs"),
+                "rematchPending": False,
+                "isRematchOfferVisible": False,
             },
         )
 
@@ -1040,8 +1070,8 @@ class GameConsumer(JsonWebsocketConsumer):
                     "type": "rematch_declined",
                     "game_id": event.get("game_id", str(self.game_id)),
                     "message": event.get("message", "Rematch declined."),
-                    "rematchPending": False,
-                    "isRematchOfferVisible": False,
+                    "rematchPending": event.get("rematchPending", False),
+                    "isRematchOfferVisible": event.get("isRematchOfferVisible", False),
                     "declinedByUserId": event.get("declinedByUserId"),
                     "requesterUserId": event.get("requesterUserId"),
                     "receiverUserId": event.get("receiverUserId"),
@@ -1050,8 +1080,8 @@ class GameConsumer(JsonWebsocketConsumer):
             )
 
             logger.info(
-                "[REMATCH][DECLINED_SENT] to_user=%s game_id=%s",
-                getattr(self.user, "first_name", "?"),
+                "[REMATCH][DECLINED_SENT] to_user_id=%s game_id=%s",
+                getattr(self.user, "id", None),
                 event.get("game_id", str(self.game_id)),
             )
         except Exception as exc:

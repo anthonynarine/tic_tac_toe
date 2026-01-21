@@ -1,5 +1,4 @@
 // # Filename: src/components/modals/MultiplayerResultModal.jsx
-// (keep your existing path if different)
 
 import React, { useEffect, useMemo } from "react";
 import styles from "./MultiplayerResultModal.module.css";
@@ -28,11 +27,9 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
     rematchButtonLocked,
   } = state;
 
-
   // Step 1: Determine whether THIS client should see Accept/Decline
   // Server now controls this via showActions, so we do not infer roles anymore.
   const shouldShowAcceptDecline = Boolean(rematchShowActions);
-
 
   // Step 2: Requester view = sees waiting/countdown (never action buttons)
   // If uiMode exists, use it. Otherwise fallback to "not receiver".
@@ -48,7 +45,6 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
       dispatch({ type: "HIDE_REMATCH_MODAL" });
     }
   }, [state.isCompleted, dispatch]);
-
 
   // Step 4: Debug instrumentation at the UI decision point
   useEffect(() => {
@@ -80,7 +76,9 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
   ]);
 
   // Step 5: Countdown only for requester view
-  const countdown = useCountdown(10, isRequesterView, () => {
+  const shouldRunCountdown = isRematchOfferVisible && isRequesterView;
+
+  const countdown = useCountdown(10, shouldRunCountdown, () => {
     dispatch({ type: "HIDE_REMATCH_MODAL" });
   });
 
@@ -97,10 +95,13 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
   };
 
   const handleDecline = () => {
-    // Step 1: Close UI immediately
+    // Step 1: Lock immediately to prevent double-send
+    dispatch({ type: "LOCK_REMATCH_BUTTON" });
+
+    // Step 2: Close UI immediately (server will also broadcast rematch_declined)
     dispatch({ type: "HIDE_REMATCH_MODAL" });
 
-    // Step 2: Notify server
+    // Step 3: Notify server
     sendMessage({ type: "rematch_decline" });
   };
 
