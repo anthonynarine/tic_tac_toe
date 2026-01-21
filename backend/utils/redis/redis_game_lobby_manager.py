@@ -2,6 +2,7 @@
 
 import json
 import logging
+import secrets
 from typing import Any
 
 from asgiref.sync import async_to_sync
@@ -25,10 +26,12 @@ class RedisGameLobbyManager:
     - Performs full cleanup after a game ends.
 
     Redis Key Structure:
-        - lobby:game:{game_id}:players     (Hash) -> {user_id: JSON of player}
-        - lobby:game:{game_id}:channels    (Set)  -> channel_name for sockets
-        - lobby:game:{game_id}:roles       (Hash) -> {user_id: "X"/"O"}
-        - lobby:game:{game_id}:rematch     (String JSON) -> offer object
+        - lobby:game:{game_id}:players     (Hash)
+        - lobby:game:{game_id}:channels    (Set)
+        - lobby:game:{game_id}:roles       (Hash)
+        - lobby:game:{game_id}:rematch     (String JSON)
+        - lobby:session:{lobby_id}:key     (String) -> sessionKey
+        - lobby:session:{lobby_id}:users   (Set) -> allowed user_ids
     """
 
     PREFIX = "lobby:game:"
@@ -61,6 +64,12 @@ class RedisGameLobbyManager:
     def _rematch_key(self, game_id: str) -> str:
         return f"{self.PREFIX}{game_id}:rematch"
     
+    def _session_key_key(self, lobby_id: str) -> str:
+        return f"lobby:session:{lobby_id}:key"
+
+    def _session_users_key(self, lobby_id: str) -> str:
+        return f"lobby:session:{lobby_id}:users"
+    
     def _touch_lobby_ttl(self, game_id: str) -> None:
         """
         Refresh TTL for lobby keys so they expire naturally if abandoned.
@@ -71,6 +80,58 @@ class RedisGameLobbyManager:
         self.redis.expire(self._players_key(game_id), self.LOBBY_TTL_SECONDS)
         self.redis.expire(self._channels_key(game_id), self.LOBBY_TTL_SECONDS)
         self.redis.expire(self._roles_key(game_id), self.LOBBY_TTL_SECONDS)
+
+    # ----------------------------
+    # Session Key (Invite -> Session)
+    # ----------------------------
+    def ensure_session_key(self, lobby_id: str) -> str:
+        """
+        Creates (or reuses) a lobby-scoped sessionKey with TTL.
+
+        Args:
+            lobby_id: A stable lobby identifier (can be lobbyId or fallback to gameId)
+
+        Returns:
+            The active sessionKey for this lobby.
+        """
+        # Step 1: If it exists, reuse it
+        existing = self.redis.get(self._session_key_key(lobby_id))
+        if existing:
+            # Step 1a: Refresh TTLs to keep session alive while active
+            self.redis.expire(self._session_key_key(lobby_id), self.SESSION_TTL_SECONDS)
+            self.redis.expire(self._session_users_key(lobby_id), self.SESSION_TTL_SECONDS)
+            return existing
+
+        # Step 2: Create new random sessionKey
+        session_key = secrets.token_urlsafe(24)
+
+        # Step 3: Store with TTL
+        self.redis.set(self._session_key_key(lobby_id), session_key, ex=self.SESSION_TTL_SECONDS)
+        self.redis.expire(self._session_users_key(lobby_id), self.SESSION_TTL_SECONDS)
+
+        logger.info("[SESSION] Created sessionKey for lobby_id=%s", lobby_id)
+        return session_key
+
+    def add_user_to_session(self, lobby_id: str, user_id: int) -> None:
+        """Adds user to session allow-list (and refreshes TTL)."""
+        self.redis.sadd(self._session_users_key(lobby_id), str(user_id))
+        self.redis.expire(self._session_users_key(lobby_id), self.SESSION_TTL_SECONDS)
+
+    def validate_session_key(self, lobby_id: str, session_key: str, user_id: int) -> bool:
+        """
+        Validates that:
+        - session_key matches the stored key for lobby_id
+        - user_id is in allow-list
+
+        Returns:
+            True if valid, else False.
+        """
+        stored = self.redis.get(self._session_key_key(lobby_id))
+        if not stored or stored != session_key:
+            return False
+
+        is_allowed = self.redis.sismember(self._session_users_key(lobby_id), str(user_id))
+        return bool(is_allowed)
 
     # ----------------------------
     # Players
@@ -198,7 +259,6 @@ class RedisGameLobbyManager:
 
         # Step 3: Merge roles into player list
         return [{**p, "role": roles.get(str(p["id"]), "Spectator")} for p in players]
-
 
     def broadcast_player_list(self, channel_layer: BaseChannelLayer, game_id: str) -> None:
         """Broadcasts updated players+roles list to the lobby group."""

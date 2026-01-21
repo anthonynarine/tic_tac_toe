@@ -13,13 +13,16 @@ import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
  * GameWebSocketProvider
  *
  * Responsibilities:
- * - Connect to /ws/game/:gameId with strict Invite v2 parameters
+ * - Connect to /ws/game/:gameId with Invite v2 OR sessionKey fallback
  * - Route messages through gameWebsocketActions
- * - Handle close codes 4403/4404/4408 with clear UX
+ * - Handle close codes with clear UX + safe reconnect logic
  *
- * Invite v2 invariant:
- * - game socket MUST include ?invite=<uuid>
- * - socket SHOULD include ?lobby=<lobbyId> when provided (lobby_id may differ from gameId)
+ * Supported URL patterns:
+ * - Invite v2:
+ *   /games/:id?invite=<uuid>&lobby=<lobbyId>
+ *
+ * - Session fallback (no invite in URL):
+ *   /games/:id?lobby=<lobbyId>&sessionKey=<sessionKey>
  */
 export const GameWebSocketProvider = ({ children, gameId }) => {
   const { id: routeGameId } = useParams();
@@ -39,17 +42,40 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
   const authRetryAttemptRef = useRef(false);
   const didShowConnectedToastRef = useRef(false);
 
-  // distinguish intentional close (route change / rematch gameId swap)
+ 
+  // Step 2: distinguish intentional close (route change / rematch gameId swap)
   const intentionalCloseRef = useRef(false);
 
-  // Step 2: Track mounted state to prevent reconnect after unmount
+  // Step 3: Track mounted state to prevent reconnect after unmount
   const isMountedRef = useRef(false);
 
   const MAX_RECONNECT_ATTEMPTS = 8;
   const BASE_DELAY_MS = 1000;
   const MAX_DELAY_MS = 15000;
 
-  // Step 3: Normalize websocket base to always be ws(s)://host/ws
+
+  // Step 4: Local storage helpers for sessionKey per lobby
+  const getSessionKeyStorageKey = (lobbyId) => `ttt:lobby_session_key:${String(lobbyId)}`;
+
+  const persistSessionKey = useCallback((lobbyId, sessionKey) => {
+    try {
+      if (!lobbyId || !sessionKey) return;
+      localStorage.setItem(getSessionKeyStorageKey(lobbyId), String(sessionKey));
+    } catch (err) {
+      // ignore (private mode / blocked storage)
+    }
+  }, []);
+
+  const readPersistedSessionKey = useCallback((lobbyId) => {
+    try {
+      if (!lobbyId) return null;
+      return localStorage.getItem(getSessionKeyStorageKey(lobbyId));
+    } catch (err) {
+      return null;
+    }
+  }, []);
+
+  // Step 5: Normalize websocket base to always be ws(s)://host/ws
   const getNormalizedWsBase = useCallback(() => {
     const baseRaw = String(config.websocketBaseUrl || "").replace(/\/+$/, "");
 
@@ -70,13 +96,13 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
       : `${normalizedScheme}/ws`;
   }, []);
 
-  // Step 4: Invite v2 final close codes (do not reconnect)
+  // Step 6: Invite v2 final close codes (do not reconnect)
   const isFinalInviteClose = (event) => {
     const code = Number(event?.code);
     return code === 4403 || code === 4404 || code === 4408;
   };
 
-  // Step 5: Close-code messages
+  // Step 7: Close-code messages
   const inviteCloseCodeMessage = (code) => {
     switch (Number(code)) {
       case 4403:
@@ -90,22 +116,32 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
     }
   };
 
-  // Step 6: Treat handshake-ish errors as auth-like (one refresh retry)
+  // Step 8: Treat handshake-ish errors as auth-like (one refresh retry)
   const isAuthLikeClose = (event) => {
     const code = Number(event?.code);
     return code === 4401 || code === 1006;
   };
 
-  // Step 7: Resolve invite context from URL (single source of truth)
-  const resolveInviteContext = useCallback(() => {
-    const params = new URLSearchParams(location.search);
-    return {
-      inviteId: params.get("invite"),
-      lobbyId: params.get("lobby"),
-    };
-  }, [location.search]);
 
-  // Step 8: Clear pending reconnect timer only
+  // Step 9: Resolve context from URL + localStorage (single source of truth)
+  const resolveConnectionContext = useCallback(() => {
+    const params = new URLSearchParams(location.search);
+
+    const inviteId = params.get("invite");
+    const lobbyId = params.get("lobby");
+
+    // allow either explicit sessionKey param or persisted (by lobbyId)
+    const urlSessionKey = params.get("sessionKey");
+    const persistedSessionKey = lobbyId ? readPersistedSessionKey(lobbyId) : null;
+
+    return {
+      inviteId,
+      lobbyId,
+      sessionKey: urlSessionKey || persistedSessionKey,
+    };
+  }, [location.search, readPersistedSessionKey]);
+
+  // Step 10: Clear pending reconnect timer only
   const clearReconnectTimer = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -113,13 +149,14 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
     }
   }, []);
 
-  // Step 9: Cleanup helper (socket + timers)
+  // Step 11: Cleanup helper (socket + timers)
   const cleanupSocket = useCallback(() => {
     clearReconnectTimer();
 
     const ws = socketRef.current;
     if (ws) {
       try {
+
         // mark intentional close so onclose won't reconnect the old gameId
         intentionalCloseRef.current = true;
 
@@ -143,7 +180,7 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
     setIsConnected(false);
   }, [clearReconnectTimer]);
 
-  // Step 10: Hard-stop and route safe
+  // Step 12: Hard-stop and route safe
   const stopAndRouteSafe = useCallback(
     (message) => {
       cleanupSocket();
@@ -156,28 +193,18 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
     [cleanupSocket, navigate]
   );
 
-  // Step 11: Build WS URL (single responsibility)
+  // Step 13: Build WS URL (Invite v2 OR sessionKey)
   const buildGameWsUrl = useCallback(
-    ({ token, inviteId, lobbyId }) => {
-      // Step 1: Normalize base (ws(s)://host/ws)
+    ({ token, inviteId, lobbyId, sessionKey }) => {
       const wsBase = getNormalizedWsBase();
 
-      // Step 2: Build query params safely
       const qs = new URLSearchParams();
       qs.set("token", String(token));
 
-      // Step 3: Invite v2 is OPTIONAL for rematch/reconnect resilience.
-      // Backend guard only runs if invite is present.
-      if (inviteId) {
-        qs.set("invite", String(inviteId));
-      }
+      if (inviteId) qs.set("invite", String(inviteId));
+      if (lobbyId) qs.set("lobby", String(lobbyId));
+      if (!inviteId && sessionKey) qs.set("sessionKey", String(sessionKey));
 
-      // Step 4: Lobby is optional (helpful for context/cleanup)
-      if (lobbyId) {
-        qs.set("lobby", String(lobbyId));
-      }
-
-      // Step 5: Construct final WS URL
       return `${wsBase}/game/${encodeURIComponent(
         String(effectiveGameId)
       )}/?${qs.toString()}`;
@@ -185,7 +212,7 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
     [effectiveGameId, getNormalizedWsBase]
   );
 
-  // Step 12: Core connect logic
+  // Step 14: Core connect logic
   const connectGameSocket = useCallback(
     async ({ forceRefresh = false } = {}) => {
       // Step 1: must have game id
@@ -197,14 +224,23 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
       // Step 3: ensure no parallel sockets (close old gameId socket before new)
       cleanupSocket();
 
-      // Step 4: invite context (Invite v2 REQUIRED)
-      const { inviteId, lobbyId } = resolveInviteContext();
+      // Step 4: resolve connection context
+      const { inviteId, lobbyId, sessionKey } = resolveConnectionContext();
 
-      if (!inviteId) {
-      console.warn("[GameWebSocket] Missing invite param. Connecting without invite.");
+      // Step 5: guard — require invite OR sessionKey
+      if (!inviteId && !sessionKey) {
+        console.error("[GameWebSocket] Missing invite + sessionKey. Refusing to connect.", {
+          effectiveGameId,
+          lobbyId,
+        });
 
+        stopAndRouteSafe(
+          "Missing invite/session. Please re-enter from your Invite Panel."
+        );
+        return;
       }
-      // Step 5: token (explicit force refresh supported)
+
+      // Step 6: token (explicit force refresh supported)
       const token = await ensureFreshAccessToken({
         minTtlSeconds: 60,
         forceRefresh,
@@ -215,24 +251,19 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
         return;
       }
 
-      // Step 6: Create WS
-      const wsUrl = buildGameWsUrl({ token, inviteId, lobbyId });
+      // Step 7: Create WS
+      const wsUrl = buildGameWsUrl({ token, inviteId, lobbyId, sessionKey });
 
       console.log("[GameWebSocket] Connecting:", {
         effectiveGameId,
         inviteId,
         lobbyId,
+        sessionKeyPresent: Boolean(sessionKey),
         wsUrl,
       });
 
-      // reset the intentional close flag for this new socket instance
-      intentionalCloseRef.current = false;
-
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
-
-      // actions are bound to THIS socket + THIS gameId (prevents cross-game routing)
-      const actions = gameWebsocketActions(dispatch, navigate, effectiveGameId);
 
       ws.onopen = () => {
         if (!isMountedRef.current) return;
@@ -250,12 +281,19 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
         console.log(`[GameWebSocket] Connected for game: ${effectiveGameId}`);
       };
 
+      const actions = gameWebsocketActions(dispatch, navigate, effectiveGameId);
+
       ws.onmessage = (event) => {
         if (!isMountedRef.current) return;
 
         try {
           const data = JSON.parse(event.data);
           if (!data?.type) return;
+
+          // Step A: session established -> persist sessionKey for lobby
+          if (data.type === "session_established") {
+            persistSessionKey(data.lobbyId, data.sessionKey);
+          }
 
           const handler = actions[data.type];
           if (handler) handler(data);
@@ -272,6 +310,7 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
       ws.onclose = (event) => {
         if (!isMountedRef.current) return;
 
+    
         // Step 0: If we intentionally closed (route change / gameId swap), do NOT reconnect.
         if (intentionalCloseRef.current) {
           intentionalCloseRef.current = false; // reset for future real disconnects
@@ -322,7 +361,6 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
         // Step 3: exponential backoff reconnect
         reconnectAttemptRef.current += 1;
 
-        // Step 3a: If we can't reconnect, route safe (avoid broken game screen)
         if (reconnectAttemptRef.current > MAX_RECONNECT_ATTEMPTS) {
           stopAndRouteSafe(
             "Unable to reconnect to the game. Please reopen the invite."
@@ -350,22 +388,20 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
     [
       effectiveGameId,
       cleanupSocket,
-      resolveInviteContext,
+      resolveConnectionContext,
       stopAndRouteSafe,
       buildGameWsUrl,
       clearReconnectTimer,
-      navigate
+      navigate,
+      persistSessionKey,
     ]
   );
 
-  // Step 13: Connect only when ALL required context exists
+  // Step 15: Connect when gameId exists and we have invite or sessionKey
   useEffect(() => {
     isMountedRef.current = true;
 
-    const { inviteId } = resolveInviteContext();
-
     if (!effectiveGameId) return () => {};
-    if (!inviteId) return () => {};
 
     didShowConnectedToastRef.current = false;
     reconnectAttemptRef.current = 0;
@@ -377,9 +413,9 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
       isMountedRef.current = false;
       cleanupSocket();
     };
-  }, [effectiveGameId, resolveInviteContext, connectGameSocket, cleanupSocket]);
+  }, [effectiveGameId, connectGameSocket, cleanupSocket]);
 
-  // Step 14: sendMessage helper
+  // Step 16: sendMessage helper
   const sendMessage = (message) => {
     const socket = socketRef.current;
     const isSocketOpen = socket && socket.readyState === WebSocket.OPEN;
@@ -388,9 +424,7 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
       socket.send(JSON.stringify(message));
       console.log("[sendMessage] Message sent:", message);
     } else {
-      console.error(
-        "[sendMessage] Cannot send message: WebSocket is not connected."
-      );
+      console.error("[sendMessage] Cannot send message: WebSocket is not connected.");
     }
   };
 

@@ -62,62 +62,74 @@ class GameConsumer(JsonWebsocketConsumer):
         self.accept()
         self.close(code=code)
         
-
-
-
     def connect(self) -> None:
         """
         WebSocket connect for a specific game.
 
-        - Always joins the group + accepts (unless missing game_id / unauth).
+        Session rules (standard):
+        - First join: invite-based
+            /ws/game/<gameId>/?token=...&invite=<uuid>&lobby=<lobbyId>
+        -> validates invite, mints sessionKey, allow-lists user, sends session_established.
+
+        - Subsequent joins (including rematch games): session-based
+            /ws/game/<newGameId>/?token=...&sessionKey=<sessionKey>&lobby=<lobbyId>
+        -> validates sessionKey + allow-list membership.
+
+        Guarantees:
+        - Joins group + accepts once (or closes with a code).
         - Initializes Redis manager on self.
-        - Validates invite only if invite param is present.
-        - Tracks player + channel in Redis.
-        - Syncs role from DB truth and writes X/O into Redis roles hash.
+        - Tracks player + channel.
+        - Syncs DB-truth role to Redis roles hash.
         - Broadcasts player list.
         """
         # Step 1: Extract game_id and derive group name
         self.game_id = self.scope["url_route"].get("kwargs", {}).get("game_id")
         self.lobby_group_name = f"game_lobby_{self.game_id}"
 
-        logger.info("GameConsumer WebSocket connecting for group: %s", self.lobby_group_name)
-
-        # Step 2: Validate game_id
         if not self.game_id:
             self.close(code=4002)
             return
 
-        # Step 3: Authenticate user
+        # Step 2: Authenticate user
         self.user = SharedUtils.authenticate_user(self.scope)
         if not self.user:
             self.close(code=4001)
             return
 
-        # Step 4: Parse query string
+        # Step 3: Parse query string
         raw_qs = (self.scope.get("query_string") or b"").decode("utf-8")
         qs = parse_qs(raw_qs)
+
         invite_id = (qs.get("invite") or [None])[0]
         lobby_id = (qs.get("lobby") or [None])[0]
-        self.lobby_id = lobby_id
+        session_key = (qs.get("sessionKey") or [None])[0]
+
+        # Step 4: Stable lobby_id (required for session continuity)
+        stable_lobby_id = str(lobby_id or self.game_id)
+        self.lobby_id = stable_lobby_id
 
         logger.info(
-            "[CONNECT] user_id=%s game_id=%s lobby_group=%s invite=%s lobby=%s",
+            "[CONNECT] user_id=%s game_id=%s group=%s invite=%s lobby=%s has_sessionKey=%s",
             self.user.id,
             self.game_id,
             self.lobby_group_name,
             invite_id,
-            lobby_id,
+            stable_lobby_id,
+            bool(session_key),
         )
 
         # Step 5: Initialize Redis manager on the instance
         self.game_lobby_manager = RedisGameLobbyManager()
 
-        # Step 6: Invite guard (only if invite present)
+        # Step 6: Authorization path (invite OR sessionKey)
+        minted_session_key = None
+
         if invite_id:
+            # Step 6a: Invite-based join (first join)
             try:
                 validate_invite_for_lobby_join(
                     user=self.user,
-                    lobby_id=str(lobby_id or self.game_id),
+                    lobby_id=stable_lobby_id,
                     invite_id=str(invite_id),
                 )
             except Exception as exc:
@@ -128,20 +140,82 @@ class GameConsumer(JsonWebsocketConsumer):
                     self.user.id,
                     exc,
                 )
-                # Accept so client reliably receives the error message
-                self.accept()
-                self.send_json({"type": "error", "message": "Invalid or expired invite."})
                 self.close(code=4404)
                 return
+
+            # Step 6b: Create/reuse sessionKey + allow-list user
+            try:
+                minted_session_key = self.game_lobby_manager.ensure_session_key(stable_lobby_id)
+                self.game_lobby_manager.add_user_to_session(stable_lobby_id, self.user.id)
+            except Exception as exc:
+                logger.error(
+                    "[SESSION] failed to mint/allow-list. lobby_id=%s user_id=%s err=%s",
+                    stable_lobby_id,
+                    self.user.id,
+                    exc,
+                )
+                self.close(code=4500)
+                return
+
+        else:
+            # Step 6c: Session-based join (rematches / reconnect)
+            if not session_key:
+                logger.warning(
+                    "[SESSION] missing sessionKey and invite. lobby_id=%s user_id=%s",
+                    stable_lobby_id,
+                    self.user.id,
+                )
+                self.close(code=4404)
+                return
+
+            is_valid = False
+            try:
+                is_valid = self.game_lobby_manager.validate_session_key(
+                    lobby_id=stable_lobby_id,
+                    session_key=str(session_key),
+                    user_id=self.user.id,
+                )
+            except Exception as exc:
+                logger.error(
+                    "[SESSION] validation error. lobby_id=%s user_id=%s err=%s",
+                    stable_lobby_id,
+                    self.user.id,
+                    exc,
+                )
+
+            if not is_valid:
+                logger.warning(
+                    "[SESSION] invalid/expired. lobby_id=%s user_id=%s",
+                    stable_lobby_id,
+                    self.user.id,
+                )
+                self.close(code=4408)
+                return
+
+            # refresh allow-list TTL while they are active (optional but useful)
+            try:
+                self.game_lobby_manager.add_user_to_session(stable_lobby_id, self.user.id)
+            except Exception:
+                pass
 
         # Step 7: Join group
         async_to_sync(self.channel_layer.group_add)(self.lobby_group_name, self.channel_name)
 
-        # Step 8: Accept
+        # Step 8: Accept connection
         self.accept()
-        logger.info("Game WebSocket accepted for group: %s", self.lobby_group_name)
+        logger.info("[CONNECT] accepted. user_id=%s game_id=%s", self.user.id, self.game_id)
 
-        # Step 9: Track player/channel
+        # Step 9: If we minted a sessionKey, tell the client (store it for rematch)
+        if minted_session_key:
+            self.send_json(
+                {
+                    "type": "session_established",
+                    "lobbyId": stable_lobby_id,
+                    "sessionKey": minted_session_key,
+                }
+            )
+
+        # Step 10: Track player/channel in Redis
         try:
             self.game_lobby_manager.add_player(str(self.game_id), self.user)
             self.game_lobby_manager.add_channel(str(self.game_id), self.channel_name)
@@ -152,18 +226,14 @@ class GameConsumer(JsonWebsocketConsumer):
                 self.user.id,
                 exc,
             )
-            # Only one close path
             self.send_json({"type": "error", "message": "Failed to join lobby."})
             self.close(code=4004)
             return
 
-        # Step 10: DB-authoritative role sync (never throws uncaught)
+        # Step 11: DB-authoritative role sync
         role = "Spectator"
         try:
-            # ✅ CHANGE THIS MODEL NAME to match your models.py class name
-            # Example: apps.get_model("game", "TicTacToeGame")
-            GameModel = apps.get_model("game", "Game")  # <-- update this
-
+            GameModel = apps.get_model("game", "Game")  # adjust if needed
             game = GameModel.objects.only("player_x_id", "player_o_id").get(id=self.game_id)
 
             if game.player_x_id == self.user.id:
@@ -180,7 +250,6 @@ class GameConsumer(JsonWebsocketConsumer):
                 getattr(game, "player_o_id", None),
             )
         except Exception as exc:
-            # Don’t crash the socket if role sync fails — just log and continue
             logger.error(
                 "[CONNECT][ROLE_SYNC] failed. game_id=%s user_id=%s err=%s",
                 self.game_id,
@@ -188,7 +257,7 @@ class GameConsumer(JsonWebsocketConsumer):
                 exc,
             )
 
-        # Step 11: Persist role in Redis (only if X/O)
+        # Step 12: Persist role in Redis
         try:
             self.game_lobby_manager.set_player_role(str(self.game_id), self.user.id, role)
         except Exception as exc:
@@ -200,7 +269,7 @@ class GameConsumer(JsonWebsocketConsumer):
                 exc,
             )
 
-        # Step 12: Broadcast player list
+        # Step 13: Broadcast player list
         try:
             self.game_lobby_manager.broadcast_player_list(self.channel_layer, str(self.game_id))
         except Exception as exc:
@@ -210,7 +279,6 @@ class GameConsumer(JsonWebsocketConsumer):
                 self.user.id,
                 exc,
             )
-
 
     def receive_json(self, content: dict, **kwargs) -> None:
         """
