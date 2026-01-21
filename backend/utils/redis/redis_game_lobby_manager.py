@@ -37,6 +37,7 @@ class RedisGameLobbyManager:
     PREFIX = "lobby:game:"
     REMATCH_TTL_SECONDS = 120  # tweak as desired (prevents stale offers)
     LOBBY_TTL_SECONDS = 600  # 10 minutes (auto-cleanup for lobby keys)
+    SESSION_TTL_SECONDS = 1200  # 20 minutes; tune as desired
 
     def __init__(self) -> None:
         # Step 1: Create Redis client (decode_responses=True)
@@ -87,17 +88,13 @@ class RedisGameLobbyManager:
     def ensure_session_key(self, lobby_id: str) -> str:
         """
         Creates (or reuses) a lobby-scoped sessionKey with TTL.
-
-        Args:
-            lobby_id: A stable lobby identifier (can be lobbyId or fallback to gameId)
-
-        Returns:
-            The active sessionKey for this lobby.
         """
         # Step 1: If it exists, reuse it
         existing = self.redis.get(self._session_key_key(lobby_id))
         if existing:
-            # Step 1a: Refresh TTLs to keep session alive while active
+            if isinstance(existing, bytes):
+                existing = existing.decode("utf-8")
+
             self.redis.expire(self._session_key_key(lobby_id), self.SESSION_TTL_SECONDS)
             self.redis.expire(self._session_users_key(lobby_id), self.SESSION_TTL_SECONDS)
             return existing
@@ -106,7 +103,11 @@ class RedisGameLobbyManager:
         session_key = secrets.token_urlsafe(24)
 
         # Step 3: Store with TTL
-        self.redis.set(self._session_key_key(lobby_id), session_key, ex=self.SESSION_TTL_SECONDS)
+        self.redis.set(
+            self._session_key_key(lobby_id),
+            session_key,
+            ex=self.SESSION_TTL_SECONDS,
+        )
         self.redis.expire(self._session_users_key(lobby_id), self.SESSION_TTL_SECONDS)
 
         logger.info("[SESSION] Created sessionKey for lobby_id=%s", lobby_id)

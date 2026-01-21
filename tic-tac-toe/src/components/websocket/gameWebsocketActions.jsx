@@ -100,14 +100,23 @@ const gameWebsocketActions = (dispatch, navigate, gameId) => ({
       // Step 1: Build next URL with Invite v2 OR session fallback
       const qs = new URLSearchParams();
 
-
       // Prefer server-provided fields (most reliable)
       if (data.new_invite_id) qs.set("invite", String(data.new_invite_id));
       if (data.lobby_id) qs.set("lobby", String(data.lobby_id));
 
+      // Step 1a: If server sends sessionKey, persist it + include it
+      if (data.lobby_id && data.sessionKey) {
+        try {
+          const storageKey = `ttt:lobby_session_key:${String(data.lobby_id)}`;
+          localStorage.setItem(storageKey, String(data.sessionKey));
+          qs.set("sessionKey", String(data.sessionKey));
+        } catch (err) {
+          // ignore
+        }
+      }
 
       // Session fallback (if no invite)
-      if (!data.new_invite_id) {
+      if (!data.new_invite_id && !qs.get("sessionKey")) {
         const lobbyId =
           data.lobby_id || new URLSearchParams(window.location.search).get("lobby");
 
@@ -129,6 +138,7 @@ const gameWebsocketActions = (dispatch, navigate, gameId) => ({
       navigate(nextUrl);
     });
   },
+
 });
 
 export default gameWebsocketActions;

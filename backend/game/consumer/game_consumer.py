@@ -124,6 +124,9 @@ class GameConsumer(JsonWebsocketConsumer):
         # Step 6: Authorization path (invite OR sessionKey)
         minted_session_key = None
 
+        # queue any post-accept message(s) here
+        pending_post_accept_messages: list[dict] = []
+
         if invite_id:
             # Step 6a: Invite-based join (first join)
             try:
@@ -198,12 +201,25 @@ class GameConsumer(JsonWebsocketConsumer):
             except Exception:
                 pass
 
+            # Step 6d: DO NOT send before accept. Queue it.
+            pending_post_accept_messages.append(
+                {
+                    "type": "session_established",
+                    "lobbyId": stable_lobby_id,
+                    "sessionKey": str(session_key),
+                }
+            )
+
         # Step 7: Join group
         async_to_sync(self.channel_layer.group_add)(self.lobby_group_name, self.channel_name)
 
         # Step 8: Accept connection
         self.accept()
         logger.info("[CONNECT] accepted. user_id=%s game_id=%s", self.user.id, self.game_id)
+
+        # Step 8a: Now safe to send any queued post-accept messages
+        for msg in pending_post_accept_messages:
+            self.send_json(msg)
 
         # Step 9: If we minted a sessionKey, tell the client (store it for rematch)
         if minted_session_key:
@@ -957,6 +973,14 @@ class GameConsumer(JsonWebsocketConsumer):
             return
 
         # Step 5: Broadcast new game id
+        # Step 5a: Include lobby/session continuity so next WS connect does NOT require invite
+        stable_lobby_id = getattr(self, "lobby_id", str(self.game_id))
+        session_key = None
+        try:
+            session_key = self.game_lobby_manager.ensure_session_key(stable_lobby_id)
+        except Exception:
+            session_key = None
+
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
@@ -965,9 +989,11 @@ class GameConsumer(JsonWebsocketConsumer):
                 "new_game_id": new_game.id,
                 "requesterUserId": offer.get("requesterUserId"),
                 "receiverUserId": offer.get("receiverUserId"),
+                "lobby_id": stable_lobby_id,
+                "sessionKey": session_key,
             },
         )
-
+        
     def handle_rematch_decline(self) -> None:
         """
         Handle when the receiving player declines a rematch offer.
@@ -1116,6 +1142,8 @@ class GameConsumer(JsonWebsocketConsumer):
                 {
                     "type": "rematch_start",
                     "new_game_id": new_game_id,
+                    "lobby_id": event.get("lobby_id"),
+                    "sessionKey": event.get("sessionKey"),
                     "message": f"A new rematch game has been created: Game {new_game_id}",
                 }
             )

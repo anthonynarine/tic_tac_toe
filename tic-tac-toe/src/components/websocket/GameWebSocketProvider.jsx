@@ -127,8 +127,11 @@ export const GameWebSocketProvider = ({ children, gameId }) => {
   const resolveConnectionContext = useCallback(() => {
     const params = new URLSearchParams(location.search);
 
-    const inviteId = params.get("invite");
-    const lobbyId = params.get("lobby");
+    const inviteId = 
+      params.get("invite");
+      const lobbyId = params.get("lobby") || 
+      new URLSearchParams(window.location.search).get("lobby") ||
+      effectiveGameId;
 
     // allow either explicit sessionKey param or persisted (by lobbyId)
     const urlSessionKey = params.get("sessionKey");
