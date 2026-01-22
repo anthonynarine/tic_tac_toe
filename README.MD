@@ -7,7 +7,7 @@
 This is a map of the entire system: **frontend + backend**, how they interact, and where to look when something breaks. I built this app to get a deeper understanding of websockets redis and Langchain. 
 I chose tic-tac-toe because my daughter enjoys plaing it. i hope she can a few games when she's older. 
 
-- **Backend deep dive:** `docs/BACKEND_MASTER.md`
+- **Backend deep dive:**  `BACKEND_OVERVIEW.md`
 - **This doc:** cross-system architecture + real module entry points + real-time flows + AI assistant
 
 ---

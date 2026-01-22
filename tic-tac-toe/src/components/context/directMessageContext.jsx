@@ -1,4 +1,4 @@
-// ✅ New Code
+
 // # Filename: src/components/context/directMessageContext.jsx
 
 import { createContext, useContext, useEffect, useReducer, useRef } from "react";
@@ -16,10 +16,6 @@ import { useUserContext } from "./userContext";
 import { useUI } from "../context/uiContext";
 import chatAPI from "../../api/chatAPI";
 import useAuthAxios from "../auth/hooks/useAuthAxios";
-import useGameCreation from "../hooks/game/useGameCreation";
-
-// ✅ Invites are now first-class (NOT DM)
-import { useInviteContext } from "./inviteContext";
 
 export const DirectMessageContext = createContext(undefined);
 
@@ -42,27 +38,19 @@ export const useDirectMessage = () => {
  * DirectMessageProvider
  *
  * Provides WebSocket-based direct messaging context for private 1-on-1 chat.
- * Handles connection, message handling, unread badge state.
  *
- * Key behavior (important for recruiter mode):
- * - Tokens are NOT read from cookies/localStorage directly here.
- * - We call ensureFreshAccessToken() before opening the WS handshake.
- * - If auth-like close happens during handshake, we force ONE refresh + retry.
- *
- * IMPORTANT UX/ARCH RULE:
- * - game_invite is NOT a DM message anymore.
- * - Invites must be handled by InviteContext (sidebar invite panel).
+ * ARCH CONTRACT (non-negotiable):
+ * - DM WebSocket handles ONLY { type: "message" }
+ * - Game invites do NOT ride on the DM socket anymore.
+ * - Invites are created over HTTPS (POST /api/invites/) and delivered via Notification WS.
+ * - DM socket should be open ONLY while the DM drawer is open.
  */
 export const DirectMessageProvider = ({ children }) => {
   const [state, dispatch] = useReducer(directMessageReducer, initialDMState);
 
   const { user } = useUserContext();
   const { isDMOpen } = useUI();
-  const { createNewGame } = useGameCreation();
   const { authAxios } = useAuthAxios();
-
-  // ✅ Invite system (pending only, action-only UI)
-  const { upsertInvite } = useInviteContext();
 
   // Step 1: Keep latest values in refs so socket handlers never go stale
   const userRef = useRef(user);
@@ -101,10 +89,52 @@ export const DirectMessageProvider = ({ children }) => {
   };
 
   /**
+   * Step 5: Close the active socket safely (drawer-scoped behavior).
+   */
+  const disconnectDM = () => {
+    const socket = state.socket;
+
+    try {
+      if (socket) {
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null;
+
+        if (
+          socket.readyState === WebSocket.OPEN ||
+          socket.readyState === WebSocket.CONNECTING
+        ) {
+          socket.close();
+        }
+      }
+    } catch (err) {
+      console.warn("⚠️ DM disconnect error:", err);
+    } finally {
+      dispatch({ type: DmActionTypes.CLOSE_CHAT });
+    }
+  };
+
+  /**
+   * Step 6: Ensure DM socket is CLOSED when DM drawer is closed.
+   */
+  useEffect(() => {
+    if (!isDMOpen) {
+      if (state.socket) {
+        disconnectDM();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDMOpen]);
+
+  /**
    * createDMConnection
    *
    * Establishes WebSocket connection with a friend.
    * Optionally preloads message history over REST once connected.
+   *
+   * IMPORTANT:
+   * - Will NOT connect if the DM drawer is closed (drawer-scoped).
    *
    * @param {object} options
    * @param {object} options.friend - Friend object with from_user and to_user
@@ -117,7 +147,12 @@ export const DirectMessageProvider = ({ children }) => {
     preloadMessages = true,
     forceRefresh = false,
   }) => {
-    // Step 1: Resolve friendId (the other user)
+    // Step 1: Hard gate — DM socket only while drawer is open
+    if (!isDMOpenRef.current) {
+      return null;
+    }
+
+    // Step 2: Resolve friendId (the other user)
     const isCurrentUserFrom = friend.from_user === userRef.current?.id;
     const friendId = isCurrentUserFrom ? friend.to_user : friend.from_user;
 
@@ -126,17 +161,16 @@ export const DirectMessageProvider = ({ children }) => {
       return null;
     }
 
-    // Step 2: Reuse socket only if it matches AND is open
+    // Step 3: Reuse socket only if it matches AND is open
     if (
       state.socket &&
-      state.activeFriendId === friendId &&
+      String(state.activeFriendId) === String(friendId) &&
       state.socket.readyState === WebSocket.OPEN
     ) {
       return state.socket;
     }
 
-    // Step 3: Ensure we have a fresh access token before WS connect
-    // forceRefresh -> use a huge TTL threshold so it always refreshes
+    // Step 4: Ensure we have a fresh access token before WS connect
     const token = await ensureFreshAccessToken({
       minTtlSeconds: forceRefresh ? 999999999 : 60,
     });
@@ -149,7 +183,7 @@ export const DirectMessageProvider = ({ children }) => {
     const wsBase = getWsBase();
     const wsUrl = `${wsBase}/ws/chat/${friendId}/?token=${token}`;
 
-    // Step 4: Open socket and resolve only when connected (or resolve null on failure)
+    // Step 5: Open socket and resolve only when connected (or resolve null on failure)
     return await new Promise((resolve) => {
       const socket = new WebSocket(wsUrl);
 
@@ -166,7 +200,7 @@ export const DirectMessageProvider = ({ children }) => {
       socket.onopen = async () => {
         didOpen = true;
 
-        // Step 4a: Reset auth retry guard on successful open
+        // Step 5a: Reset auth retry guard on successful open
         authRetryAttemptRef.current = false;
 
         dispatch({
@@ -176,7 +210,7 @@ export const DirectMessageProvider = ({ children }) => {
 
         dispatch({ type: DmActionTypes.SET_LOADING, payload: true });
 
-        // Step 4b: Preload messages after socket opens (REST)
+        // Step 5b: Preload messages after socket opens (REST)
         if (preloadMessages) {
           try {
             const { data } = await authAxios.get(
@@ -201,58 +235,30 @@ export const DirectMessageProvider = ({ children }) => {
       };
 
       socket.onmessage = (event) => {
+        let data;
+
         try {
-          const data = JSON.parse(event.data);
-          const liveUserId = userRef.current?.id;
-
-          const { type, sender_id, receiver_id, message } = data;
-
-          const msgPayload = {
-            ...data,
-            currentUserId: liveUserId,
-            message: message || null,
-          };
-
-          // ✅ Step 4c: DM messages ONLY
-          if (type === "message") {
-            dispatch({
-              type: DmActionTypes.RECEIVE_MESSAGE,
-              payload: msgPayload,
-            });
-
-            // Step 4d: Unread logic (only for true messages)
-            if (
-              receiver_id === liveUserId &&
-              (!isDMOpenRef.current ||
-                String(activeFriendIdRef.current) !== String(sender_id))
-            ) {
-              dispatch({
-                type: DmActionTypes.INCREMENT_UNREAD,
-                payload: { friendId: sender_id },
-              });
-            }
-            return;
-          }
-
-          // ✅ Step 4e: Invite events are not DM anymore
-          if (type === "game_invite") {
-            // Convert WS payload into your InviteContext shape
-            upsertInvite({
-              inviteId: data.invite_id || data.inviteId || data.id, // depends on backend
-              fromUserId: sender_id,
-              toUserId: receiver_id,
-              fromUserName: data.from_username || data.fromUserName || "Friend",
-              gameType: data.game_type || data.gameType || "tic_tac_toe",
-              lobbyId: data.lobby_id || data.lobbyId || data.game_id,
-              status: "pending",
-              createdAt: data.created_at || data.createdAt,
-            });
-
-            return;
-          }
+          data = JSON.parse(event.data);
         } catch (err) {
           console.error("⚠️ DM socket JSON parse error:", err);
+          return;
         }
+
+        // ✅ Step 5c: HARD CONTRACT — DM socket processes ONLY messages
+        if (data?.type !== "message") {
+          return;
+        }
+
+        const liveUserId = userRef.current?.id;
+
+        dispatch({
+          type: DmActionTypes.RECEIVE_MESSAGE,
+          payload: {
+            ...data,
+            currentUserId: liveUserId,
+            message: data?.message ?? null,
+          },
+        });
       };
 
       socket.onerror = (err) => {
@@ -260,29 +266,29 @@ export const DirectMessageProvider = ({ children }) => {
       };
 
       socket.onclose = async (event) => {
-        console.log("🔌 DM socket closed.", event?.code);
-
-        // Step 4f: If the socket closed BEFORE opening, resolve/retry appropriately
+        // Step 5d: If the socket closed BEFORE opening, resolve/retry appropriately
         if (!didOpen) {
           if (isAuthLikeClose(event) && !authRetryAttemptRef.current) {
             authRetryAttemptRef.current = true;
 
-            // Step 1: Force a refresh and retry once
-            const retryPromise = createDMConnection({
+            createDMConnection({
               friend,
               preloadMessages,
               forceRefresh: true,
-            });
+            }).then((retrySocket) => safeResolve(retrySocket));
 
-            retryPromise.then((retrySocket) => safeResolve(retrySocket));
             return;
           }
 
           safeResolve(null);
+          return;
         }
+
+        // Step 5e: If we were open and got closed, let reducer state reset on UI action
+        // (Drawer closing already disconnects via effect)
       };
 
-      // Step 4g: Safety timeout so callers never hang forever if WS never opens/closes
+      // Step 5f: Safety timeout so callers never hang forever
       setTimeout(() => {
         if (!didResolve && !didOpen) {
           safeResolve(null);
@@ -305,68 +311,39 @@ export const DirectMessageProvider = ({ children }) => {
   };
 
   /**
-   * sendGameInvite
+   * sendGameInvite (HTTPS)
    *
-   * Sends a game invite to the friend. Ensures socket is connected.
+   * Invites are created over HTTPS and delivered via Notification WS.
    *
-   * @param {object|number} friendOrId - Friend object or friend ID
-   * @returns {Promise<{gameId: number, lobbyId: number, game: object}|null>}
+   * Backend expects:
+   *   POST /api/invites/
+   *   { to_user_id: <int>, game_type: "tic_tac_toe" }
+   *
+   * @param {object|number} friendOrId - Friend object or friend id
+   * @returns {Promise<{invite: object, lobbyId: string}|null>}
    */
   const sendGameInvite = async (friendOrId = state.activeFriendId) => {
-    const isObj = typeof friendOrId === "object";
-    const friendId = isObj
-      ? friendOrId.from_user === userRef.current?.id
-        ? friendOrId.to_user
-        : friendOrId.from_user
-      : friendOrId;
-
-    if (!friendId) return null;
-
-    let socket = state.socket;
-
-    // Step 1: Ensure socket exists for the target friend
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      if (isObj) {
-        socket = await createDMConnection({
-          friend: friendOrId,
-          preloadMessages: false,
-          forceRefresh: false,
-        });
-      } else {
-        const fakeFriend = { from_user: userRef.current?.id, to_user: friendId };
-        socket = await createDMConnection({
-          friend: fakeFriend,
-          preloadMessages: false,
-          forceRefresh: false,
-        });
-      }
-    }
-
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      console.warn("❌ Socket not open, skipping invite.");
-      return null;
-    }
-
     try {
-      const game = await createNewGame(false);
-      const gameId = game?.id;
-      const lobbyId = game?.lobby_id || gameId;
+      const isObj = typeof friendOrId === "object";
 
-      // NOTE: This payload is still what your backend expects.
-      // InviteContext will show it when the receiver gets the WS event.
-      socket.send(
-        JSON.stringify({
-          type: "game_invite",
-          sender_id: userRef.current?.id,
-          receiver_id: friendId,
-          game_id: gameId,
-          lobby_id: lobbyId,
-        })
-      );
+      const friendId = isObj
+        ? friendOrId.from_user === userRef.current?.id
+          ? friendOrId.to_user
+          : friendOrId.from_user
+        : friendOrId;
 
-      return { gameId, lobbyId, game };
+      if (!friendId) return null;
+
+      const res = await authAxios.post("/invites/", {
+        to_user_id: Number(friendId),
+        game_type: "tic_tac_toe",
+      });
+
+      // Response shape from your InviteCreateView:
+      // { invite: {...}, lobbyId: "<game.id>" }
+      return res?.data || null;
     } catch (err) {
-      console.error("❌ sendGameInvite failed:", err);
+      console.error("❌ sendGameInvite (HTTPS) failed:", err);
       return null;
     }
   };
@@ -377,15 +354,15 @@ export const DirectMessageProvider = ({ children }) => {
    * Closes the DM socket and resets state
    */
   const closeChat = () => {
-    dispatch({ type: DmActionTypes.CLOSE_CHAT });
+    disconnectDM();
   };
 
   return (
     <DirectMessageContext.Provider
       value={{
         ...state,
-        openChat: (friend) =>
-          createDMConnection({
+        openChat: async (friend) =>
+          await createDMConnection({
             friend,
             preloadMessages: true,
             forceRefresh: false,

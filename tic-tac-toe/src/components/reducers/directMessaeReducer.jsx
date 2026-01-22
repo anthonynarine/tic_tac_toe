@@ -33,8 +33,6 @@ export const DmActionTypes = {
   RECEIVE_MESSAGE: "RECEIVE_MESSAGE",
   SET_MESSAGES: "SET_MESSAGES",
   SET_LOADING: "SET_LOADING",
-  INCREMENT_UNREAD: "INCREMENT_UNREAD",
-  RESET_UNREAD: "RESET_UNREAD",
   SET_ACTIVE_LOBBY: "SET_ACTIVE_LOBBY",
   SET_ACTIVE_GAME: "SET_ACTIVE_GAME",
 };
@@ -82,11 +80,6 @@ export function directMessageReducer(state, action) {
         game_id,
       } = action.payload;
 
-      // ✅ Invite messages are no longer DM state responsibility.
-      // They should be handled by the Invite reducer + InvitePanel only.
-      if (type === "game_invite") {
-        return state;
-      }
 
       const friendId = sender_id === currentUserId ? receiver_id : sender_id;
 

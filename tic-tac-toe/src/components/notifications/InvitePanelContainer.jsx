@@ -1,45 +1,54 @@
 // # Filename: src/components/notifications/InvitePanelContainer.jsx
 
+
 import React, { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 import InvitePanel from "./InvitePanel";
 import { useInviteContext } from "../context/inviteContext";
-import { acceptInvite, declineInvite } from "../../api/inviteApi";
+import { acceptInvite, declineInvite, fetchInvites } from "../../api/inviteApi";
 
 export default function InvitePanelContainer() {
   const navigate = useNavigate();
-  const { pendingInvites, removeInvite, upsertInvite } = useInviteContext();
+  const { pendingInvites, removeInvite, resetInvites, upsertInvite } =
+    useInviteContext();
 
-  const handleAccept = useCallback(
-    async (invite) => {
-      const inviteId = invite?.inviteId;
-      const lobbyId = invite?.lobbyId;
+  // Step 1: Server-truth refresh (prevents resurrection)
+  const rehydratePendingInvites = useCallback(async () => {
+    try {
+      const pending = await fetchInvites({ status: "pending", role: "to_user" });
+      resetInvites();
+      pending.forEach((inv) => upsertInvite(inv));
+    } catch (err) {
+      console.error("❌ Invite rehydrate failed:", err);
+    }
+  }, [resetInvites, upsertInvite]);
 
-      if (!inviteId || !lobbyId) return;
+    const handleAccept = useCallback(
+      async (invite) => {
+        const inviteId = invite?.inviteId;
+        if (!inviteId) return;
 
-      // Step 1: Optimistic remove (instant UI)
-      removeInvite(inviteId);
+        // Step 1: Optimistic remove
+        removeInvite(inviteId);
 
-      try {
-        // Step 2: Tell backend
-        const result = await acceptInvite(inviteId);
+        try {
+          // Step 2: HTTPS accept
+          const result = await acceptInvite(inviteId);
 
-        // Step 3: Navigate (server may return lobbyId)
-        const nextLobbyId = result?.lobbyId || lobbyId;
-        navigate(`/lobby/${nextLobbyId}`);
-      } catch (error) {
-        // Where: acceptInvite axios call
-        // Why: invite expired/invalid/auth/network/server error
-        // Fix: restore invite + show toast later (Phase 5 polish)
-        console.error("Invite accept failed:", error);
+          // Step 3: Prefer backend lobbyId, fallback to payload
+          const nextLobbyId = result?.lobbyId || invite?.lobbyId;
 
-        // Step 4: Restore invite if backend rejects
-        upsertInvite({ ...invite, status: "pending" });
-      }
-    },
-    [navigate, removeInvite, upsertInvite]
-  );
+          if (nextLobbyId) {
+             navigate(`/lobby/${nextLobbyId}?invite=${encodeURIComponent(inviteId)}`);
+          }
+        } catch (error) {
+          console.error("Invite accept failed:", error);
+          await rehydratePendingInvites();
+        }
+      },
+      [navigate, removeInvite, rehydratePendingInvites]
+    );
 
   const handleDecline = useCallback(
     async (invite) => {
@@ -50,16 +59,14 @@ export default function InvitePanelContainer() {
       removeInvite(inviteId);
 
       try {
-        // Step 2: Tell backend
+        // Step 2: Tell backend (authoritative)
         await declineInvite(inviteId);
       } catch (error) {
         console.error("Invite decline failed:", error);
-
-        // Step 3: Restore invite if backend rejects
-        upsertInvite({ ...invite, status: "pending" });
+        await rehydratePendingInvites();
       }
     },
-    [removeInvite, upsertInvite]
+    [removeInvite, rehydratePendingInvites]
   );
 
   return (
