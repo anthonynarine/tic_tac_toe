@@ -13,7 +13,6 @@ import AddFriendForm from "./AddFriendForm";
 import TrinityOverlay from "../trinity/TrinityOverlay";
 import FriendsList from "./FriendsList";
 import PendingFriendRequest from "./PendingFriendRequest";
-import InvitesPanel from "../notifications/InvitePanel"
 import { resolveRecipientUserId } from "../../invites/resolveRecipientUserId";
 import { buildInviteLobbyUrl } from "../../invites/InviteNavigation";
 
@@ -21,6 +20,7 @@ import styles from "./FriendsSidebar.module.css";
 
 // Step 1: Invite v2 REST API (server-authoritative)
 import { createInvite } from "../../api/inviteApi";
+import InvitePanelContainer from "../notifications/InvitePanelContainer";
 
 /**
  * FriendsSidebar
@@ -172,7 +172,7 @@ const FriendsSidebar = () => {
       <div className={styles.friendsSidebarContent}>
         <AddFriendForm />
 
-        <InvitesPanel />
+        <InvitePanelContainer />
 
         {/* ─── 👥 Friends List ─────────────────────── */}
         <section className={styles.friendsSidebarSection}>

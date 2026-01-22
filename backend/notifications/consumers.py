@@ -5,7 +5,7 @@ import json
 import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-logger = logging.getLogger("chat.notifications_consumer")
+logger = logging.getLogger("notifications.consumer")
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
@@ -26,7 +26,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         """Handle websocket connection and join user-specific group."""
         # Step 1: Always initialize attributes used in disconnect()
         self.user = self.scope.get("user")
-        self.group_name = None  # ✅ New Code
+        self.group_name = None 
 
         # Step 2: Reject anonymous connections cleanly
         if not self.user or getattr(self.user, "is_anonymous", True):

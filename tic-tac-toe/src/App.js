@@ -8,6 +8,7 @@ import { UIProvider } from "./components/context/uiContext";
 import { UserProvider } from "./components/context/userContext";
 import { DirectMessageProvider } from "./components/context/directMessageContext";
 import { NotificationProvider } from "./components/context/notificatonContext";
+import { InviteProvider } from "./components/context/inviteContext";
 
 // Route container
 import AppRoutes from "./routes/AppRoutes";
@@ -28,11 +29,13 @@ function App() {
         <ToastContainer />
         <UIProvider>
             <UserProvider>
+                <InviteProvider>
                 <DirectMessageProvider>
                     <NotificationProvider>
-                        <AppRoutes />
+                    <AppRoutes />
                     </NotificationProvider>
                 </DirectMessageProvider>
+                </InviteProvider>
             </UserProvider>
         </UIProvider>
         </>

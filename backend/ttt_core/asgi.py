@@ -1,4 +1,3 @@
-
 import os
 import logging
 
@@ -10,28 +9,27 @@ logger = logging.getLogger(__name__)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ttt_core.settings")
 logger.debug(f"DJANGO_SETTINGS_MODULE: {os.environ.get('DJANGO_SETTINGS_MODULE')}")
 
-# Import Django's WSGI application and wrap it for ASGI
 from asgiref.wsgi import WsgiToAsgi
 from django.core.wsgi import get_wsgi_application
 
-# Wrap WSGI app for ASGI-compatible HTTP interface
 django_wsgi_app = get_wsgi_application()
 django_asgi_app = WsgiToAsgi(django_wsgi_app)
 
-# Import WebSocket middleware and routing
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.security.websocket import AllowedHostsOriginValidator
 from ttt_core.middleware import JWTWebSocketMiddleware
+
 import game.routing
 import chat.routing
 import friends.routing
+import notifications.routing
 
-# Define ASGI application with HTTP and WebSocket support
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AllowedHostsOriginValidator(
         JWTWebSocketMiddleware(
             URLRouter(
+                notifications.routing.websocket_urlpatterns +
                 game.routing.websocket_urlpatterns +
                 chat.routing.websocket_urlpatterns +
                 friends.routing.websocket_urlpatterns

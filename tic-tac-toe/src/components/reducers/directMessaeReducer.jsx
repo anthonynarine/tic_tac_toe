@@ -1,4 +1,20 @@
-// File: directMessaeReducer.js (updated with game/lobby persistence)
+// # Filename: src/components/reducer/directMessaeReducer.jsx
+
+
+/**
+ * directMessaeReducer
+ * ------------------------------------------------------------
+ * DM reducer is now responsible ONLY for direct message threads + DM UI state.
+ *
+ * Important contract change:
+ * - "game_invite" messages are NOT stored in DM threads anymore.
+ * - Invites live in their own invite reducer/state (sidebar-only, actionable-only).
+ *
+ * This prevents:
+ * - invites polluting DM history
+ * - weird null-content messages
+ * - duplicate UI sources of truth (invite panel vs DM drawer)
+ */
 
 export const initialDMState = {
   activeChat: null,
@@ -30,21 +46,30 @@ export function directMessageReducer(state, action) {
         ...state,
         activeChat: action.payload.friend,
         socket: action.payload.socket,
-        messages: state.messages, // keep current threads
+        // keep current threads in memory
+        messages: state.messages,
+        unreadCounts: state.unreadCounts,
         isLoading: true,
         activeFriendId: action.payload.friendId,
       };
 
-    case DmActionTypes.CLOSE_CHAT:
+    case DmActionTypes.CLOSE_CHAT: {
+      // Step 1: Close socket safely
       try {
         state.socket?.close();
       } catch (err) {
         console.warn("WebSocket close error:", err);
       }
+
+      // Step 2: Do NOT wipe message threads (we want persistence across open/close)
       return {
-        ...initialDMState,
+        ...state,
+        activeChat: null,
+        socket: null,
+        isLoading: false,
         activeFriendId: null,
       };
+    }
 
     case DmActionTypes.RECEIVE_MESSAGE: {
       const {
@@ -57,13 +82,19 @@ export function directMessageReducer(state, action) {
         game_id,
       } = action.payload;
 
+      // ✅ Invite messages are no longer DM state responsibility.
+      // They should be handled by the Invite reducer + InvitePanel only.
+      if (type === "game_invite") {
+        return state;
+      }
+
       const friendId = sender_id === currentUserId ? receiver_id : sender_id;
 
       const newMessage = {
         id: message_id,
         sender_id,
         receiver_id,
-        content: type === "game_invite" ? null : message,
+        content: message,
         type: type || "message",
         game_id: game_id || null,
       };
@@ -72,6 +103,7 @@ export function directMessageReducer(state, action) {
         ? state.messages[friendId]
         : [];
 
+      // Step 1: Dedupe by message_id (prevents reconnect duplicates)
       const alreadyExists = thread.some((msg) => msg.id === message_id);
       if (alreadyExists) return state;
 
@@ -111,6 +143,7 @@ export function directMessageReducer(state, action) {
 
     case DmActionTypes.SET_MESSAGES: {
       const { friendId, messages: newMessages } = action.payload;
+
       return {
         ...state,
         messages: {
