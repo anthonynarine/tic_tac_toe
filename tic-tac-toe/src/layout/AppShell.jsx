@@ -1,19 +1,22 @@
-// AppShell.jsx
+// # Filename: src/components/layout/AppShell.jsx
+// ✅ New Code
+
+import React from "react";
 import "./layout.css";
-import TrinityDrawer from "../components/trinity/TrinityDrawer"; // ✅ Import here
-import { useUI } from "../components/context/uiContext"; // ✅ Make sure context is available
+import TrinityDrawer from "../components/trinity/TrinityDrawer";
+import { useUI } from "../components/context/uiContext";
 
 const AppShell = ({ children }) => {
-    const { isTrinityOpen } = useUI(); // get state
+  const { isTrinityOpen } = useUI();
 
-    return (
-        <div className="app-shell">
-            {children}
+  return (
+    <div className="app-shell">
+      {children}
 
-            {/* ✅ Render TrinityDrawer outside of the FriendsSidebar tree */}
-            {isTrinityOpen && <TrinityDrawer />}
-        </div>
-    );
+      {/* ✅ Drawer mounted once at the root */}
+      {isTrinityOpen && <TrinityDrawer />}
+    </div>
+  );
 };
 
 export default AppShell;

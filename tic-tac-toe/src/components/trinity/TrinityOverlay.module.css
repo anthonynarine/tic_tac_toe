@@ -1,41 +1,50 @@
 .avatarContainer {
-  position: relative; /* or absolute if sidebar is relative positioned */
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  z-index: 1001;
-  margin-bottom: .5rem; /* space below */
-  margin-top: .5rem;
-  transition: transform 0.3s ease;
-  background-color: black;
+  z-index: 10;
+
+  /* remove the "random black box" look */
+  background: transparent;
+
+  /* keep spacing consistent with your panel padding */
+  margin: 0;
+  padding: 0.25rem 0;
+
+  transition: transform 0.25s ease;
+  outline: none;
 }
 
 .avatarContainer:hover {
-  transform: scale(1.07);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.avatarContainer:focus-visible {
+  box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.35);
+  border-radius: 14px;
 }
 
 .glowRing {
-  background: #000;
-  padding: .5rem;
-  border-radius: 50%;
-  /* border: 1px solid #1da1f2; */
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.55rem;
+  border-radius: 999px;
+
+  /* calmer border + glow (matches #1DA1F2 system) */
+  border: 1px solid rgba(29, 161, 242, 0.18);
   box-shadow:
-    0 0 6px rgba(29, 161, 242, 0.6),
-    0 0 14px rgba(29, 161, 242, 0.4),
-    0 0 24px rgba(29, 161, 242, 0.2);
-  animation: pulseRing 3s ease-in-out infinite, floatBot 6s ease-in-out infinite;
+    0 0 10px rgba(29, 161, 242, 0.20),
+    0 0 18px rgba(29, 161, 242, 0.10);
+
+  animation: pulseRing 3.2s ease-in-out infinite, floatBot 5.5s ease-in-out infinite;
 }
 
-
 .icon {
-  font-size: 1.5rem;
-  color: #88c0e2;
-  animation: glowPulse 2.5s ease-in-out infinite;
+  font-size: 1.55rem;
+  color: rgba(29, 161, 242, 0.85);
   text-shadow:
-    0 0 6px rgba(29, 161, 242, 0.8),
-    0 0 12px rgba(29, 161, 242, 0.6),
-    0 0 20px rgba(29, 161, 242, 0.4);
+    0 0 10px rgba(29, 161, 242, 0.22);
 }
 .caption {
   font-size: 0.9rem;
@@ -78,16 +87,10 @@
 
 @keyframes floatBot {
   0%, 100% {
-    transform: translate(0, 0);
-  }
-  25% {
-    transform: translate(2px, -8px);
+    transform: translateY(0);
   }
   50% {
-    transform: translate(0, -10px);
-  }
-  75% {
-    transform: translate(-2px, -8px);
+    transform: translateY(-6px); /* was -10px ❌ */
   }
 }
 

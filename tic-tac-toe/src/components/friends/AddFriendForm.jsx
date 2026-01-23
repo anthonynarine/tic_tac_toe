@@ -1,96 +1,129 @@
-// File: AddFriendForm.jsx - Updated with React Icon and Modular CSS
+// # Filename: src/components/friends/AddFriendForm.jsx
+// ✅ New Code
 
-import React, { useState, useEffect } from "react";
-import { AiOutlineUserAdd } from "react-icons/ai";
-import {  IoAddSharp } from "react-icons/io5";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { IoAddSharp } from "react-icons/io5";
 import { useFriends } from "../context/friendsContext";
-import styles from "./AddFriendForm.module.css";
 
-/**
- * AddFriendForm Component
- * ----------------------------------------------------------------
- * Allows users to send friend requests via email.
- * Uses Tron-style modular CSS and React Icon for submit button.
- */
-const AddFriendForm = () => {
-    const [email, setEmail] = useState("");
-    const [feedback, setFeedback] = useState(null);
-    const { sendRequest, refreshFriends } = useFriends();
+export default function AddFriendForm({ showLabel = true }) {
+  const [email, setEmail] = useState("");
+  const [feedback, setFeedback] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Handle form submission
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-        if (!email) return;
+  const { sendRequest, refreshFriends } = useFriends();
 
-        try {
-        await sendRequest(email);
-        setFeedback({ type: "success", message: "Friend request sent!" });
+  const canSubmit = useMemo(() => Boolean(email.trim()) && !isSubmitting, [email, isSubmitting]);
+
+  const extractErrorMessage = useCallback((error) => {
+    const data = error?.response?.data;
+    if (!data) return "Something went wrong. Please try again.";
+    if (typeof data.error === "string") return data.error;
+    if (typeof data.detail === "string") return data.detail;
+
+    const firstKey = Object.keys(data)[0];
+    const value = data[firstKey];
+    if (Array.isArray(value)) return value[0];
+    if (typeof value === "string") return value;
+
+    return "Something went wrong. Please try again.";
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (event) => {
+      event.preventDefault();
+      if (!email.trim() || isSubmitting) return;
+
+      setIsSubmitting(true);
+
+      try {
+        await sendRequest(email.trim());
+        setFeedback({ type: "success", message: "Friend request sent." });
         setEmail("");
         refreshFriends();
-        } catch (error) {
-        const errorMsg = extractErrorMessage(error);
-        console.log("[AddFriendForm] Extracted error message:", errorMsg);
-        setFeedback({ type: "error", message: errorMsg });
-        }
-    };
+      } catch (error) {
+        setFeedback({ type: "error", message: extractErrorMessage(error) });
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [email, isSubmitting, sendRequest, refreshFriends, extractErrorMessage]
+  );
 
-    // Parse error message from API
-    const extractErrorMessage = (error) => {
-        const data = error?.response?.data;
-        if (!data) return "Something went wrong.";
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => setFeedback(null), 2800);
+    return () => clearTimeout(timer);
+  }, [feedback]);
 
-        if (typeof data.error === "string") return data.error;
-        if (typeof data.detail === "string") return data.detail;
-
-        const firstKey = Object.keys(data)[0];
-        const value = data[firstKey];
-
-        if (Array.isArray(value)) return value[0];
-        if (typeof value === "string") return value;
-
-        return "Something went wrong.";
-    };
-
-    // Auto-clear feedback
-    useEffect(() => {
-        if (feedback) {
-        const timer = setTimeout(() => setFeedback(null), 3000);
-        return () => clearTimeout(timer);
-        }
-    }, [feedback]);
-
-    return (
-        <form onSubmit={handleSubmit} className={styles.form}>
-        {/* Label */}
-        <label htmlFor="friendEmail" className={styles.label}>
+  return (
+    <form onSubmit={handleSubmit} className="w-full">
+      {showLabel && (
+        <div className="flex items-center justify-between">
+          <label htmlFor="friendEmail" className="text-sm font-medium tracking-wide text-[#1DA1F2]">
             Add a friend
-        </label>
-
-        {/* Input + Icon Button */}
-        <div className={styles.inputGroup}>
-            <input
-            id="friendEmail"
-            type="email"
-            placeholder="Enter email address"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className={styles.input}
-            required
-            />
-
-            <button type="submit" className={styles.addBtn} title="Send friend request">
-            <IoAddSharp size={20} />
-            </button>
+          </label>
         </div>
+      )}
 
-        {/* Feedback */}
-        {feedback && (
-            <p className={`${styles.feedback} ${styles[feedback.type]}`}>
-            {feedback.message}
-            </p>
-        )}
-        </form>
-    );
-};
+      <div
+        className={[
+          showLabel ? "mt-3" : "mt-1",
+          `
+          flex items-center gap-2
+          rounded-xl border border-slate-700/40
+          bg-slate-900/30
+          px-3 py-2
+          focus-within:border-[#1DA1F2]/50
+          focus-within:shadow-[0_0_18px_rgba(29,161,242,0.08)]
+          transition
+        `,
+        ].join(" ")}
+      >
+        <input
+          id="friendEmail"
+          type="email"
+          placeholder="Enter email address"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="
+            flex-1 min-w-0 bg-transparent
+            text-sm text-slate-100 placeholder:text-slate-500
+            outline-none
+          "
+          autoComplete="email"
+          inputMode="email"
+          required
+        />
 
-export default AddFriendForm;
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className={[
+            "h-9 w-9 grid place-items-center rounded-lg",
+            "text-[#1DA1F2]/85 hover:text-[#1DA1F2]",
+            "hover:bg-[#1DA1F2]/10",
+            "focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/35",
+            !canSubmit ? "opacity-40 cursor-not-allowed hover:bg-transparent" : "",
+          ].join(" ")}
+          title={isSubmitting ? "Sending..." : "Send friend request"}
+          aria-label="Send friend request"
+        >
+          <IoAddSharp size={18} />
+        </button>
+      </div>
+
+      {feedback?.message && (
+        <div
+          className={[
+            "mt-2 text-xs",
+            feedback.type === "success" ? "text-emerald-300" : "text-rose-300",
+          ].join(" ")}
+          role="status"
+          aria-live="polite"
+        >
+          {feedback.message}
+        </div>
+      )}
+    </form>
+  );
+}

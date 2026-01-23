@@ -1,5 +1,6 @@
-// # Filename: src/components/notifications/InvitePanelContainer.jsx
 
+// # Filename: src/components/notifications/InvitePanelContainer.jsx
+// ✅ New Code
 
 import React, { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -24,31 +25,34 @@ export default function InvitePanelContainer() {
     }
   }, [resetInvites, upsertInvite]);
 
-    const handleAccept = useCallback(
-      async (invite) => {
-        const inviteId = invite?.inviteId;
-        if (!inviteId) return;
+  const handleAccept = useCallback(
+    async (invite) => {
+      const inviteId = invite?.inviteId;
+      if (!inviteId) return;
 
-        // Step 1: Optimistic remove
-        removeInvite(inviteId);
+      // Step 1: Optimistic remove
+      removeInvite(inviteId);
 
-        try {
-          // Step 2: HTTPS accept
-          const result = await acceptInvite(inviteId);
+      try {
+        // Step 2: HTTPS accept
+        const result = await acceptInvite(inviteId);
 
-          // Step 3: Prefer backend lobbyId, fallback to payload
-          const nextLobbyId = result?.lobbyId || invite?.lobbyId;
+        // Step 3: Prefer backend lobbyId, fallback to payload
+        const nextLobbyId = result?.lobbyId || invite?.lobbyId;
 
-          if (nextLobbyId) {
-             navigate(`/lobby/${nextLobbyId}?invite=${encodeURIComponent(inviteId)}`);
-          }
-        } catch (error) {
-          console.error("Invite accept failed:", error);
-          await rehydratePendingInvites();
+        // Step 4: Invite v2 invariant: must include ?invite=<uuid>
+        if (nextLobbyId) {
+          navigate(
+            `/lobby/${nextLobbyId}?invite=${encodeURIComponent(inviteId)}`
+          );
         }
-      },
-      [navigate, removeInvite, rehydratePendingInvites]
-    );
+      } catch (error) {
+        console.error("Invite accept failed:", error);
+        await rehydratePendingInvites();
+      }
+    },
+    [navigate, removeInvite, rehydratePendingInvites]
+  );
 
   const handleDecline = useCallback(
     async (invite) => {

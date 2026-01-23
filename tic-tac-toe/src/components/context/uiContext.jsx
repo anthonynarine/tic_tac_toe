@@ -1,5 +1,7 @@
-// uiContext.jsx
-import { createContext, useContext, useState, useEffect } from "react";
+// # Filename: src/components/context/uiContext.jsx
+// ✅ New Code
+
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 
 const UIContext = createContext();
@@ -27,72 +29,67 @@ export const useUI = () => useContext(UIContext);
  * - Direct Message drawer
  * - Trinity AI Assistant drawer
  *
- * Guards Trinity and DM drawers from opening on restricted routes like `/technical-paper` or `/games/:id`.
+ * IMPORTANT CHANGE:
+ * - Trinity should be available across the app (including games/lobby),
+ *   since it’s your docs/assistant tool.
+ * - We keep `/technical-paper` isolated (App.jsx already isolates it),
+ *   so we guard only that route for safety.
  */
 export const UIProvider = ({ children }) => {
-    // 🎮 Friends Sidebar
-    const [isSidebarOpen, setSidebarOpen] = useState(false);
+  // Step 1: Friends Sidebar
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
 
-    // 💬 Direct Messages Drawer
-    const [isDMOpen, setDMOpen] = useState(false);
+  // Step 2: Direct Messages Drawer
+  const [isDMOpen, setDMOpen] = useState(false);
 
-    // 🤖 Trinity Assistant Drawer
-    const [isTrinityOpen, setTrinityOpen] = useState(false);
+  // Step 3: Trinity Assistant Drawer
+  const [isTrinityOpen, setTrinityOpen] = useState(false);
 
-    const location = useLocation();
+  const location = useLocation();
 
-    /**
-     * 🚨 Auto-close restricted drawers when navigating to blocked routes
-     * Trinity and DM drawers are not allowed on certain screens (like `/technical-paper`)
-     */
-    useEffect(() => {
-        if (location.pathname === "/technical-paper") {
-        setDMOpen(false);
-        setTrinityOpen(false);
-        }
-        if (location.pathname.includes("/games/") || location.pathname.includes("/lobby/")) {
-        setTrinityOpen(false);
-        }
-    }, [location.pathname]);
+  // Step 4: Auto-close drawers only on the isolated Technical Paper route
+  useEffect(() => {
+    if (location.pathname === "/technical-paper") {
+      setDMOpen(false);
+      setTrinityOpen(false);
+    }
+  }, [location.pathname]);
 
-    /**
-     * 👮 safeSetDMOpen
-     * Prevents DM drawer from opening on restricted pages
-     * @param {boolean} state - open/close state
-     */
-    const safeSetDMOpen = (state) => {
-        if (location.pathname !== "/technical-paper") {
+  // Step 5: Prevent DM drawer from opening only on /technical-paper
+  const safeSetDMOpen = useCallback(
+    (state) => {
+      if (location.pathname !== "/technical-paper") {
         setDMOpen(state);
-        }
-    };
+      }
+    },
+    [location.pathname]
+  );
 
-    /**
-     * 👮 safeSetTrinityOpen
-     * Prevents Trinity assistant from opening on restricted pages (game/lobby/technical-paper)
-     * @param {boolean} state - open/close state
-     */
-    const safeSetTrinityOpen = (state) => {
-        const restricted =
-        location.pathname === "/technical-paper" ||
-        location.pathname.includes("/games/") ||
-        location.pathname.includes("/lobby/");
-        if (!restricted) {
+  // Step 6: Allow Trinity everywhere except /technical-paper
+  // (Your previous guard blocked /games and /lobby, which is why clicking Trinity
+  // in the navbar “did nothing” on those pages.)【:contentReference[oaicite:0]{index=0}】
+  const safeSetTrinityOpen = useCallback(
+    (state) => {
+      const restricted = location.pathname === "/technical-paper";
+      if (!restricted) {
         setTrinityOpen(state);
-        }
-    };
+      }
+    },
+    [location.pathname]
+  );
 
-    return (
-        <UIContext.Provider
-        value={{
-            isSidebarOpen,
-            setSidebarOpen,
-            isDMOpen,
-            setDMOpen: safeSetDMOpen,
-            isTrinityOpen,
-            setTrinityOpen: safeSetTrinityOpen,
-        }}
-        >
-        {children}
-        </UIContext.Provider>
-    );
+  return (
+    <UIContext.Provider
+      value={{
+        isSidebarOpen,
+        setSidebarOpen,
+        isDMOpen,
+        setDMOpen: safeSetDMOpen,
+        isTrinityOpen,
+        setTrinityOpen: safeSetTrinityOpen,
+      }}
+    >
+      {children}
+    </UIContext.Provider>
+  );
 };

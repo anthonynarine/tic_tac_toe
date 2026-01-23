@@ -1,6 +1,21 @@
+/* # Filename: src/components/trinity/TrinityDrawer.module.css */
+/* ✅ New Code */
+
 /* File: TrinityDrawer.module.css - Tron Terminal */
 
+/* =========================================================
+   Tron Dark Scrollbar Vars (Drawer)
+   - Subtle by default
+   - Accent glow only on hover
+========================================================= */
 :root {
+  --tron-scroll-track: rgba(0, 0, 0, 0.82);
+  --tron-scroll-thumb: rgba(15, 23, 42, 0.92);      /* slate-900-ish */
+  --tron-scroll-border: rgba(29, 161, 242, 0.16);   /* #1DA1F2 */
+  --tron-scroll-border-hover: rgba(29, 161, 242, 0.34);
+  --tron-scroll-glow-hover: rgba(29, 161, 242, 0.14);
+
+  /* Legacy vars you already rely on elsewhere */
   --glow-color: #00f7ff;
   --accent-color: #00ffff;
   --border-color: rgba(0, 255, 255, 0.3);
@@ -23,8 +38,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  
-  animation: slideInDrawer 0.9s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+
+  animation: slideInDrawer 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
 @keyframes slideUp {
@@ -43,7 +58,6 @@
   60% { transform: translate(-50%, 50%); }
   80% { transform: translate(-50%, 30%); }
   100% { transform: translate(-50%, 0%); }
-  
 }
 
 /* === Smooth Drawer Entrance Animation === */
@@ -57,14 +71,6 @@
     opacity: 1;
   }
 }
-
-.drawer {
-  /* ...existing styles... */
-  animation: slideInDrawer 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-
-
 
 .header {
   padding: 0.5rem 1rem;
@@ -94,33 +100,30 @@
 
 .closeBtn:hover {
   background-color: black;
-  transform: translateY(-1.2px) scale(.75);
+  transform: translateY(-1.2px) scale(0.75);
   box-shadow:
     0 0 6px var(--glow-color),
-    0 0 10px var(--glow-color-soft),
+    0 0 10px rgba(0, 247, 255, 0.15),
     0 0 12px var(--glow-color);
 }
 
-
+/* =========================================================
+   CONTENT + SCROLLING
+   ✅ Make ONLY messageLog scroll (prevents double-scroll feel)
+========================================================= */
 .content {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden; /* ✅ was overflow-y: auto */
   padding: 1rem 1.5rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 
-.content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.content::-webkit-scrollbar-thumb {
-  background: var(--glow-color);
-  border-radius: 6px;
-}
-
-
+/* =========================================================
+   MESSAGE LOG
+   ✅ Single scrollbar lives here
+========================================================= */
 .messageLog {
   flex: 1;
   overflow-y: auto;
@@ -131,36 +134,34 @@
   font-size: 0.95rem;
   color: #cfffff;
   padding-bottom: 1rem;
+
+  /* Firefox support */
+  scrollbar-width: thin;
+  scrollbar-color: var(--tron-scroll-border) var(--tron-scroll-track);
 }
 
-/* === Tron Scrollbar === */
+/* === Tron Dark Scrollbar (WebKit) === */
 .messageLog::-webkit-scrollbar {
-  width: 8px;
+  width: 7px;
 }
 
 .messageLog::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--tron-scroll-track);
+  border-radius: 999px;
 }
 
 .messageLog::-webkit-scrollbar-thumb {
-  background: var(--glow-color);
-  border-radius: 4px;
-  box-shadow:
-    0 0 6px var(--glow-color),
-    0 0 12px var(--glow-color-soft);
-  transition: background 0.3s ease;
+  background: var(--tron-scroll-thumb);
+  border-radius: 999px;
+  border: 1px solid var(--tron-scroll-border);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .messageLog::-webkit-scrollbar-thumb:hover {
-  background: #00d8ff;
+  border-color: var(--tron-scroll-border-hover);
+  box-shadow: 0 0 10px var(--tron-scroll-glow-hover);
 }
-
-/* Firefox support */
-.messageLog {
-  scrollbar-color: var(--glow-color) transparent;
-  scrollbar-width: thin;
-}
-
 
 .line {
   display: flex;
@@ -194,7 +195,6 @@
   align-items: center;
 }
 
-
 .textarea {
   width: 100%;
   background-color: #111;
@@ -209,30 +209,29 @@
   transition: box-shadow 0.3s ease;
 }
 
-
 .textarea:focus {
   box-shadow: 0 0 12px var(--glow-color);
   border-color: var(--glow-color);
 }
 
+/* Hide textarea scrollbar (kept from your original) */
 .textarea::-webkit-scrollbar {
   width: 0px;
   height: 0px;
-  background: transparent; /* Optional */
+  background: transparent;
 }
 
 .textarea {
-  scrollbar-width: none;         /* Firefox */
-  -ms-overflow-style: none;      /* IE/Edge */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-
 
 /* ✅ Unified Glow Button Style for Close & Send */
 .sendButton {
   position: absolute;
   right: 0.5rem;
   top: 50%;
-  transform: translateY(-50%); /* ✅ Center vertically in input container */
+  transform: translateY(-50%);
   background: none;
   border: none;
   border-radius: 6px;
@@ -248,17 +247,15 @@
   transition: box-shadow 0.25s ease-in-out, color 0.25s ease-in-out;
 }
 
-/* ✅ Hover: Apply Tron glow and color change only */
 .sendButton:hover {
   background-color: black;
   box-shadow:
     0 0 8px var(--glow-color),
-    0 0 12px var(--glow-color-soft),
+    0 0 12px rgba(0, 247, 255, 0.15),
     0 0 16px var(--glow-color);
   color: #fff;
 }
 
-/* ✅ Disabled State */
 .sendButton:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -267,7 +264,6 @@
   color: var(--accent-color);
 }
 
-
 /* === Mobile: Fullscreen === */
 @media (max-width: 767px) {
   .drawer {
@@ -275,15 +271,17 @@
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 70vh; /* ⬅️ 70% from bottom */
+    height: 70vh;
     max-width: 100%;
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     border-top: 2px solid var(--glow-color);
     z-index: 999;
     animation: tetrisSlideMobile 0.5s ease-in-out forwards;
+    transform: none; /* ✅ prevent translateX centering issues on mobile */
   }
 }
+
 /* === Tablet: Bottom 45% drawer === */
 @media (min-width: 768px) and (max-width: 1024px) {
   .drawer {
@@ -319,7 +317,6 @@
   60% { transform: translateY(30%); }
   100% { transform: translateY(0%); }
 }
-
 
 .icon {
   width: 64px;

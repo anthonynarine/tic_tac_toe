@@ -21,8 +21,8 @@
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  box-sizing: border-box;
-  background-color: black;
+  /* box-sizing: border-box;
+  background-color: black; */
 
   border: 1px solid #0e1a2b;
   box-shadow:

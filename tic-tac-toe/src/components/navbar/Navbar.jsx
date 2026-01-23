@@ -1,103 +1,64 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useUserContext } from "../context/userContext";
-import { useAuth } from "../auth/hooks/useAuth"
+// # Filename: src/components/navbar/Navbar.jsx
+// ✅ New Code
+
+import React, { useCallback } from "react";
+import { CiMenuFries } from "react-icons/ci";
+
+import TrinityOverlay from "../trinity/TrinityOverlay";
 import { useUI } from "../context/uiContext";
-import useGameCreation from "../hooks/game/useGameCreation";
-import { useNavigate } from "react-router-dom";
 
-import HomeButton from "./HomeButton";
-import GameModeDropdown from "./GameModeDropdown";
-import NavLinks from "./NavLinks";
-import MobileMenu from "./MobileMenu";
-import HamburgerToggle from "./HamburgerToggle";
+export default function Navbar() {
+  const { isSidebarOpen, setSidebarOpen, setTrinityOpen } = useUI();
 
-import "./Navbar.css";
+  // Step 1: Toggle sidebar (mobile/tablet)
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarOpen(!isSidebarOpen);
+  }, [isSidebarOpen, setSidebarOpen]);
 
-const Navbar = () => {
-    
-    const [isOpen, setIsOpen] = useState(false); // hamburger state
-    const [dropdownOpen, setDropdownOpen] = useState(false); // game mode dropdown state
-    const dropdownRef = useRef();
+  // Step 2: Open Trinity drawer
+  const handleOpenTrinity = useCallback(() => {
+    setTrinityOpen(true);
+  }, [setTrinityOpen]);
 
-    const { isLoggedIn, user } = useUserContext();
-    const { logout } = useAuth();
-    const { createNewGame } = useGameCreation();
-    const { setSidebarOpen } = useUI();
-    const navigate = useNavigate();
+  return (
+    <header
+      className="
+        sticky top-0 z-50
+        bg-black/95 backdrop-blur
+        border-b border-[#1DA1F2]/15
+      "
+    >
+      <div className="relative h-[76px] sm:h-[80px] md:h-[84px]">
+        <div className="h-full grid grid-cols-3 items-center px-3 md:px-4">
+          {/* Left spacer keeps Trinity perfectly centered */}
+          <div />
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-            setDropdownOpen(false);
-        }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
+          {/* Center dock */}
+          <div className="flex justify-center">
+            <div className="flex items-end justify-center pt-1 pb-2">
+              <TrinityOverlay onClick={handleOpenTrinity} />
+            </div>
+          </div>
 
-    // Multiplayer and AI game handlers
-    const startMultiplayerGame = async () => {
-        try {
-        const newGame = await createNewGame(user?.first_name || "Player", false);
-        if (newGame) navigate(`/lobby/${newGame.id}`);
-        } catch (err) {
-        console.error("Multiplayer error:", err);
-        } finally {
-        setDropdownOpen(false);
-        setIsOpen(false);
-        }
-    };
-
-    const startAIGame = async () => {
-        try {
-        const newGame = await createNewGame(user?.first_name || "Player", true);
-        if (newGame) navigate(`/games/${newGame.id}`);
-        } catch (err) {
-        console.error("AI game error:", err);
-        } finally {
-        setDropdownOpen(false);
-        setIsOpen(false);
-        }
-    };
-
-    return (
-        <nav className="navbar">
-        <div className="navbar-content">
-            <HomeButton />
-            <GameModeDropdown
-            dropdownOpen={dropdownOpen}
-            setDropdownOpen={setDropdownOpen}
-            ref={dropdownRef}
-            isLoggedIn={isLoggedIn}
-            startMultiplayerGame={startMultiplayerGame}
-            startAIGame={startAIGame}
-            navigate={navigate}
-            />
-            <NavLinks
-            isLoggedIn={isLoggedIn}
-            // user={user}
-            logout={logout}
-            navigate={navigate}
-            setSidebarOpen={setSidebarOpen}
-            isOpen={isOpen}
-            />
-            <HamburgerToggle isOpen={isOpen} toggleMenu={() => setIsOpen((prev) => !prev)} />
+          {/* Hamburger only on mobile/tablet */}
+          <div className="flex justify-end lg:hidden">
+            <button
+              type="button"
+              onClick={handleToggleSidebar}
+              className="
+                h-10 w-10 grid place-items-center rounded-lg
+                text-[#1DA1F2]/80 hover:text-[#1DA1F2]
+                hover:bg-[#1DA1F2]/10
+                focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/35
+              "
+              aria-label={isSidebarOpen ? "Close menu" : "Open menu"}
+              title={isSidebarOpen ? "Close menu" : "Open menu"}
+            >
+              <CiMenuFries size={26} />
+            </button>
+          </div>
         </div>
-
-        <MobileMenu
-            isOpen={isOpen}
-            setIsOpen={setIsOpen}
-            isLoggedIn={isLoggedIn}
-            user={user}
-            navigate={navigate}
-            logout={logout}
-            setSidebarOpen={setSidebarOpen}
-            startMultiplayerGame={startMultiplayerGame}
-            startAIGame={startAIGame}
-        />
-        </nav>
-    );
-};
-
-export default Navbar;
+      </div>
+    </header>
+  );
+}

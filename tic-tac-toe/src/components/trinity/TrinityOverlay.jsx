@@ -1,37 +1,44 @@
-// File: TrinityOverlay.jsx
-import React from "react";
+// # Filename: src/components/trinity/TrinityOverlay.jsx
+// ✅ New Code
+
+import React, { useCallback } from "react";
 import { FaRobot } from "react-icons/fa";
 import TrinityQuote from "./TrinityQuote";
 import styles from "./TrinityOverlay.module.css";
 
 import useSound from "use-sound";
 import bootSound from "./sounds/bootSound.mp3";
-import { useUI } from "../context/uiContext";
 
+export default function TrinityOverlay({ onClick }) {
+  const [playBoot] = useSound(bootSound, { volume: 0.35 });
 
+  const handleClick = useCallback(() => {
+    playBoot();
+    if (typeof onClick === "function") onClick();
+  }, [playBoot, onClick]);
 
-/**
- * TrinityOverlay
- * Floating assistant avatar with Matrix aesthetic and sound.
- */
-const TrinityOverlay = ({ onClick }) => {
-  const [playBoot] = useSound(bootSound, { volume: 0.4 });
-  const { setTrinityOpen } = useUI();
-
-  const handleClick = () => {
-    playBoot(); // 🔊 play the boot sound
-    setTrinityOpen(true);
-  };
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === "Enter" || e.key === " ") handleClick();
+    },
+    [handleClick]
+  );
 
   return (
-    <div className={styles.avatarContainer} onClick={handleClick} title="Talk to Trinity">
-      <div className={styles.glowRing}>
+    <div
+      className={styles.avatarContainer}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label="Open Trinity assistant"
+      title="Talk to Trinity"
+    >
+      <div className={styles.glowRing} aria-hidden="true">
         <FaRobot className={styles.icon} />
       </div>
-      {/* <span className={styles.caption}>Trinity</span> */}
+
       <TrinityQuote />
     </div>
   );
-};
-
-export default TrinityOverlay;
+}
