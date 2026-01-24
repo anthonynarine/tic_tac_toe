@@ -1,5 +1,5 @@
 # Filename: invites/views.py
-
+import logging
 # Step 1: Django imports
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
@@ -18,8 +18,8 @@ from .services import create_invite, accept_invite, decline_invite
 # Step 4: Game creation service (your new factory)
 from game.services.game_factory import create_tictactoe_game
 
+logger = logging.getLogger("invites.views")
 User = get_user_model()
-
 
 class InviteCreateView(APIView):
     """
@@ -144,39 +144,47 @@ class InviteDeclineView(APIView):
         )
 
 
+
 class InviteInboxView(APIView):
-    """
-    GET /api/invites/inbox/?status=pending&role=to_user|from_user
-
-    Purpose:
-    - Rehydrate Invite v2 state after refresh / missed WS events.
-
-    Defaults:
-    - status=pending
-    - role=to_user
-    """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # Step 1: Parse query params
+        # Step 1: Read filters
         status_filter = request.query_params.get("status", "pending")
         role = request.query_params.get("role", "to_user")
 
-        # Step 2: Start query
-        qs = GameInvite.objects.all()
+        # Step 2: Log request intent (safe fields only)
+        logger.info(
+            "[InviteInboxView][GET] user_id=%s role=%s status=%s",
+            getattr(request.user, "id", None),
+            role,
+            status_filter,
+        )
 
-        # Step 3: Role filter (receiver inbox by default)
+        # Step 3: Query (load sender to avoid N+1 / Unknown name)
+        qs = GameInvite.objects.select_related("from_user").all()
+
         if role == "from_user":
             qs = qs.filter(from_user=request.user)
         else:
             qs = qs.filter(to_user=request.user)
 
-        # Step 4: Status filter
         if status_filter:
             qs = qs.filter(status__iexact=status_filter.upper())
 
-        # Step 5: Newest-first
         qs = qs.order_by("-created_at")
 
-        # Step 6: Return list
-        return Response(GameInviteSerializer(qs, many=True).data, status=status.HTTP_200_OK)
+        # Step 4: Serialize
+        serialized = GameInviteSerializer(qs, many=True).data
+
+        # Step 5: Debug-only: show a sample (no tokens)
+        if logger.isEnabledFor(logging.DEBUG):
+            sample = serialized[0] if serialized else None
+            logger.debug(
+                "[InviteInboxView][GET] user_id=%s invites_count=%s sample=%s",
+                getattr(request.user, "id", None),
+                len(serialized),
+                sample,
+            )
+
+        return Response(serialized, status=status.HTTP_200_OK)

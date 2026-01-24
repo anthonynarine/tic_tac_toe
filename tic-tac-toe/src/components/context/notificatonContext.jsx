@@ -109,58 +109,69 @@ export const NotificationProvider = ({ children }) => {
   }, [resetInvites, upsertInvite]);
 
   /**
-   * ✅ New Code
    * Step 7: Handle WS notifications (router only)
    */
   const handleNotificationMessage = useCallback(
-    (rawEvent) => {
-      let data;
+  (rawEvent) => {
+    let data;
 
-      try {
-        data = JSON.parse(rawEvent?.data || "{}");
-      } catch (err) {
-        console.error("❌ Notification WS: invalid JSON:", err);
+    // Step 1: Parse WS payload safely
+    try {
+      data = JSON.parse(rawEvent?.data || "{}");
+    } catch (err) {
+      console.error("❌ Notification WS: invalid JSON:", err);
+      return;
+    }
+
+    // -------------------
+    // INVITES (Invite v2 – LOCKED CONTRACT)
+    // -------------------
+    if (data?.type === "invite") {
+      const event = data.event;
+      const inviteId = data.inviteId;
+      const status = String(data.status || "").toLowerCase();
+
+      // Malformed invite payload → ignore safely
+      if (!inviteId) {
+        console.warn("⚠️ Invite event missing inviteId:", data);
         return;
       }
 
-      // -------------------
-      // INVITES (Invite v2)
-      // -------------------
-      if (data?.type === "invite_created" && data?.invite) {
-        upsertInvite(data.invite);
-        return;
-      }
-
-      if (data?.type === "invite_status" && data?.invite) {
-        const inviteId = data.invite?.inviteId;
-        const status = String(data.invite?.status || "").toLowerCase();
-
-        // Locked UX rule:
-        // After accept/decline/expire/cancel -> disappear immediately
-        if (status && status !== "pending") {
-          removeInvite(inviteId);
+      // Created or updated invite
+      if (event === "invite_created" || event === "invite_updated") {
+        if (status === "pending") {
+          upsertInvite(data); // ✅ flattened payload includes fromUserName
           return;
         }
 
-        // If server ever sends pending updates, we can still upsert
-        upsertInvite(data.invite);
+        // Any non-pending state → remove immediately
+        removeInvite(inviteId);
         return;
       }
 
-      // -------------------
-      // PRESENCE (optional)
-      // -------------------
-      // If/when you move presence to this socket:
-      // if (data?.type === "presence_update") { ... }
+      // Explicit expire
+      if (event === "invite_expired") {
+        removeInvite(inviteId);
+        return;
+      }
 
-      // -------------------
-      // DM BADGES (future)
-      // -------------------
-      // If/when you add badge reducer:
-      // if (data?.type === "dm") { ... }
-    },
-    [upsertInvite, removeInvite]
-  );
+      // Unknown invite event → ignore
+      console.warn("⚠️ Unknown invite event:", event, data);
+      return;
+    }
+
+    // -------------------
+    // PRESENCE (future)
+    // -------------------
+    // if (data?.type === "presence") { ... }
+
+    // -------------------
+    // BADGES / OTHER (future)
+    // -------------------
+    // if (data?.type === "badge") { ... }
+  },
+  [upsertInvite, removeInvite]
+);
 
   /**
    * Step 8: Disconnect safely
