@@ -1,7 +1,7 @@
 // # Filename: src/components/friends/FriendsSidebar.jsx
 // ✅ New Code
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useFriends } from "../context/friendsContext";
@@ -9,18 +9,16 @@ import { useDirectMessage } from "../context/directMessageContext";
 import { useUserContext } from "../context/userContext";
 import { useUI } from "../context/uiContext";
 
-// ✅ New Code
 import { useAuth } from "../auth/hooks/useAuth";
 import useGameCreation from "../hooks/game/useGameCreation";
+
 import GamesPanel from "../game/GamesPanel";
 import AccountPanel from "../user/AcountPanel";
 
-// Panels (existing)
 import AddFriendPanel from "./AddFriendPanel";
 import FriendsPanel from "./FriendsPanel";
 import PendingRequestsPanel from "./PendingRequestPanel";
 
-// Invites (v2)
 import InvitePanelContainer from "../notifications/InvitePanelContainer";
 import { createInvite } from "../../api/inviteApi";
 import { resolveRecipientUserId } from "../../invites/resolveRecipientUserId";
@@ -31,22 +29,64 @@ import styles from "./FriendsSidebar.module.css";
 export default function FriendsSidebar() {
   const navigate = useNavigate();
 
-  const { isSidebarOpen, setDMOpen } = useUI();
+  const { isSidebarOpen, setDMOpen, isDMOpen } = useUI(); // ✅ pull isDMOpen
   const { friends, pending, acceptRequest, declineRequest, refreshFriends } =
     useFriends();
-  const { openChat } = useDirectMessage();
-  const { isLoggedIn, user } = useUserContext();
 
-  // ✅ New Code
+  const { openChat, unreadCounts } = useDirectMessage();
+  const { isLoggedIn, user } = useUserContext();
   const { logout } = useAuth();
   const { createNewGame } = useGameCreation();
 
-  // Step 1: Refresh friends on mount
+  // ✅ New Code
+  // Step 1: Stage the friend we intend to connect to AFTER drawer is open
+  const [pendingFriend, setPendingFriend] = useState(null);
+
+  // Step 2: Refresh friends on mount
   useEffect(() => {
     refreshFriends();
   }, [refreshFriends]);
 
-  // ✅ New Code: Game actions (moved from navbar)
+  /**
+   * ✅ New Code
+   * Step 3: Intent-only handler (no socket calls here)
+   * - Opens UI immediately
+   * - Stores friend intent
+   */
+  const handleOpenDM = useCallback(
+    (friend) => {
+      if (!friend) return;
+      if (friend?.friend_status !== "online") return;
+
+      setPendingFriend(friend);
+      setDMOpen(true);
+    },
+    [setDMOpen]
+  );
+
+  /**
+   * ✅ New Code
+   * Step 4: Connect ONLY once the UI state says the drawer is open.
+   * This removes the “click twice” race.
+   */
+  useEffect(() => {
+    if (!isDMOpen || !pendingFriend) return;
+
+    // Step 1: Defer one tick so UI state + refs settle everywhere
+    const t = setTimeout(async () => {
+      try {
+        await openChat(pendingFriend);
+      } catch (err) {
+        console.error("[FriendsSidebar] openChat failed:", err);
+      } finally {
+        setPendingFriend(null);
+      }
+    }, 0);
+
+    return () => clearTimeout(t);
+  }, [isDMOpen, pendingFriend, openChat]);
+
+  // Step 5: Game actions
   const startMultiplayerGame = useCallback(async () => {
     try {
       const newGame = await createNewGame(user?.first_name || "Player", false);
@@ -65,42 +105,16 @@ export default function FriendsSidebar() {
     }
   }, [createNewGame, navigate, user?.first_name]);
 
-  const goHome = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
+  const goHome = useCallback(() => navigate("/"), [navigate]);
 
-  // Step 2: Open chat (only if online)
-  const handleFriendClick = useCallback(
-    (friend) => {
-      if (friend?.friend_status === "online") {
-        openChat(friend);
-        setDMOpen(true);
-      }
-    },
-    [openChat, setDMOpen]
-  );
-
-  // Step 3: Invite v2 (server-authoritative)
+  // Step 6: Invite v2
   const handleInvite = useCallback(
     async (friend) => {
       try {
         const recipientUserId = resolveRecipientUserId(friend, user?.id);
+        if (!recipientUserId) return;
 
-        if (!recipientUserId) {
-          console.error("Invite v2: Could not resolve recipient user id", {
-            currentUserId: user?.id,
-            friend,
-          });
-          return;
-        }
-
-        if (Number(recipientUserId) === Number(user?.id)) {
-          console.warn("Invite v2: Self-invite prevented (frontend)", {
-            currentUserId: user?.id,
-            recipientUserId,
-          });
-          return;
-        }
+        if (Number(recipientUserId) === Number(user?.id)) return;
 
         const result = await createInvite({
           toUserId: recipientUserId,
@@ -109,14 +123,7 @@ export default function FriendsSidebar() {
 
         const lobbyId = result?.lobbyId;
         const inviteId = result?.invite?.inviteId;
-
-        if (!lobbyId || !inviteId) {
-          console.warn(
-            "Invite v2: Missing lobbyId or inviteId in response:",
-            result
-          );
-          return;
-        }
+        if (!lobbyId || !inviteId) return;
 
         navigate(buildInviteLobbyUrl({ lobbyId, inviteId }));
       } catch (error) {
@@ -126,7 +133,7 @@ export default function FriendsSidebar() {
     [navigate, user?.id]
   );
 
-  // Step 4: Pending request accept/decline
+  // Step 7: Pending accept/decline
   const handleAccept = useCallback(
     async (id) => {
       try {
@@ -153,7 +160,7 @@ export default function FriendsSidebar() {
 
   const pendingReceived = pending?.received || [];
 
-  // ✅ New Code: Account actions
+  // Step 8: Account actions
   const handleLogin = useCallback(() => navigate("/login"), [navigate]);
   const handleProfile = useCallback(() => navigate("/profile"), [navigate]);
   const handleAbout = useCallback(() => navigate("/technical-paper"), [navigate]);
@@ -161,7 +168,6 @@ export default function FriendsSidebar() {
   return (
     <div className={`${styles.friendsSidebar} ${isSidebarOpen ? styles.open : ""}`}>
       <div className="px-4 pb-4 pt-2 space-y-4">
-        {/* ✅ New Code: Games (top) */}
         <GamesPanel
           isLoggedIn={isLoggedIn}
           onGoHome={goHome}
@@ -169,24 +175,25 @@ export default function FriendsSidebar() {
           onStartAI={startAIGame}
         />
 
-        {/* Social stack (existing) */}
         <AddFriendPanel />
         <InvitePanelContainer />
 
         <FriendsPanel
           friends={friends}
           user={user}
-          onFriendClick={handleFriendClick}
+          onFriendClick={handleOpenDM}
+          onChatOpen={handleOpenDM}
           onInvite={handleInvite}
+          unreadCounts={unreadCounts}
         />
 
         <PendingRequestsPanel
           requests={pendingReceived}
           onAccept={handleAccept}
           onDecline={handleDecline}
+          onChatOpen={handleOpenDM}
         />
 
-        {/* ✅ New Code: Account (bottom) */}
         <AccountPanel
           isLoggedIn={isLoggedIn}
           user={user}

@@ -146,9 +146,15 @@ export const DirectMessageProvider = ({ children }) => {
     friend,
     preloadMessages = true,
     forceRefresh = false,
+    allowWhenClosed = false,
   }) => {
     // Step 1: Hard gate — DM socket only while drawer is open
     if (!isDMOpenRef.current) {
+      return null;
+    }
+
+      // Step 1: Hard gate — only block if caller didn't explicitly allow it
+    if (!allowWhenClosed && !isDMOpenRef.current) {
       return null;
     }
 
@@ -357,6 +363,14 @@ export const DirectMessageProvider = ({ children }) => {
     disconnectDM();
   };
 
+  const clearThread = (friendId) => {
+    // Step 1: Clear only the client thread for that friend
+    dispatch({
+      type: DmActionTypes.CLEAR_THREAD,
+      payload: { friendId },
+    });
+  };
+
   return (
     <DirectMessageContext.Provider
       value={{
@@ -366,10 +380,12 @@ export const DirectMessageProvider = ({ children }) => {
             friend,
             preloadMessages: true,
             forceRefresh: false,
+            allowWhenClosed: true,
           }),
         closeChat,
         sendMessage,
         sendGameInvite,
+        clearThread,
         dispatch,
       }}
     >
