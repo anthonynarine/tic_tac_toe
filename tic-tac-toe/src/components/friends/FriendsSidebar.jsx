@@ -1,5 +1,4 @@
 // # Filename: src/components/friends/FriendsSidebar.jsx
-// ✅ New Code
 
 import React, { useEffect, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +9,7 @@ import { useUserContext } from "../context/userContext";
 import { useUI } from "../context/uiContext";
 
 import { useAuth } from "../auth/hooks/useAuth";
-import useGameCreation from "../hooks/game/useGameCreation";
+import useGameCreation from "../game/hooks/useGameCreation";
 
 import GamesPanel from "../game/GamesPanel";
 import AccountPanel from "../user/AcountPanel";

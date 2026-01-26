@@ -30,7 +30,7 @@ export default function InvitePanel({ invites = [], onAccept, onDecline }) {
     if (inviteCount === 0 && !userToggledRef.current) setIsOpen(false);
   }, [inviteCount]);
 
-  // ✅ New Code: smoother animation using opacity + translate + max-height
+  // smoother animation using opacity + translate + max-height
   const bodyClassName = useMemo(() => {
     const base =
       "overflow-hidden transition-[max-height,opacity,transform] duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[max-height,opacity,transform]";
@@ -39,7 +39,7 @@ export default function InvitePanel({ invites = [], onAccept, onDecline }) {
       : `${base} max-h-0 opacity-0 -translate-y-1 mt-0 pointer-events-none`;
   }, [isOpen]);
 
-  // ✅ New Code: inner content fade (prevents “pop”)
+  // inner content fade (prevents “pop”)
   const innerClassName = useMemo(() => {
     const base =
       "transition-opacity duration-300 ease-out";

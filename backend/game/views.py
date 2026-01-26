@@ -12,6 +12,7 @@ from .models import TicTacToeGame
 from .serializers import TicTacToeGameSerializer
 from .ai_logic.ai_logic import get_best_move
 from .services.game_factory import create_tictactoe_game
+from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -30,21 +31,36 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         if not isinstance(request.data, dict):
             raise ValidationError({"detail": "Invalid request data."})
 
-        # Step 2: Determine AI mode (same as before)
+        # Step 2: Determine AI mode
         is_ai_game = bool(request.data.get("is_ai_game", False))
 
         # Step 3: Create game via service
         result = create_tictactoe_game(
             creator_user=request.user,
             is_ai_game=is_ai_game,
-            opponent_user=None,  # normal create leaves player_o empty for multiplayer
+            opponent_user=None,
         )
         game = result["game"]
         player_role = result["player_role"]
 
-        # Step 4: Serialize + add player_role (preserve your response contract)
+        # Step 4: Serialize + add player_role (preserve response contract)
         data = self.get_serializer(game).data
         data["player_role"] = player_role
+
+        # Step 5: Mint sessionKey only for MULTIPLAYER (WS games)
+        if not is_ai_game:
+            lobby_id = str(game.id)
+            manager = RedisGameLobbyManager()
+
+            # Step 5a: Create/ensure sessionKey
+            session_key = manager.ensure_session_key(lobby_id)
+
+            # Step 5b: Allow-list creator in this lobby session
+            manager.add_user_to_session(lobby_id, request.user.id)
+
+            # Step 5c: Include join hints for frontend routing
+            data["lobbyId"] = lobby_id
+            data["sessionKey"] = session_key
 
         return Response(data, status=status.HTTP_201_CREATED)
 

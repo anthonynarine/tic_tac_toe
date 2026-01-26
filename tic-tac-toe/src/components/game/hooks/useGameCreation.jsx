@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { createNewGameService } from "../../../services/CreateGameService";
+import { createNewGameService } from "./CreateGameService";
 import { showToast } from "../../../utils/toast/Toast";
 import { extractErrorMessage } from "../../../utils/error/Error";
 import useAuthAxios from "../../auth/hooks/useAuthAxios"
