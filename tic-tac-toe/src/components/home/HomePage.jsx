@@ -2,7 +2,7 @@
 // ✅ New Code
 
 import React, { useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { showToast } from "../../utils/toast/Toast";
 import { useUserContext } from "../context/userContext";
 import useGameCreation from "../game/hooks/useGameCreation";
@@ -20,6 +20,7 @@ import {
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isLoggedIn, user } = useUserContext();
   const { createNewGame } = useGameCreation();
 
@@ -31,72 +32,88 @@ const HomePage = () => {
     return "Player";
   }, [user]);
 
-  // # Step 1: Multiplayer MUST enter via Lobby (host uses sessionKey when available)
-  // ✅ New Code (hardened navigation + fallback)
-  const navigateToMultiplayerGame = useCallback(async () => {
-    if (!isLoggedIn) {
-      navigate("/login");
-      return;
-    }
-
-    try {
-      console.log("[HomePage] MP click fired");
-
-      // Step 1: Create multiplayer game
-      const newGame = await createNewGame(false);
-      console.log("[HomePage] Multiplayer game created:", newGame);
-
-      if (!newGame?.id) throw new Error("Create multiplayer game: missing id");
-
-      // Step 2: Always navigate. Use sessionKey if present, otherwise fall back.
-      const qs = new URLSearchParams();
-      if (newGame?.sessionKey) {
-        qs.set("sessionKey", String(newGame.sessionKey));
-      }
-
-      const targetUrl = `/lobby/${newGame.id}${qs.toString() ? `?${qs}` : ""}`;
-
-      // Step 3: SPA navigate
+  // ✅ New Code
+  // # Step 1: Navigate safely (SPA first, hard redirect only if SPA fails)
+  const safeNavigate = useCallback(
+    async (targetUrl) => {
+      const before = `${window.location.pathname}${window.location.search}`;
       console.log("[HomePage] Navigating to:", targetUrl);
+
+      // Step 1: Try normal SPA navigation
       navigate(targetUrl);
 
-      // Step 4: Safety fallback — if SPA navigation is swallowed, force it
-      window.setTimeout(() => {
-        const current = `${window.location.pathname}${window.location.search}`;
-        if (current !== targetUrl) {
+      // Step 2: If SPA didn't commit, force it (next tick)
+      setTimeout(() => {
+        const after = `${window.location.pathname}${window.location.search}`;
+
+        if (after === before) {
           console.warn(
             "[HomePage] SPA navigate did not change URL. Forcing location:",
             targetUrl
           );
           window.location.assign(targetUrl);
         }
-      }, 50);
-    } catch (err) {
-      console.error("Create multiplayer game failed:", err);
-      showToast("error", "Failed to create a multiplayer game.");
-    }
-  }, [isLoggedIn, navigate, createNewGame]);
+      }, 0);
+    },
+    [navigate]
+  );
 
-  // # Step 2: AI games are HTTP-only (/games/ai/:id)
-  const navigateToAIGame = useCallback(async () => {
+  // ✅ New Code
+  // # Step 2: Multiplayer MUST enter via Lobby (host uses sessionKey)
+  const navigateToMultiplayerGame = useCallback(async () => {
+    console.log("[HomePage] MP click fired");
+
     if (!isLoggedIn) {
       navigate("/login");
       return;
     }
 
     try {
-      const newGame = await createNewGame(true);
+      // Step 1: Create multiplayer game
+      const newGame = await createNewGame(false);
+      console.log("[HomePage] Multiplayer game created:", newGame);
 
-      if (!newGame?.id) throw new Error("Create AI game: missing id");
+      if (!newGame?.id) {
+        throw new Error("Create multiplayer game: missing id");
+      }
 
-      navigate(`/games/ai/${newGame.id}`);
+      // Step 2: Build lobby URL using sessionKey (host flow)
+      const qs = new URLSearchParams();
+      if (newGame?.sessionKey) {
+        qs.set("sessionKey", String(newGame.sessionKey));
+      }
+
+      const suffix = qs.toString() ? `?${qs.toString()}` : "";
+      const target = `/lobby/${newGame.id}${suffix}`;
+
+      // Step 3: Use hardened navigation
+      await safeNavigate(target);
     } catch (err) {
-      console.error("Create AI game failed:", err);
-      showToast("error", "Failed to create an AI game.");
+      console.error("Create multiplayer game failed:", err);
+      showToast("error", "Failed to create a multiplayer game.");
     }
-  }, [isLoggedIn, navigate, createNewGame]);
+  }, [isLoggedIn, navigate, createNewGame, safeNavigate]);
 
-  // # Step 3: Utility actions
+  // # Step 3: AI games are HTTP-only (/games/ai/:id)
+    const navigateToAIGame = useCallback(async () => {
+      if (!isLoggedIn) {
+        navigate("/login");
+        return;
+      }
+
+      try {
+        const newGame = await createNewGame(true);
+        if (!newGame?.id) throw new Error("Create AI game: missing id");
+
+        // ✅ Use the same hardened navigation path
+        await safeNavigate(`/games/ai/${newGame.id}`);
+      } catch (err) {
+        console.error("Create AI game failed:", err);
+        showToast("error", "Failed to create an AI game.");
+      }
+    }, [isLoggedIn, navigate, createNewGame, safeNavigate]);
+
+  // # Step 4: Utility actions
   const handleGoHome = useCallback(() => {
     navigate("/");
   }, [navigate]);
@@ -380,7 +397,7 @@ const HomePage = () => {
         </div>
       </div>
 
-      <FooterTicker items={nextUpItems} />
+      {/* <FooterTicker items={nextUpItems} /> */}
     </div>
   );
 };

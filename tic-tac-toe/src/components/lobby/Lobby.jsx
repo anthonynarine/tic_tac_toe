@@ -1,137 +1,63 @@
 // # Filename: src/components/lobby/Lobby.jsx
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { CiCirclePlus } from "react-icons/ci";
+
+import { useUserContext } from "../context/userContext";
 import { useLobbyContext } from "../context/lobbyContext";
 import { useGameContext } from "../context/gameContext";
-import { useUserContext } from "../context/userContext";
+
 import { showToast } from "../../utils/toast/Toast";
-import { CiCirclePlus } from "react-icons/ci";
-import config from "../../config";
 import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
 import { buildInviteGameUrl } from "../../invites/InviteNavigation";
 
-/**
- * Lobby Component
- *
- * Invite v2:
- * - Invitee joins with ?invite=<invite_uuid>
- * - Host joins with ?sessionKey=<session_key>
- *
- * WS contract:
- * - /ws/lobby/<lobbyId>/?token=<jwt>&invite=<uuid>
- * - /ws/lobby/<lobbyId>/?token=<jwt>&sessionKey=<sessionKey>
- */
+// IMPORTANT: this helper MUST generate /ws/game/<id>/?token=...&invite=...&lobby=...
+import getWebSocketURL from "../websocket/getWebsocketURL";
+
 const Lobby = () => {
-  // Step 1: Contexts
+  // Step 1: Context + router
   const { user } = useUserContext();
   const { state, dispatch: lobbyDispatch } = useLobbyContext();
   const { dispatch: gameDispatch } = useGameContext();
 
-  // Step 2: Router hooks
   const { id: gameId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Step 3: URL params
-  const inviteId = useMemo(() => {
-    return new URLSearchParams(location.search).get("invite");
-  }, [location.search]);
+  // Step 2: Query params
+  const inviteId = useMemo(
+    () => new URLSearchParams(location.search).get("invite"),
+    [location.search]
+  );
 
-  const sessionKey = useMemo(() => {
-    return new URLSearchParams(location.search).get("sessionKey");
-  }, [location.search]);
+  const sessionKey = useMemo(
+    () => new URLSearchParams(location.search).get("sessionKey"),
+    [location.search]
+  );
 
-  // Step 4: Local state
+  // Step 3: Local UI state
   const [message, setMessage] = useState("");
-  const [socket, setSocket] = useState(null);
-  const chatContainerRef = useRef(null);
-
-  // Step 5: Join guard UX state
   const [joinError, setJoinError] = useState(null);
 
-  // Step 6: Keep socket + timers in refs
+  // Step 4: Socket refs
   const socketRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const reconnectAttemptRef = useRef(0);
   const authRetryAttemptRef = useRef(false);
 
-  // Step 7: Constants
+  const chatContainerRef = useRef(null);
+
+  // Step 5: Constants
   const MAX_PLAYERS = 2;
-  const isLobbyFull = state.players.length === MAX_PLAYERS;
+  const isLobbyFull = state?.players?.length === MAX_PLAYERS;
 
   const MAX_RECONNECT_ATTEMPTS = 6;
   const BASE_DELAY_MS = 750;
   const MAX_DELAY_MS = 8000;
 
-  // Step 8: Auth-like close detection
-  const isAuthLikeClose = (event) => {
-    const code = Number(event?.code);
-    return code === 4401 || code === 1006;
-  };
-
-  // ✅ New Code
-  // Step 9: Invite/session join guard close detection
-  const isJoinGuardClose = (event) => {
-    const code = Number(event?.code);
-
-    // Step 1: Prefer explicit server close codes
-    if ([4403, 4404, 4408].includes(code)) return true;
-
-    // Step 2: If neither invite nor sessionKey is present, treat as guard failure
-    if (!inviteId && !sessionKey) return true;
-
-    return false;
-  };
-
-  // ✅ New Code
-  // Step 10: Close -> user friendly
-  const joinGuardMessageFromClose = (event) => {
-    const code = Number(event?.code);
-
-    if (!inviteId && !sessionKey) {
-      return {
-        title: "Invite or session required",
-        detail:
-          "Hosts must enter via Home (session). Invitees must accept an invite from Notifications.",
-        code,
-      };
-    }
-
-    if (code === 4408) {
-      return {
-        title: "Invite expired",
-        detail: "This invite is no longer valid. Ask your friend to send a new one.",
-        code,
-      };
-    }
-
-    if (code === 4403) {
-      return {
-        title: "Not authorized",
-        detail:
-          "This invite doesn’t belong to your account. Make sure you’re logged into the correct user.",
-        code,
-      };
-    }
-
-    if (code === 4404) {
-      return {
-        title: "Invite invalid",
-        detail: "This invite could not be found or is no longer valid.",
-        code,
-      };
-    }
-
-    return {
-      title: "Unable to join lobby",
-      detail: "This lobby cannot be joined with the current link.",
-      code,
-    };
-  };
-
-  // Step 11: Cleanup socket + timers
-  const cleanupSocket = () => {
+  // Step 6: Cleanup
+  const cleanupSocket = useCallback(() => {
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
@@ -149,274 +75,349 @@ const Lobby = () => {
       }
       socketRef.current = null;
     }
+  }, []);
 
-    setSocket(null);
-  };
+  // Step 7: Message handlers
+  const handleGameUpdate = useCallback(
+    (data) => {
+      if (!data?.board_state || !data?.current_turn) {
+        showToast("error", "Failed to update the game.");
+        return;
+      }
 
-  // Step 12: Message router
-  const handleWebSocketMessage = (event) => {
-    const data = JSON.parse(event.data);
+      const playerRole =
+        user?.id === data?.player_x?.id
+          ? "X"
+          : user?.id === data?.player_o?.id
+          ? "O"
+          : "Spectator";
 
-    const actions = {
-      connection_success: () => showToast("success", data.message),
-      chat_message: () =>
-        lobbyDispatch({ type: "ADD_MESSAGE", payload: data.message }),
-      player_list: () =>
-        lobbyDispatch({ type: "PLAYER_LIST", payload: data.players }),
-      game_start_acknowledgment: () => handleGameStartAcknowledgment(data),
-      game_update: () => handleGameUpdate(data),
-      error: () => showToast("error", data.message || "An error occurred."),
-    };
+      gameDispatch({
+        type: "SET_GAME",
+        payload: {
+          board_state: data.board_state,
+          current_turn: data.current_turn,
+          winner: data.winner,
+          player_x: data.player_x || { id: null, first_name: "Waiting..." },
+          player_o: data.player_o || { id: null, first_name: "Waiting..." },
+          player_role: playerRole,
+        },
+      });
+    },
+    [gameDispatch, user?.id]
+  );
 
-    const action = actions[data.type];
-    if (action) action();
-  };
+  const handleGameStartAcknowledgment = useCallback(
+    (data) => {
+      showToast("success", data?.message || "Game starting...");
 
-  // ✅ New Code
-  // Step 13: Game start ack -> route to live game (preserve invite/sessionKey)
-  const handleGameStartAcknowledgment = (data) => {
-    showToast("success", data.message);
+      gameDispatch({
+        type: "SET_GAME",
+        payload: {
+          game_id: data.game_id,
+          current_turn: data.current_turn,
+          board_state: "_________",
+          winner: null,
+        },
+      });
 
-    gameDispatch({
-      type: "SET_GAME",
-      payload: {
-        game_id: data.game_id,
-        current_turn: data.current_turn,
-        board_state: "_________",
-        winner: null,
-      },
-    });
+      const liveInviteId = new URLSearchParams(window.location.search).get("invite");
+      const liveSessionKey = new URLSearchParams(window.location.search).get(
+        "sessionKey"
+      );
 
-    const liveInviteId = new URLSearchParams(window.location.search).get("invite");
-    const liveSessionKey = new URLSearchParams(window.location.search).get("sessionKey");
+      if (liveInviteId) {
+        sessionStorage.setItem(`invite:${data.game_id}`, String(liveInviteId));
+      }
 
-    if (liveInviteId) {
-      sessionStorage.setItem(`invite:${data.game_id}`, String(liveInviteId));
-    }
+      // Step 1: Preserve lobbyId for the game route
+      const nextUrl = liveInviteId
+        ? buildInviteGameUrl({
+            gameId: data.game_id,
+            inviteId: liveInviteId,
+            lobbyId: gameId,
+          })
+        : `/games/${data.game_id}?lobby=${encodeURIComponent(String(gameId))}${
+            liveSessionKey
+              ? `&sessionKey=${encodeURIComponent(String(liveSessionKey))}`
+              : ""
+          }`;
 
-    const nextUrl = liveInviteId
-      ? buildInviteGameUrl({
-          gameId: data.game_id,
-          inviteId: liveInviteId,
-          lobbyId: gameId,
-        })
-      : `/games/${data.game_id}?lobby=${encodeURIComponent(
-          String(gameId)
-        )}${liveSessionKey ? `&sessionKey=${encodeURIComponent(liveSessionKey)}` : ""}`;
+      navigate(nextUrl);
+    },
+    [gameDispatch, navigate, gameId]
+  );
 
-    navigate(nextUrl);
-  };
+  const handleWebSocketMessage = useCallback(
+    (event) => {
+      const data = JSON.parse(event.data);
 
-  // Step 14: Game update
-  const handleGameUpdate = (data) => {
-    if (!data.board_state || !data.current_turn) {
-      showToast("error", "Failed to update the game.");
-      return;
-    }
+      const actions = {
+        // Step 1: Session message
+        session_established: () => {
+          if (data?.sessionKey && data?.lobbyId) {
+            sessionStorage.setItem(
+              `sessionKey:${String(data.lobbyId)}`,
+              String(data.sessionKey)
+            );
+          }
+        },
 
-    const playerRole =
-      user?.id === data.player_x?.id
-        ? "X"
-        : user?.id === data.player_o?.id
-        ? "O"
-        : "Spectator";
+        // Step 2: Player list (server uses update_player_list)
+        update_player_list: () => {
+          lobbyDispatch({ type: "PLAYER_LIST", payload: data.players || [] });
+        },
 
-    gameDispatch({
-      type: "SET_GAME",
-      payload: {
-        board_state: data.board_state,
-        current_turn: data.current_turn,
-        winner: data.winner,
-        player_x: data.player_x || { id: null, first_name: "Waiting..." },
-        player_o: data.player_o || { id: null, first_name: "Waiting..." },
-        player_role: playerRole,
-      },
-    });
-  };
+        // Step 3: Backward compat if ever emitted
+        player_list: () => {
+          lobbyDispatch({ type: "PLAYER_LIST", payload: data.players || [] });
+        },
 
-  // ✅ New Code
-  // Step 15: Connect WS with invite/sessionKey + refresh-before-connect + controlled reconnect
-  const connectLobbySocket = async ({ forceRefresh = false } = {}) => {
-    if (!gameId) return;
+        // Step 4: Chat
+        chat_message: () => {
+          lobbyDispatch({ type: "ADD_MESSAGE", payload: data.message });
+        },
 
-    // Step 1: Clear any previous join error on new attempts
-    setJoinError(null);
+        // Step 5: Start game
+        game_start_acknowledgment: () => handleGameStartAcknowledgment(data),
 
-    // Step 2: Close any existing socket
-    cleanupSocket();
+        // Step 6: Game updates
+        game_update: () => handleGameUpdate(data),
 
-    // Step 3: Ensure a fresh access token for handshake
-    const token = await ensureFreshAccessToken({
-      minTtlSeconds: forceRefresh ? 999999999 : 60,
-    });
+        // Step 7: Errors
+        error: () => {
+          showToast("error", data?.message || "An error occurred.");
+        },
 
-    if (!token) {
-      showToast("error", "You must be logged in to join the lobby.");
-      navigate("/login");
-      return;
-    }
+        // Optional legacy
+        connection_success: () => showToast("success", data?.message),
+      };
 
-    // Step 4: Join guard on client side (don’t even attempt WS if missing both)
+      const action = actions[data.type];
+      if (action) action();
+    },
+    [handleGameStartAcknowledgment, handleGameUpdate, lobbyDispatch]
+  );
+
+  // Step 8: Join guard helpers
+  const joinGuardMessageFromClose = useCallback(() => {
     if (!inviteId && !sessionKey) {
-      const msg = {
+      return {
         title: "Invite or session required",
         detail:
-          "Hosts must enter via Home (session). Invitees must accept an invite from Notifications.",
+          "Hosts must enter via Home (sessionKey). Invitees must join from an invite link.",
         code: 0,
       };
-      setJoinError(msg);
-      showToast("error", msg.title);
-      return;
     }
 
-    // Step 5: Build URL from config + include invite OR sessionKey
-    const qs = new URLSearchParams();
-    qs.set("token", token);
-
-    if (inviteId) qs.set("invite", inviteId);
-    if (!inviteId && sessionKey) qs.set("sessionKey", sessionKey);
-
-    const wsUrl = `${config.websocketBaseUrl}/lobby/${gameId}/?${qs.toString()}`;
-
-    console.log("[Lobby] WS connecting:", wsUrl);
-
-    const webSocket = new WebSocket(wsUrl);
-
-    socketRef.current = webSocket;
-    setSocket(webSocket);
-
-    webSocket.onopen = () => {
-      console.log("[Lobby] WebSocket connected.");
-      reconnectAttemptRef.current = 0;
-      authRetryAttemptRef.current = false;
+    return {
+      title: "Unable to join lobby",
+      detail: "This lobby cannot be joined with the current link.",
+      code: 0,
     };
+  }, [inviteId, sessionKey]);
 
-    webSocket.onmessage = (event) => handleWebSocketMessage(event);
+  // Step 9: Connect socket
+  const connectLobbySocket = useCallback(
+    async ({ forceRefresh = false } = {}) => {
+      if (!gameId) return;
 
-    webSocket.onerror = (error) => {
-      console.error("[Lobby] WebSocket encountered an error:", error);
-    };
+      // Step 1: Clear errors + cleanup old socket
+      setJoinError(null);
+      cleanupSocket();
 
-    webSocket.onclose = (event) => {
-      console.log("[Lobby] WebSocket disconnected.", event?.code);
-
-      // Step 6: Join guard closes should NOT reconnect
-      if (isJoinGuardClose(event)) {
-        const msg = joinGuardMessageFromClose(event);
+      // Step 2: Client-side guard
+      if (!inviteId && !sessionKey) {
+        const msg = joinGuardMessageFromClose();
         setJoinError(msg);
         showToast("error", msg.title);
         return;
       }
 
-      // Step 7: Auth-like close? Try ONE forced refresh reconnect
-      if (isAuthLikeClose(event) && !authRetryAttemptRef.current) {
-        authRetryAttemptRef.current = true;
+      // Step 3: Ensure fresh token
+      const token = await ensureFreshAccessToken({
+        minTtlSeconds: forceRefresh ? 999999999 : 60,
+      });
+
+      if (!token) {
+        showToast("error", "You must be logged in to join the lobby.");
+        navigate("/login");
+        return;
+      }
+
+      // Step 4: Build URL (MUST match backend routing: /ws/game/<id>/)
+      const wsUrl = getWebSocketURL({
+        id: gameId,
+        token,
+        isLobby: true,
+        inviteId: inviteId || null,
+        sessionKey: !inviteId ? sessionKey || null : null,
+        lobbyId: gameId, // stable lobby id
+      });
+
+      console.log("[Lobby] WS connecting:", wsUrl);
+
+      const webSocket = new WebSocket(wsUrl);
+      socketRef.current = webSocket;
+
+      webSocket.onopen = () => {
+        console.log("[Lobby] WebSocket connected.");
+        reconnectAttemptRef.current = 0;
+        authRetryAttemptRef.current = false;
+
+        // ✅ DO NOT SEND join_lobby or update_user_list
+        // Your backend closes with 4003 on unsupported message types.
+        // The server already emits update_player_list on connect.
+      };
+
+      webSocket.onmessage = handleWebSocketMessage;
+
+      webSocket.onerror = (error) => {
+        console.error("[Lobby] WebSocket encountered an error:", error);
+      };
+
+      webSocket.onclose = (event) => {
+        console.log("[Lobby] WebSocket disconnected.", event?.code);
+
+        const code = Number(event?.code);
+
+        // Step 1: Invalid message/payload -> stop (no reconnect loop)
+        if (code === 4003) {
+          showToast("error", "Lobby socket closed: invalid message type/payload.");
+          return;
+        }
+
+        // Step 2: Explicit auth close -> refresh once
+        if (code === 4401 && !authRetryAttemptRef.current) {
+          authRetryAttemptRef.current = true;
+          reconnectTimerRef.current = setTimeout(async () => {
+            await connectLobbySocket({ forceRefresh: true });
+          }, 250);
+          return;
+        }
+
+        // Step 3: Backoff reconnect (non-auth, non-4003)
+        reconnectAttemptRef.current += 1;
+        if (reconnectAttemptRef.current > MAX_RECONNECT_ATTEMPTS) {
+          console.warn(
+            `[Lobby] WS: max reconnect attempts reached (${MAX_RECONNECT_ATTEMPTS}).`
+          );
+          return;
+        }
+
+        const backoff = Math.min(
+          BASE_DELAY_MS * 2 ** (reconnectAttemptRef.current - 1),
+          MAX_DELAY_MS
+        );
 
         reconnectTimerRef.current = setTimeout(async () => {
-          await connectLobbySocket({ forceRefresh: true });
-        }, 250);
+          await connectLobbySocket({ forceRefresh: false });
+        }, backoff);
+      };
+    },
+    [
+      BASE_DELAY_MS,
+      MAX_DELAY_MS,
+      MAX_RECONNECT_ATTEMPTS,
+      cleanupSocket,
+      connectLobbySocket,
+      gameId,
+      getWebSocketURL,
+      handleWebSocketMessage,
+      inviteId,
+      joinGuardMessageFromClose,
+      navigate,
+      sessionKey,
+    ]
+  );
 
-        return;
-      }
-
-      // Step 8: Controlled backoff reconnect
-      reconnectAttemptRef.current += 1;
-
-      if (reconnectAttemptRef.current > MAX_RECONNECT_ATTEMPTS) {
-        console.warn(
-          `[Lobby] WS: max reconnect attempts reached (${MAX_RECONNECT_ATTEMPTS}).`
-        );
-        return;
-      }
-
-      const backoff = Math.min(
-        BASE_DELAY_MS * 2 ** (reconnectAttemptRef.current - 1),
-        MAX_DELAY_MS
-      );
-
-      reconnectTimerRef.current = setTimeout(async () => {
-        await connectLobbySocket({ forceRefresh: false });
-      }, backoff);
-    };
-  };
-
-  // Step 16: Establish WebSocket connection for the lobby.
+  // Step 10: Mount/unmount WS by route
   useEffect(() => {
     reconnectAttemptRef.current = 0;
     authRetryAttemptRef.current = false;
 
+    // eslint-disable-next-line no-unused-expressions
     connectLobbySocket({ forceRefresh: false });
 
     return () => {
       cleanupSocket();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, inviteId, sessionKey]);
+  }, [connectLobbySocket, cleanupSocket, gameId, inviteId, sessionKey]);
 
-  // Step 17: Handles sending chat messages.
+  // Step 11: Chat send
   const handleSendMessage = () => {
     const ws = socketRef.current;
+    if (!message.trim()) return;
 
-    if (message.trim() && ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(
-        JSON.stringify({
-          type: "chat_message",
-          message,
-        })
-      );
-      setMessage("");
-    }
-  };
-
-  // Step 18: Handles starting the game.
-  const handleStartGame = () => {
-    if (!isLobbyFull) {
-      showToast("error", "You need at least 2 players to start the game.");
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      showToast("error", "Lobby socket is not connected.");
       return;
     }
 
-    socketRef.current?.send(
+    ws.send(
       JSON.stringify({
-        type: "start_game",
+        type: "chat_message",
+        message,
       })
     );
+    setMessage("");
   };
 
-  // Step 19: Handles leaving the lobby.
+  // Step 12: Start game
+  const handleStartGame = () => {
+    if (!isLobbyFull) {
+      showToast("error", "You need 2 players to start the game.");
+      return;
+    }
+
+    const ws = socketRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      showToast("error", "Lobby socket is not connected.");
+      return;
+    }
+
+    ws.send(JSON.stringify({ type: "start_game" }));
+  };
+
+  // Step 13: Leave lobby
   const handleLeaveLobby = () => {
-    socketRef.current?.send(
-      JSON.stringify({
-        type: "leave_lobby",
-      })
-    );
+    const ws = socketRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "leave_lobby" }));
+    }
     navigate("/");
   };
 
-  // Step 20: Copies the lobby invite link to the clipboard.
+  // Step 14: Copy correct link (preserve invite/sessionKey)
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/lobby/${gameId}`);
+    navigator.clipboard.writeText(
+      `${window.location.origin}/lobby/${gameId}${location.search}`
+    );
     showToast("success", "Invite link copied to clipboard!");
   };
 
-  // Step 21: Auto scroll chat
+  // Step 15: Auto-scroll chat
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [state.messages]);
+  }, [state?.messages]);
 
-  // Step 22: Render players list
-  const renderPlayersList = useMemo(
-    () => (
+  // Step 16: Render players list
+  const renderPlayersList = useMemo(() => {
+    const players = state?.players || [];
+
+    return (
       <div className="players-list">
         {Array.from({ length: MAX_PLAYERS }).map((_, index) => {
-          const player = state.players[index];
+          const player = players[index];
+
           return (
             <div key={index} className="player-slot">
               {player ? (
                 <div className="player-details">
                   <div className="player-avatar">
-                    {player.first_name?.charAt(0).toUpperCase()}
+                    {player?.first_name?.charAt(0)?.toUpperCase?.() || "?"}
                   </div>
                   <div className="player-name">{player.first_name}</div>
                 </div>
@@ -429,13 +430,12 @@ const Lobby = () => {
           );
         })}
       </div>
-    ),
-    [state.players]
-  );
+    );
+  }, [MAX_PLAYERS, handleCopyLink, state?.players]);
 
   return (
     <div className="lobby-container">
-      {/* Step 23: Optional join error banner */}
+      {/* Step 17: Join error banner */}
       {joinError ? (
         <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-red-200/80">
           <div className="font-semibold">
@@ -452,9 +452,9 @@ const Lobby = () => {
 
         <div className="chat-section">
           <div className="chat-messages" ref={chatContainerRef}>
-            {state.messages.map((msg, idx) => (
+            {(state?.messages || []).map((msg, idx) => (
               <div key={idx} className="chat-message">
-                <strong>{msg.username}:</strong> {msg.message}
+                <strong>{msg?.username || "User"}:</strong> {msg?.message || ""}
               </div>
             ))}
           </div>

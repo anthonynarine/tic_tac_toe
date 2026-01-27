@@ -149,12 +149,7 @@ export const DirectMessageProvider = ({ children }) => {
     allowWhenClosed = false,
   }) => {
     // Step 1: Hard gate — DM socket only while drawer is open
-    if (!isDMOpenRef.current) {
-      return null;
-    }
-
-      // Step 1: Hard gate — only block if caller didn't explicitly allow it
-    if (!allowWhenClosed && !isDMOpenRef.current) {
+    if (!isDMOpenRef.current && !allowWhenClosed) {
       return null;
     }
 
@@ -380,7 +375,7 @@ export const DirectMessageProvider = ({ children }) => {
             friend,
             preloadMessages: true,
             forceRefresh: false,
-            allowWhenClosed: true,
+            allowWhenClosed: false,
           }),
         closeChat,
         sendMessage,

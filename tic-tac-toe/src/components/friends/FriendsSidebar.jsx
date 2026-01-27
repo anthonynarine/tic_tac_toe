@@ -1,4 +1,5 @@
 // # Filename: src/components/friends/FriendsSidebar.jsx
+// ✅ New Code
 
 import React, { useEffect, useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +29,7 @@ import styles from "./FriendsSidebar.module.css";
 export default function FriendsSidebar() {
   const navigate = useNavigate();
 
-  const { isSidebarOpen, setDMOpen, isDMOpen } = useUI(); // ✅ pull isDMOpen
+  const { isSidebarOpen, setDMOpen, isDMOpen } = useUI();
   const { friends, pending, acceptRequest, declineRequest, refreshFriends } =
     useFriends();
 
@@ -37,18 +38,16 @@ export default function FriendsSidebar() {
   const { logout } = useAuth();
   const { createNewGame } = useGameCreation();
 
-  // ✅ New Code
-  // Step 1: Stage the friend we intend to connect to AFTER drawer is open
+  // # Step 1: Stage the friend we intend to connect to AFTER drawer is open
   const [pendingFriend, setPendingFriend] = useState(null);
 
-  // Step 2: Refresh friends on mount
+  // # Step 2: Refresh friends on mount
   useEffect(() => {
     refreshFriends();
   }, [refreshFriends]);
 
   /**
-   * ✅ New Code
-   * Step 3: Intent-only handler (no socket calls here)
+   * # Step 3: Intent-only handler (no socket calls here)
    * - Opens UI immediately
    * - Stores friend intent
    */
@@ -64,14 +63,13 @@ export default function FriendsSidebar() {
   );
 
   /**
-   * ✅ New Code
-   * Step 4: Connect ONLY once the UI state says the drawer is open.
-   * This removes the “click twice” race.
+   * # Step 4: Connect ONLY once the UI state says the drawer is open.
+   * Removes the “click twice” race.
    */
   useEffect(() => {
     if (!isDMOpen || !pendingFriend) return;
 
-    // Step 1: Defer one tick so UI state + refs settle everywhere
+    // # Step 1: Defer one tick so UI state + refs settle everywhere
     const t = setTimeout(async () => {
       try {
         await openChat(pendingFriend);
@@ -85,11 +83,20 @@ export default function FriendsSidebar() {
     return () => clearTimeout(t);
   }, [isDMOpen, pendingFriend, openChat]);
 
-  // Step 5: Game actions
+  // # Step 5: Game actions
   const startMultiplayerGame = useCallback(async () => {
     try {
       const newGame = await createNewGame(user?.first_name || "Player", false);
-      if (newGame) navigate(`/lobby/${newGame.id}`);
+      if (!newGame?.id) return;
+
+      // ✅ Host lobby entry invariant: must include ?sessionKey=...
+      const params = new URLSearchParams();
+      if (newGame?.sessionKey) {
+        params.set("sessionKey", String(newGame.sessionKey));
+      }
+
+      const suffix = params.toString() ? `?${params.toString()}` : "";
+      navigate(`/lobby/${newGame.id}${suffix}`);
     } catch (err) {
       console.error("Multiplayer error:", err);
     }
@@ -98,7 +105,7 @@ export default function FriendsSidebar() {
   const startAIGame = useCallback(async () => {
     try {
       const newGame = await createNewGame(user?.first_name || "Player", true);
-      if (newGame) navigate(`/games/${newGame.id}`);
+      if (newGame?.id) navigate(`/games/${newGame.id}`);
     } catch (err) {
       console.error("AI game error:", err);
     }
@@ -106,7 +113,7 @@ export default function FriendsSidebar() {
 
   const goHome = useCallback(() => navigate("/"), [navigate]);
 
-  // Step 6: Invite v2
+  // # Step 6: Invite v2 (HTTPS create, Notification WS delivers)
   const handleInvite = useCallback(
     async (friend) => {
       try {
@@ -120,11 +127,27 @@ export default function FriendsSidebar() {
           gameType: "tic_tac_toe",
         });
 
-        const lobbyId = result?.lobbyId;
-        const inviteId = result?.invite?.inviteId;
-        if (!lobbyId || !inviteId) return;
+        // # Step 1: Normalize response (supports minor backend naming drift)
+        const lobbyId =
+          result?.lobbyId || result?.lobby_id || result?.gameId || result?.game_id;
 
-        navigate(buildInviteLobbyUrl({ lobbyId, inviteId }));
+        const inviteId =
+          result?.invite?.inviteId ||
+          result?.invite?.id ||
+          result?.inviteId ||
+          result?.invite_id;
+
+        if (!lobbyId || !inviteId) {
+          console.error(
+            "[Invite v2] Missing lobbyId/inviteId from createInvite response:",
+            result
+          );
+          return;
+        }
+
+        // # Step 2: Sender must enter lobby WITH invite query param
+        const url = buildInviteLobbyUrl({ lobbyId, inviteId });
+        navigate(url);
       } catch (error) {
         console.error("Invite v2: Failed to create invite:", error);
       }
@@ -132,7 +155,7 @@ export default function FriendsSidebar() {
     [navigate, user?.id]
   );
 
-  // Step 7: Pending accept/decline
+  // # Step 7: Pending accept/decline
   const handleAccept = useCallback(
     async (id) => {
       try {
@@ -159,14 +182,18 @@ export default function FriendsSidebar() {
 
   const pendingReceived = pending?.received || [];
 
-  // Step 8: Account actions
+  // # Step 8: Account actions
   const handleLogin = useCallback(() => navigate("/login"), [navigate]);
   const handleProfile = useCallback(() => navigate("/profile"), [navigate]);
   const handleAbout = useCallback(() => navigate("/technical-paper"), [navigate]);
 
   return (
-    <div className={`${styles.friendsSidebar} ${isSidebarOpen ? styles.open : ""}`}>
-      <div className="px-4 pb-4 pt-2 space-y-4">
+    <div
+      className={`${styles.friendsSidebar} ${
+        isSidebarOpen ? styles.open : ""
+      }`}
+    >
+      <div className="px-4 pb-4 pt-7 space-y-4">
         <GamesPanel
           isLoggedIn={isLoggedIn}
           onGoHome={goHome}

@@ -91,7 +91,7 @@ export default function FriendsPanel({
       >
         <div className="flex items-center gap-2 min-w-0">
           <h3 className="text-sm font-medium tracking-wide text-[#1DA1F2] truncate">
-            Friends
+            Friends List
           </h3>
 
           {/* Panel badge: total unread DMs */}

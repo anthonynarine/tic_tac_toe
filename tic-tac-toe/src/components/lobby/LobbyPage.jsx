@@ -1,6 +1,7 @@
 // # Filename: src/components/lobby/LobbyPage.jsx
+// ✅ New Code
 
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useLobbyContext } from "../context/lobbyContext";
 
@@ -14,191 +15,190 @@ import "./lobby.css";
 import { getToken } from "../auth/tokenStore";
 
 /**
- * Lobby Component
+ * LobbyPage
  *
- * Handles game lobby functionality, including WebSocket connection, chat, player management,
- * and initiating the game.
+ * Supports two valid lobby entry modes:
+ * - Host joins with ?sessionKey=...
+ * - Invitee joins with ?invite=...
+ *
+ * WebSocket join guard expects ONE of these.
  */
 const LobbyPage = () => {
-  // Contexts
   const { state, dispatch: lobbyDispatch } = useLobbyContext();
-
-  // Hooks
   const { id: gameId } = useParams();
   const navigate = useNavigate();
-
-
   const location = useLocation();
 
-  // State
   const [message, setMessage] = useState("");
   const [socket, setSocket] = useState(null);
+
   const chatContainerRef = useRef(null);
 
-  // Constants
   const MAX_PLAYERS = 2;
   const isLobbyFull = state.players.length === MAX_PLAYERS;
 
-
-  // Step 1: Always treat invite as URL source of truth
+  // # Step 1: Read URL params (invite OR sessionKey)
   const inviteId = useMemo(() => {
     return new URLSearchParams(location.search).get("invite");
   }, [location.search]);
 
+  const sessionKey = useMemo(() => {
+    return new URLSearchParams(location.search).get("sessionKey");
+  }, [location.search]);
+
+  // # Step 2: Handle WS messages (stable callback)
+  const handleWebSocketMessage = useCallback(
+    (event) => {
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (err) {
+        console.error("[Lobby] Invalid JSON:", err);
+        return;
+      }
+
+      const actions = {
+        chat_message: () =>
+          lobbyDispatch({ type: "ADD_MESSAGE", payload: data.message }),
+        update_player_list: () =>
+          lobbyDispatch({ type: "PLAYER_LIST", payload: data.players }),
+        game_start_acknowledgment: () => {
+          // # Step 1: Preserve join context when navigating into /games/:id
+          const params = new URLSearchParams();
+
+          if (inviteId) params.set("invite", inviteId);
+          if (sessionKey) params.set("sessionKey", sessionKey);
+
+          // # Step 2: Always include lobby id for GamePage redirect logic
+          params.set("lobby", String(gameId));
+
+          navigate(`/games/${data.game_id}?${params.toString()}`);
+        },
+        error: () => showToast("error", data.message || "An error occurred."),
+      };
+
+      const action = actions[data.type];
+      if (action) action();
+      else console.warn(`[Lobby] Unhandled WS type: ${data.type}`);
+    },
+    [gameId, inviteId, sessionKey, lobbyDispatch, navigate]
+  );
+
   /**
    * Establish WebSocket connection for the lobby.
+   *
+   * ✅ Connect if EITHER inviteId or sessionKey exists.
+   * ✅ Pass inviteId/sessionKey into WS URL builder.
    */
-  // Step 2: Connect lobby WebSocket when gameId or inviteId changes
   useEffect(() => {
     const token = getToken("access_token");
 
     if (!token) {
-      console.error("Access token not found. Cannot initialize WebSocket.");
+      console.error("[Lobby] Access token missing. Cannot connect.");
       return () => {};
     }
 
-
-    // Step 3: Invite v2 invariant: lobby ws must include invite
-    if (!inviteId) {
-      showToast("error", "Missing invite. Please re-enter from your Invite Panel.");
+    // # Step 1: Require lobby access context
+    if (!inviteId && !sessionKey) {
+      showToast(
+        "error",
+        "Missing lobby access. Please re-enter from Home or an Invite."
+      );
       navigate("/", { replace: true });
       return () => {};
     }
 
-    const webSocket = new WebSocket(
-      getWebSocketURL({ id: gameId, token, isLobby: true, inviteId })
-    );
+    // # Step 2: Close any previous socket before opening a new one
+    if (socket) {
+      try {
+        socket.close();
+      } catch (err) {
+        console.warn("[Lobby] Failed closing previous socket:", err);
+      }
+    }
 
-    webSocket.onopen = () => console.log("WebSocket connected.");
-    webSocket.onmessage = (event) => handleWebSocketMessage(event);
-    webSocket.onclose = () => console.log("WebSocket disconnected.");
+    // # Step 3: Build WS URL with invite OR sessionKey
+    const wsUrl = getWebSocketURL({
+      id: gameId,
+      token,
+      isLobby: true,
+      inviteId: inviteId || null,
+      sessionKey: sessionKey || null,
+    });
+
+    console.log("[Lobby] WS connecting:", wsUrl);
+
+    const webSocket = new WebSocket(wsUrl);
+
+    webSocket.onopen = () => console.log("[Lobby] WebSocket connected.");
+    webSocket.onmessage = handleWebSocketMessage;
+    webSocket.onclose = (e) =>
+      console.log("[Lobby] WebSocket disconnected.", e?.code);
     webSocket.onerror = (error) =>
-      console.error("WebSocket encountered an error:", error);
+      console.error("[Lobby] WebSocket encountered an error:", error);
 
     setSocket(webSocket);
 
+    // # Step 4: Cleanup on unmount/param change
     return () => {
-      console.log("Cleaning up WebSocket connection...");
-      webSocket.close();
-    };
-
-  }, [gameId, inviteId, navigate]);
-
-  /**
-   * Handles WebSocket messages.
-   *
-   * @param {Object} event - The WebSocket event containing the message data.
-   */
-  const handleWebSocketMessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log("📥 WebSocket message received:", data);
-
-    const actions = {
-      chat_message: () =>
-        lobbyDispatch({ type: "ADD_MESSAGE", payload: data.message }),
-      update_player_list: () =>
-        lobbyDispatch({ type: "PLAYER_LIST", payload: data.players }),
-      game_start_acknowledgment: () => handleGameStartAcknowledgment(data),
-      error: () => showToast("error", data.message || "An error occurred."),
-    };
-
-    const action = actions[data.type];
-    if (action) {
-      action();
-    } else {
-      console.warn(`Unhandled WebSocket message type: ${data.type}`);
-    }
-  };
-
-  /**
-   * Handles the server confirmation the game started and navigates players to /games/:id
-   * while preserving ?invite= (Invite v2 invariant).
-   */
-    const handleGameStartAcknowledgment = (data) => {
-      console.log("🚀 WebSocket received game_start_acknowledgment:", data);
-      // Step 1: Build query params (invite + lobby)
-      const params = new URLSearchParams();
-
-      if (inviteId) {
-        params.set("invite", inviteId);
+      console.log("[Lobby] Cleaning up WebSocket connection...");
+      try {
+        webSocket.close();
+      } catch (err) {
+        console.warn("[Lobby] Cleanup close error:", err);
       }
-      // Step 2: Always include the lobby id (current route param)
-      // gameId here is the lobby route param from useParams()
-      params.set("lobby", String(gameId));
-
-      // Step 3: Navigate to the game route with full context
-      navigate(`/games/${data.game_id}?${params.toString()}`);
     };
+    // ✅ sessionKey must be in deps, or host flow never reconnects correctly
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, inviteId, sessionKey, navigate, handleWebSocketMessage]);
 
-  /**
-   * Handles sending chat messages.
-   */
-  const handleSendMessage = () => {
-    if (message.trim() && socket) {
-      socket.send(
-        JSON.stringify({
-          type: "chat_message",
-          message,
-        })
-      );
-      setMessage("");
-    }
-  };
+  // # Step 3: Send chat message
+  const handleSendMessage = useCallback(() => {
+    if (!message.trim() || !socket) return;
 
-  /**
-   * Sends a ws request to the server to start the game.
-   */
-  const handleStartGame = () => {
+    socket.send(
+      JSON.stringify({
+        type: "chat_message",
+        message,
+      })
+    );
+    setMessage("");
+  }, [message, socket]);
+
+  // # Step 4: Start game
+  const handleStartGame = useCallback(() => {
     if (!isLobbyFull) {
       showToast("error", "You need at least 2 players to start the game.");
       return;
     }
 
-    socket?.send(
-      JSON.stringify({
-        type: "start_game",
-      })
-    );
-  };
+    socket?.send(JSON.stringify({ type: "start_game" }));
+  }, [isLobbyFull, socket]);
 
-  /**
-   * Handles leaving the lobby.
-   */
-  const handleLeaveLobby = () => {
-    socket?.send(
-      JSON.stringify({
-        type: "leave_lobby",
-      })
-    );
+  // # Step 5: Leave lobby
+  const handleLeaveLobby = useCallback(() => {
+    socket?.send(JSON.stringify({ type: "leave_lobby" }));
     navigate("/");
-  };
+  }, [navigate, socket]);
 
-  /**
-   * Copies the lobby invite link to the clipboard.
-   * ✅ Preserve invite in the link.
-   */
-  const handleCopyLink = () => {
-
+  // # Step 6: Copy invite link (preserve current query string)
+  const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(
       `${window.location.origin}/lobby/${gameId}${location.search}`
     );
     showToast("success", "Invite link copied to clipboard!");
-  };
+  }, [gameId, location.search]);
 
-  /**
-   * Auto-scroll chat.
-   */
+  // # Step 7: Auto-scroll chat
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [state.messages]);
 
-  /**
-   * Renders players list.
-   */
-  const playersList = useMemo(
-    () => (
+  // # Step 8: Render players list
+  const playersList = useMemo(() => {
+    return (
       <div className="players-list">
         {Array.from({ length: MAX_PLAYERS }).map((_, index) => {
           const player = state.players[index];
@@ -210,16 +210,18 @@ const LobbyPage = () => {
                 </div>
               ) : (
                 <div className="empty-slot">
-                  <CiCirclePlus className="icon-invite" onClick={handleCopyLink} />
+                  <CiCirclePlus
+                    className="icon-invite"
+                    onClick={handleCopyLink}
+                  />
                 </div>
               )}
             </div>
           );
         })}
       </div>
-    ),
-    [state.players]
-  );
+    );
+  }, [state.players, handleCopyLink]);
 
   return (
     <div className="lobby-container">
@@ -260,7 +262,7 @@ const LobbyPage = () => {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Type a message..."
-              onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+              onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
             />
             <button
               className="send-btn"

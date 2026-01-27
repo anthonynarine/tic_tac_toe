@@ -64,30 +64,19 @@ export const UserProvider = ({ children }) => {
         // Step 4.1: Token source is controlled by tokenStore (cookie/local/session)
         const token = getToken("access_token"); 
 
-        // Step 4.2: Define which routes should NOT require auth
-        // NOTE: /recruiter must be public so recruiters can open two tabs freely
-        const publicRoutes = ["/login", "/register", "/recruiter"]; 
-        const currentPath = window.location.pathname;
-
         const storage = getActiveStorage(); 
 
-        // Step 4.3: If there's no token and user is visiting a protected page
+        // # Step 4.3: No token -> treat as logged out, but DO NOT navigate here.
+        // RequireAuth is responsible for redirecting on protected routes.
         if (!token) {
-            if (!publicRoutes.includes(currentPath)) {
-                // Step 4.3.1: Clear any existing auth state (for THIS storage context)
-                setUser(null);
-                setIsLoggedIn(false);
+        setUser(null);
+        setIsLoggedIn(false);
 
-                storage.removeItem("user"); 
-                storage.setItem("isLoggedIn", "false");
+        storage.removeItem("user");
+        storage.setItem("isLoggedIn", "false");
 
-                // Step 4.3.2: Redirect to login page
-                navigate("/login");
-            }
-
-            // Step 4.3.3: Auth check finished (even if public route)
-            setAuthLoaded(true);
-            return;
+        setAuthLoaded(true);
+        return;
         }
 
         // Step 4.4: Token exists — restore user session from active storage

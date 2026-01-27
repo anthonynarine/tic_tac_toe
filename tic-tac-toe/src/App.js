@@ -1,45 +1,42 @@
-// App.jsx
 import React from "react";
-import { ToastContainer } from "react-toastify";
-import { useLocation } from "react-router-dom";
 
-// Context Providers
-import { UIProvider } from "./components/context/uiContext";
-import { UserProvider } from "./components/context/userContext";
-import { DirectMessageProvider } from "./components/context/directMessageContext";
-import { NotificationProvider } from "./components/context/notificatonContext";
-import { InviteProvider } from "./components/context/inviteContext";
-
-// Route container
 import AppRoutes from "./routes/AppRoutes";
+import { UIProvider } from "./components/context/uiContext";
+import { UserProvider, useUserContext } from "./components/context/userContext";
 
-// Isolated page
-import TechnicalPaper from "./components/technical-paper/TechnicalPaper";
+import { FriendsProvider } from "./components/context/friendsContext";
+import { InviteProvider } from "./components/context/inviteContext";
+import { NotificationProvider } from "./components/context/notificatonContext";
+import { DirectMessageProvider } from "./components/context/directMessageContext";
 
-function App() {
-    const location = useLocation();
+function AuthedProviders({ children }) {
+  const { authLoaded, isLoggedIn } = useUserContext();
 
-    // ✅ Isolated route with zero layout, no providers, no WebSocket
-    if (location.pathname === "/technical-paper") {
-        return <TechnicalPaper />;
-    }
+  // # Step 1: Don’t mount sockets/providers until auth is resolved
+  if (!authLoaded) return children;
 
-    return (
-        <>
-        <ToastContainer />
-        <UIProvider>
-            <UserProvider>
-                <InviteProvider>
-                <DirectMessageProvider>
-                    <NotificationProvider>
-                    <AppRoutes />
-                    </NotificationProvider>
-                </DirectMessageProvider>
-                </InviteProvider>
-            </UserProvider>
-        </UIProvider>
-        </>
-    );
+  // # Step 2: Guests get no WS providers
+  if (!isLoggedIn) return children;
+
+  return (
+    <InviteProvider>
+      <NotificationProvider>
+        <FriendsProvider>
+          <DirectMessageProvider>{children}</DirectMessageProvider>
+        </FriendsProvider>
+      </NotificationProvider>
+    </InviteProvider>
+  );
 }
 
-export default App;
+export default function App() {
+  return (
+    <UserProvider>
+      <UIProvider>
+        <AuthedProviders>
+          <AppRoutes />
+        </AuthedProviders>
+      </UIProvider>
+    </UserProvider>
+  );
+}

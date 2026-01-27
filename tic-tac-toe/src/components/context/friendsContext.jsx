@@ -1,5 +1,6 @@
 // context/friendsContext.jsx
-
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import {
     createContext,
     useContext,
@@ -96,6 +97,23 @@ export const FriendsProvider = ({ children }) => {
         },
         [declineRequest, loadFriendData]
     );
+
+    const location = useLocation();
+    
+    useEffect(() => {
+
+        // # Step 1: Dev-only provider mount logging
+        if (process.env.NODE_ENV === "development") {
+            console.log("[MOUNT] NotificationProvider", location.pathname);
+        }
+
+        return () => {
+            if (process.env.NODE_ENV === "development") {
+            console.log("[UNMOUNT] NotificationProvider", location.pathname);
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, []);
 
     // ✅ STEP 4: Provide full friend-related state and actions
     const value = {

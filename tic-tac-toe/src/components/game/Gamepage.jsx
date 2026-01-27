@@ -1,7 +1,7 @@
-
 // # Filename: src/components/game/GamePage.jsx
+// ✅ New Code
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 
 import GameLoader from "../../utils/gameLoader/Gameloader";
@@ -10,42 +10,75 @@ import GameResult from "./GameResult";
 import ResponsiveBoard from "./board/ResponsiveBoard";
 
 /**
- * GamePage (Multiplayer only)
- * --------------------------------------------
- * This route is WS-backed and MUST be entered via lobby flow.
- * AI games should use /games/ai/:id (HTTP-only) and AIGamePage.
+ * GamePage (Multiplayer ONLY)
+ * --------------------------------------------------
+ * - WS-backed
+ * - Must be entered from lobby flow
+ * - AI games use /games/ai/:id and a DIFFERENT page
  */
-export const GamePage = () => {
+const GamePage = () => {
   const { id: gameId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Step 1: Guard against incorrect direct entry (prevents weird WS state)
-  const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  // 🔒 Prevent double-redirect in StrictMode
+  const didRedirectRef = useRef(false);
+
+  // # Step 1: Read query params safely
+  const query = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search]
+  );
+
   const hasLobby = Boolean(query.get("lobby"));
   const hasSessionKey = Boolean(query.get("sessionKey"));
 
-  // ✅ If user lands on /games/:id without lobby context, redirect to lobby
+  // # Step 2: Redirect logic MUST live in useEffect
+  useEffect(() => {
+    if (didRedirectRef.current) return;
+
+    // Missing required multiplayer context → bounce back to lobby
+    if (!hasLobby && !hasSessionKey && gameId) {
+      didRedirectRef.current = true;
+      navigate(`/lobby/${gameId}`, { replace: true });
+    }
+  }, [hasLobby, hasSessionKey, gameId, navigate]);
+
+  // # Step 3: While redirecting, render nothing
   if (!hasLobby && !hasSessionKey) {
-    navigate(`/lobby/${gameId}`, { replace: true });
     return null;
   }
 
   return (
     <MultiplayerGameManager gameId={gameId}>
-      {({ state, loading, error, handleCellClick, finalizeGame, requestRematch }) => {
-        const { game, isGameOver, winner, winningCombination, cellValues } = state;
+      {({
+        state,
+        loading,
+        error,
+        handleCellClick,
+        finalizeGame,
+        requestRematch,
+      }) => {
+        const {
+          game,
+          isGameOver,
+          winner,
+          winningCombination,
+          cellValues,
+        } = state;
 
-        // Step 2: Determine player role (fallback if not assigned yet)
+        // # Step 4: Determine player role safely
         const playerRole =
-          state.playerRole || (game?.player_x === state.userEmail ? "X" : "O");
+          state.playerRole ||
+          (game?.player_x === state.userEmail ? "X" : "O");
 
-        // Step 3: Disable clicks when game over or not your turn
-        const isDisabled = Boolean(isGameOver || game?.current_turn !== playerRole);
+        // # Step 5: Disable clicks when not your turn or game is over
+        const isDisabled = Boolean(
+          isGameOver || game?.current_turn !== playerRole
+        );
 
-        // Step 4: Multiplayer "Play Again" maps to WS rematch flow
+        // # Step 6: Multiplayer rematch = WS flow
         const handleNewGameClicked = async () => {
-          // Step 1: Multiplayer uses WS rematch flow
           return requestRematch();
         };
 
@@ -71,7 +104,9 @@ export const GamePage = () => {
                   isAI={false}
                   winner={winner}
                   onNewGameClicked={handleNewGameClicked}
-                  onCompleteGame={() => finalizeGame(gameId, winner, state.isCompleted)}
+                  onCompleteGame={() =>
+                    finalizeGame(gameId, winner, state.isCompleted)
+                  }
                 />
               </>
             )}
