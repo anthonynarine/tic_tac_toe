@@ -2,6 +2,7 @@
 
 import logging
 import time
+import random
 from urllib.parse import parse_qs
 from django.apps import apps
 
@@ -247,31 +248,31 @@ class GameConsumer(JsonWebsocketConsumer):
             return
 
         # Step 11: DB-authoritative role sync
-        role = "Spectator"
-        try:
-            GameModel = apps.get_model("game", "Game")  # adjust if needed
-            game = GameModel.objects.only("player_x_id", "player_o_id").get(id=self.game_id)
+        # role = "Spectator"
+        # try:
+        #     GameModel = apps.get_model("game", "Game")  # adjust if needed
+        #     game = GameModel.objects.only("player_x_id", "player_o_id").get(id=self.game_id)
 
-            if game.player_x_id == self.user.id:
-                role = "X"
-            elif game.player_o_id == self.user.id:
-                role = "O"
+        #     if game.player_x_id == self.user.id:
+        #         role = "X"
+        #     elif game.player_o_id == self.user.id:
+        #         role = "O"
 
-            logger.info(
-                "[CONNECT][ROLE_SYNC] game_id=%s user_id=%s role=%s db_x_id=%s db_o_id=%s",
-                self.game_id,
-                self.user.id,
-                role,
-                getattr(game, "player_x_id", None),
-                getattr(game, "player_o_id", None),
-            )
-        except Exception as exc:
-            logger.error(
-                "[CONNECT][ROLE_SYNC] failed. game_id=%s user_id=%s err=%s",
-                self.game_id,
-                self.user.id,
-                exc,
-            )
+        #     logger.info(
+        #         "[CONNECT][ROLE_SYNC] game_id=%s user_id=%s role=%s db_x_id=%s db_o_id=%s",
+        #         self.game_id,
+        #         self.user.id,
+        #         role,
+        #         getattr(game, "player_x_id", None),
+        #         getattr(game, "player_o_id", None),
+        #     )
+        # except Exception as exc:
+        #     logger.error(
+        #         "[CONNECT][ROLE_SYNC] failed. game_id=%s user_id=%s err=%s",
+        #         self.game_id,
+        #         self.user.id,
+        #         exc,
+        #     )
 
         # Step 12: Persist role in Redis
         try:
@@ -439,72 +440,84 @@ class GameConsumer(JsonWebsocketConsumer):
         """
         Handles the game start event and notifies both players in the lobby.
 
-        This method:
-        - Validates the existence of the lobby and the player list.
-        - Ensures exactly two players are present before starting.
-        - Randomizes the starting turn and assigns player roles (X or O).
-        - Initializes the game instance with the assigned players and starting turn.
-        - Sends a game start acknowledgment to all players in the WebSocket group.
+        Production rules:
+        - Lobby roles (X/O) are assigned in Redis during connect.
+        - DB is authoritative for persisted game records (TicTacToeGame).
+        - Start game reads Redis roles and commits them into the DB game record.
         """
         logger.info("GameConsumer.handle_start_game triggered for lobby %s", self.lobby_group_name)
 
-        # Step 1: Validate the lobby existence and player list
+        # Step 1: Pull players WITH roles from Redis (authoritative for lobby)
         try:
-            players = GameUtils.validate_lobby(group_name=self.lobby_group_name)
-        except ValueError as exc:
-            logger.error(exc)
-            self.send_json({"type": "error", "message": str(exc)})
+            players = self.game_lobby_manager.get_players_with_roles(str(self.game_id))
+        except Exception as exc:
+            logger.error("[START_GAME] Failed to fetch players from Redis: %s", exc)
+            self.send_json({"type": "error", "message": "Failed to fetch lobby players."})
             return
 
-        # Step 2: Ensure there are exactly two players in the lobby
-        if len(players) != 2:
+        # Step 2: Ensure exactly two active players (X and O) are present
+        player_x = next((p for p in players if p.get("role") == "X"), None)
+        player_o = next((p for p in players if p.get("role") == "O"), None)
+
+        if not player_x or not player_o:
             logger.warning(
-                "Game start failed: Invalid number of players in %s",
-                self.lobby_group_name,
+                "[START_GAME] Cannot start. Missing X or O. players=%s",
+                players,
             )
             self.send_json(
                 {
                     "type": "error",
-                    "message": "The game requires exactly two players to start.",
+                    "message": "Waiting for 2 players (X and O) to join the lobby.",
                 }
             )
             return
 
-        # Step 3: Randomize the starting turn and assign player roles
-        starting_turn, player_x, player_o = GameUtils.randomize_turn(players=players)
+        # Step 3: Randomize starting turn ONLY (roles are already decided)
+        starting_turn = random.choice(["X", "O"])
 
         logger.info(
-            "Game starting in lobby %s. Player X=%s Player O=%s Starting=%s",
-            self.lobby_group_name,
+            "[START_GAME] Starting. game_id=%s X=%s O=%s starting_turn=%s",
+            self.game_id,
             player_x.get("first_name"),
             player_o.get("first_name"),
             starting_turn,
         )
 
-        # Step 4: Initialize the game instance
+        # Step 4: Persist into DB (TicTacToeGame is authoritative record)
         try:
-            game = GameUtils.initialize_game(
-                game_id=self.game_id,
-                player_x=player_x,
-                player_o=player_o,
-                starting_turn=starting_turn,
-            )
+            TicTacToeGame = apps.get_model("game", "TicTacToeGame")
 
-            # Step 5: Send acknowledgment to frontend
-            async_to_sync(self.channel_layer.group_send)(
-                self.lobby_group_name,
-                {
-                    "type": "game_start_acknowledgment",
-                    "message": "Game has started successfully!",
-                    "game_id": game.id,
-                    "current_turn": starting_turn,
-                },
-            )
+            game = TicTacToeGame.objects.select_for_update().get(id=self.game_id)
+
+            # If you want idempotency: if already started, just re-ack
+            if game.player_x_id and game.player_o_id:
+                logger.info("[START_GAME] Game already has players persisted. game_id=%s", game.id)
+            else:
+                game.player_x_id = int(player_x["id"])
+                game.player_o_id = int(player_o["id"])
+                game.current_turn = starting_turn  # confirm field name matches your model
+                game.status = "in_progress"        # confirm you have this; else remove
+                game.save(update_fields=["player_x", "player_o", "current_turn", "status"])
+
         except Exception as exc:
-            logger.error("Failed to start the game: %s", exc)
+            logger.error("[START_GAME] Failed to persist game start: %s", exc)
             self.send_json(
                 {"type": "error", "message": "Failed to start the game due to a server error."}
             )
+            return
+
+        # Step 5: Broadcast start acknowledgment to entire lobby group
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "game_start_acknowledgment",
+                "message": "Game has started successfully!",
+                "game_id": str(game.id),
+                "current_turn": starting_turn,
+                "player_x": player_x,
+                "player_o": player_o,
+            },
+        )
 
     def game_start_acknowledgment(self, event: dict) -> None:
         """
