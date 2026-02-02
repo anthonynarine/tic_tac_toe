@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useUserContext } from "../components/context/userContext";
+import { useUserContext } from "../context/userContext";
 
 export default function RequireAuth({ children }) {
   const { isLoggedIn, authLoaded } = useUserContext();

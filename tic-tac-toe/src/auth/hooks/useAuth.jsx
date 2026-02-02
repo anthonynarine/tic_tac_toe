@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import useAuthAxios from "../hooks/useAuthAxios";
-import { useUserContext } from "../../context/userContext";
+import { useUserContext } from "../../context/userContext"
 import { useLobbyContext } from "../../context/lobbyContext";
 
 export const resetContext = ({

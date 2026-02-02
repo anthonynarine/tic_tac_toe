@@ -3,6 +3,7 @@ import logging
 # Step 1: Django imports
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
+from django.apps import apps
 
 # Step 2: DRF imports
 from rest_framework import status
@@ -27,14 +28,14 @@ class InviteCreateView(APIView):
 
     Workflow:
       1) Validate to_user_id + game_type
-      2) Create the lobby/game (server authoritative)
+      2) If lobby_id provided: validate lobby exists and can accept invite
+         Else: create the lobby/game (server authoritative)
       3) Create the invite (DB authoritative)
-      4) Return invite + lobbyId so sender can navigate immediately
+      4) Return invite + lobbyId
     """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-
         # Step 1: Validate request payload (MUST include request context for guards)
         serializer = CreateInviteSerializer(
             data=request.data,
@@ -45,44 +46,68 @@ class InviteCreateView(APIView):
         to_user_id = serializer.validated_data["to_user_id"]
         game_type = serializer.validated_data.get("game_type", "tic_tac_toe")
 
+        # ✅ Step 1.5: Optional lobbyId/lobby_id for inviting into an existing lobby
+        lobby_id = serializer.validated_data.get("lobby_id")  # requires serializer update below
+
         # Step 2: Resolve receiver user
         to_user = get_object_or_404(User, id=to_user_id)
 
-        # Step 3: Create lobby/game (Phase 1 supports tic_tac_toe only)
+        # Step 3: Only supports tic_tac_toe
         if game_type != "tic_tac_toe":
             return Response(
                 {"detail": f"Unsupported game_type: {game_type}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Invite-created game:
-        # - is_ai_game=False
-        # - reserve opponent_user immediately (Player O is the receiver)
-        result = create_tictactoe_game(
-            creator_user=request.user,
-            is_ai_game=False,
-            opponent_user=to_user,
-        )
-        game = result["game"]
-        lobby_id = str(game.id)
+        # ✅ Step 4: If lobby_id provided, validate lobby exists + is invit-able
+        if lobby_id:
+            TicTacToeGame = apps.get_model("game", "TicTacToeGame")
+            game = get_object_or_404(TicTacToeGame, id=lobby_id)
 
-        # Step 4: Create invite record (authoritative + WS notify receiver after commit)
+            # Guard: don’t invite into AI games
+            if getattr(game, "is_ai_game", False):
+                return Response(
+                    {"detail": "Cannot invite into an AI game."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Guard: don’t invite if already full/started (both players assigned)
+            player_x_id = getattr(game, "player_x_id", None)
+            player_o_id = getattr(game, "player_o_id", None)
+            if player_x_id and player_o_id:
+                return Response(
+                    {"detail": "Cannot invite: lobby is already full."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            resolved_lobby_id = str(game.id)
+
+        else:
+            # Existing behavior: create a new lobby/game
+            result = create_tictactoe_game(
+                creator_user=request.user,
+                is_ai_game=False,
+                opponent_user=to_user,
+            )
+            game = result["game"]
+            resolved_lobby_id = str(game.id)
+
+        # Step 5: Create invite record
         invite = create_invite(
             from_user=request.user,
             to_user=to_user,
             game_type=game_type,
-            lobby_id=lobby_id,
+            lobby_id=resolved_lobby_id,
         )
 
-        # Step 5: Return invite + lobbyId for sender navigation
+        # Step 6: Return invite + lobbyId for sender navigation
         return Response(
             {
                 "invite": GameInviteSerializer(invite).data,
-                "lobbyId": lobby_id,
+                "lobbyId": resolved_lobby_id,
             },
             status=status.HTTP_201_CREATED,
         )
-
 
 class InviteAcceptView(APIView):
     """
@@ -115,7 +140,6 @@ class InviteAcceptView(APIView):
             status=status.HTTP_200_OK,
         )
 
-
 class InviteDeclineView(APIView):
     """
     POST /api/invites/{id}/decline/
@@ -142,8 +166,6 @@ class InviteDeclineView(APIView):
             {"invite": GameInviteSerializer(declined).data},
             status=status.HTTP_200_OK,
         )
-
-
 
 class InviteInboxView(APIView):
     permission_classes = [IsAuthenticated]

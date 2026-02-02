@@ -4,7 +4,7 @@
 import { useEffect, useRef } from "react";
 
 // Step 1: Ensure WS always uses a fresh access token (supports recruiter mode storage)
-import { ensureFreshAccessToken } from "../../auth/ensureFreshAccessToken"; 
+import { ensureFreshAccessToken } from "../../../auth/ensureFreshAccessToken"; 
 
 /**
  * useFriendStatusSocket

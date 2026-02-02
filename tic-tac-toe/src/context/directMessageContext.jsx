@@ -14,7 +14,7 @@ import {
 
 import { useUserContext } from "./userContext";
 import { useUI } from "../context/uiContext";
-import chatAPI from "../../api/chatAPI";
+import chatAPI from "../api/chatAPI";
 import useAuthAxios from "../auth/hooks/useAuthAxios";
 
 export const DirectMessageContext = createContext(undefined);

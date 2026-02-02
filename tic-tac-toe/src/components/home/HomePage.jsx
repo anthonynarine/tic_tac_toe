@@ -1,10 +1,10 @@
 // # Filename: src/components/home/HomePage.jsx
-// ✅ New Code
+
 
 import React, { useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { showToast } from "../../utils/toast/Toast";
-import { useUserContext } from "../context/userContext";
+import { useUserContext } from "../../context/userContext";
 import useGameCreation from "../game/hooks/useGameCreation";
 import FooterTicker from "./FooterTicker";
 

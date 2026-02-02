@@ -1,12 +1,12 @@
 
 // # Filename: src/components/notifications/InvitePanelContainer.jsx
-// ✅ New Code
+
 
 import React, { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 import InvitePanel from "./InvitePanel";
-import { useInviteContext } from "../context/inviteContext";
+import { useInviteContext } from "../../context/inviteContext";
 import { acceptInvite, declineInvite, fetchInvites } from "../../api/inviteApi";
 
 export default function InvitePanelContainer() {

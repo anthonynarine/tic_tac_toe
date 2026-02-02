@@ -13,7 +13,7 @@ import GuestSidebar from "../components/friends/GuestSidebar";
 import DMDrawer from "../components/messaging/DMDrawer/DMDrawer";
 import LayoutFrame from "./LayoutFrame";
 
-import { useUserContext } from "../components/context/userContext";
+import { useUserContext } from "../context/userContext";
 
 export default function ResponsiveLayout() {
   const { authLoaded, isLoggedIn } = useUserContext();

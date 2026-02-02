@@ -1,13 +1,13 @@
 import React from "react";
 
 import AppRoutes from "./routes/AppRoutes";
-import { UIProvider } from "./components/context/uiContext";
-import { UserProvider, useUserContext } from "./components/context/userContext";
+import { UIProvider } from "./context/uiContext";
+import { UserProvider, useUserContext } from "./context/userContext";
 
-import { FriendsProvider } from "./components/context/friendsContext";
-import { InviteProvider } from "./components/context/inviteContext";
-import { NotificationProvider } from "./components/context/notificatonContext";
-import { DirectMessageProvider } from "./components/context/directMessageContext";
+import { FriendsProvider } from "./context/friendsContext";
+import { InviteProvider } from "./context/inviteContext";
+import { NotificationProvider } from "./context/notificatonContext";
+import { DirectMessageProvider } from "./context/directMessageContext";
 
 function AuthedProviders({ children }) {
   const { authLoaded, isLoggedIn } = useUserContext();

@@ -3,6 +3,7 @@
 
 import logging
 
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
@@ -26,6 +27,7 @@ class CreateInviteSerializer(serializers.Serializer):
 
     to_user_id = serializers.IntegerField()
     game_type = serializers.CharField(max_length=50, default="tic_tac_toe")
+    lobby_id = serializers.CharField(required=False)
 
     def validate_to_user_id(self, value: int) -> int:
         """
@@ -51,6 +53,60 @@ class CreateInviteSerializer(serializers.Serializer):
             raise serializers.ValidationError("Recipient user does not exist.")
 
         return value
+
+    def validate(self, attrs):
+        """
+        Validate optional lobby_id.
+
+        Rules (only when lobby_id is provided):
+        - Lobby must exist
+        - Cannot invite into AI game
+        - Cannot invite into full lobby
+        - Inviter must be a member of the lobby
+        """
+        # Step 1: Accept lobbyId alias (frontend sends lobbyId)
+        if "lobby_id" not in attrs:
+            lobbyId = self.initial_data.get("lobbyId")
+            if lobbyId:
+                attrs["lobby_id"] = str(lobbyId)
+
+        lobby_id = attrs.get("lobby_id")
+        if not lobby_id:
+            return attrs  # nothing else to validate
+
+        # Step 2: Auth guard (consistent with validate_to_user_id)
+        request = self.context.get("request")
+        if not request or not request.user or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
+
+        # Step 3: Resolve lobby/game model (no hard import)
+        TicTacToeGame = apps.get_model("game", "TicTacToeGame")
+
+        try:
+            game = TicTacToeGame.objects.get(id=lobby_id)
+        except TicTacToeGame.DoesNotExist:
+            raise serializers.ValidationError({"lobby_id": "Lobby does not exist."})
+
+        # Step 4: Block AI games
+        if getattr(game, "is_ai_game", False):
+            raise serializers.ValidationError({"lobby_id": "Cannot invite into an AI game."})
+
+        # Step 5: Block full lobbies (both players assigned)
+        player_x_id = getattr(game, "player_x_id", None)
+        player_o_id = getattr(game, "player_o_id", None)
+        if player_x_id and player_o_id:
+            raise serializers.ValidationError({"lobby_id": "Lobby is already full."})
+
+        # Step 6: Ensure inviter is actually in the lobby (defense-in-depth)
+        inviter_id = int(request.user.id)
+        in_lobby = (player_x_id and int(player_x_id) == inviter_id) or (player_o_id and int(player_o_id) == inviter_id)
+
+        # If one slot is filled and it's not inviter, reject.
+        # (If both are empty, this is an odd state; allow for now.)
+        if (player_x_id or player_o_id) and not in_lobby:
+            raise serializers.ValidationError({"lobby_id": "You are not a member of this lobby."})
+
+        return attrs
 
 
 class InviteActionSerializer(serializers.Serializer):

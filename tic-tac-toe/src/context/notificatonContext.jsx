@@ -9,15 +9,14 @@ import React, {
   useCallback,
 } from "react";
 
-import config from "../../config";
+import config from "../config";
 import { useUserContext } from "./userContext";
 import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
 
-// ✅ New Code
 import { useInviteContext } from "./inviteContext";
 
 // Step 1: Invite inbox rehydrate API (REST)
-import { fetchInvites } from "../../api/inviteApi";
+import { fetchInvites } from "../api/inviteApi";
 
 export const NotificationContext = createContext(undefined);
 

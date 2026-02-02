@@ -2,7 +2,7 @@
 // Filename: src/api/inviteApi.js
 
 // Step 1: Use the shared authenticated axios instance
-import authAxios from "../components/auth/authAxios";
+import authAxios from "../auth/authAxios";
 
 /**
  * Invite API

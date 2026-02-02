@@ -1,11 +1,11 @@
 // # Filename: src/components/user/RegisterPage.jsx
-// ✅ New Code
+
 
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 
-import { useAuth } from "../auth/hooks/useAuth";
+import { useAuth } from "../../auth/hooks/useAuth";
 
 const RegistrationPage = () => {
   const { register, isLoading, error } = useAuth();

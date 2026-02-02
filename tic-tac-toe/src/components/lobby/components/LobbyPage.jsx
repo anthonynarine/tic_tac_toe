@@ -10,12 +10,13 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { CiCirclePlus } from "react-icons/ci";
 import { IoIosSend } from "react-icons/io";
 
-import { useLobbyContext } from "../context/lobbyContext";
-import { showToast } from "../../utils/toast/Toast";
-import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
+import { useLobbyContext } from "../../../context/lobbyContext";
+
+import { showToast } from "../../../utils/toast/Toast";
+import { ensureFreshAccessToken } from "../../../auth/ensureFreshAccessToken";
 
 // Step 0: Canonical WS URL helpers (single source of truth)
-import { getLobbyWSUrl, getChatWSUrl } from "../websocket/getWebsocketURL"
+import { getLobbyWSUrl, getChatWSUrl } from "../../../websocket/getWebsocketURL"
 
 // -----------------------------
 // UI helpers

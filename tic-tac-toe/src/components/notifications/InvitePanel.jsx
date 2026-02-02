@@ -1,5 +1,4 @@
 // # Filename: src/components/notifications/InvitePanel.jsx
-// ✅ New Code
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CiCircleChevDown, CiCircleChevUp } from "react-icons/ci";

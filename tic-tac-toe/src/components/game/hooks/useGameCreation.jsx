@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { createNewGameService } from "./CreateGameService";
 import { showToast } from "../../../utils/toast/Toast";
 import { extractErrorMessage } from "../../../utils/error/Error";
-import useAuthAxios from "../../auth/hooks/useAuthAxios"
+import useAuthAxios from "../../../auth/hooks/useAuthAxios";
 
 /**
  * @param {object} authAxios - An axios instance with the auth headers.

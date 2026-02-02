@@ -1,6 +1,6 @@
 // # Filename: src/components/websocket/gameWebsocketActions.jsx
 
-import { showToast } from "../../utils/toast/Toast";
+import { showToast } from "../utils/toast/Toast";
 
 const gameWebsocketActions = (dispatch, navigate, gameId) => ({
   connection_success: (data) => showToast("success", data.message),

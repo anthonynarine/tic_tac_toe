@@ -4,8 +4,8 @@ import React, { useEffect, useMemo } from "react";
 import styles from "./MultiplayerResultModal.module.css";
 import { AiFillHome } from "react-icons/ai";
 import { useNavigate } from "react-router-dom";
-import { useGameWebSocketContext } from "../websocket/GameWebsocketContext";
-import { useCountdown } from "../hooks/ui/useCountdown";
+import { useGameWebSocketContext } from "../../websocket/GameWebsocketContext";
+import { useCountdown } from "../../hooks/ui/useCountdown";
 
 export const MultiplayerResultModal = ({ isGameOver, winner }) => {
   const navigate = useNavigate();

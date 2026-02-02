@@ -4,10 +4,11 @@
 import React, { useEffect, useRef, useReducer, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { GameWebSocketContext } from "./GameWebsocketContext";
-import { showToast } from "../../utils/toast/Toast";
+import { showToast } from "../utils/toast/Toast";
 import gameWebsocketActions from "./gameWebsocketActions";
 import { gameReducer, INITIAL_STATE } from "../reducers/gameReducer";
-import config from "../../config";
+
+import config from "../config";
 import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
 
 /**

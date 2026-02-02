@@ -9,28 +9,28 @@ import ResponsiveLayout from "../layout/ResponsiveLayout";
 import PublicAuthLayout from "../layout/PublicAuthLayout";
 
 import RequireAuth from "./RequireAuth";
-import { useUserContext } from "../components/context/userContext";
+import { useUserContext } from "../context/userContext";
 
 import HomePage from "../components/home/HomePage";
 import LoginPage from "../components/user/LoginPage";
 import SignupPage from "../components/user/RegisterPage";
 
-import Lobby from "../components/lobby/Lobby";
+import Lobby from "../components/lobby/components/Lobby";
 import GamePage from "../components/game/Gamepage";
-import AIGamePage from "../components/game/AIGamePage"; // ✅ IMPORTANT
+import AIGamePage from "../components/game/AIGamePage"; 
 import RecruiterDemoPage from "../components/recruiter/RecruiterDemoPage";
 import TechnicalPaper from "../components/technical-paper/TechnicalPaper";
 
-import { GameWebSocketProvider } from "../components/websocket/GameWebSocketProvider";
+import { GameWebSocketProvider } from "../websocket/GameWebSocketProvider";
 
-import { InviteProvider } from "../components/context/inviteContext";
-import { NotificationProvider } from "../components/context/notificatonContext";
-import { FriendsProvider } from "../components/context/friendsContext";
-import { DirectMessageProvider } from "../components/context/directMessageContext";
-import { LobbyProvider } from "../components/context/lobbyContext";
+import { InviteProvider } from "../context/inviteContext";
+import { NotificationProvider } from "../context/notificatonContext";
+import { FriendsProvider } from "../context/friendsContext";
+import { DirectMessageProvider } from "../context/directMessageContext";
+import { LobbyProvider } from "../context/lobbyContext";
 
 // ✅ IMPORTANT: Lobby requires GameProvider (adjust path if needed)
-import { GameProvider } from "../components/context/gameContext";
+import { GameProvider } from "../context/gameContext";
 
 function AuthedProviders({ children }) {
   const { authLoaded, isLoggedIn } = useUserContext();

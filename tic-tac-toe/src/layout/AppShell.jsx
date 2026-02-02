@@ -1,10 +1,9 @@
 // # Filename: src/components/layout/AppShell.jsx
-// ✅ New Code
 
 import React from "react";
 import "./layout.css";
 import TrinityDrawer from "../components/trinity/TrinityDrawer";
-import { useUI } from "../components/context/uiContext";
+import { useUI } from "../context/uiContext";
 
 const AppShell = ({ children }) => {
   const { isTrinityOpen } = useUI();

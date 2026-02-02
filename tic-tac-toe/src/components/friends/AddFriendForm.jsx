@@ -1,9 +1,8 @@
 // # Filename: src/components/friends/AddFriendForm.jsx
-// ✅ New Code
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { IoAddSharp } from "react-icons/io5";
-import { useFriends } from "../context/friendsContext";
+import { useFriends } from "../../context/friendsContext"
 
 export default function AddFriendForm({ showLabel = true }) {
   const [email, setEmail] = useState("");

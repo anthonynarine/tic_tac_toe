@@ -2,7 +2,7 @@
 // # Filename: src/components/game/managers/MultiplayerGameManager.jsx
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useGameWebSocketContext } from "../../websocket/GameWebsocketContext";
+import { useGameWebSocketContext } from "../../../websocket/GameWebsocketContext";
 import useMultiplayerGameServices from "../hooks/useMultiplayerGameServices";
 import { showToast } from "../../../utils/toast/Toast";
 

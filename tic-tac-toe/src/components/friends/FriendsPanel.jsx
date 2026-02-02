@@ -1,11 +1,10 @@
 // # Filename: src/components/friends/FriendsPanel.jsx
-// ✅ New Code
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CiCircleChevDown, CiCircleChevUp, CiChat1 } from "react-icons/ci";
 import FriendRow from "./FriendRow";
-import { useUI } from "../context/uiContext";
-import { useDirectMessage } from "../context/directMessageContext";
+import { useUI } from "../../context/uiContext";
+import { useDirectMessage } from "../../context/directMessageContext";
 
 export default function FriendsPanel({
   friends = [],

@@ -2,7 +2,7 @@
 
 
 import axios from "axios";
-import config from "../../config";
+import config from "../config";
 
 // Step 1: Authenticated axios instance
 // IMPORTANT: config.apiBaseUrl already ends with /api

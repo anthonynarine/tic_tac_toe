@@ -4,24 +4,24 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 // # Step 1: Axios instances
-import publicAxios from "../auth/publicAxios";
-import authAxios from "../auth/authAxios";
+import publicAxios from "../../auth/publicAxios";
+import authAxios from "../../auth/authAxios";
 
 // # Step 2: Auth helper (must export loginWithTokens from useAuth)
-import { useAuth } from "../auth/hooks/useAuth";
+import { useAuth } from "../../auth/hooks/useAuth";
 
 // # Step 3: Recruiter mode + token store
 import {
   enableRecruiterModeForTab,
   disableRecruiterModeForTab,
   isRecruiterMode,
-} from "../auth/authMode";
+} from "../../auth/authMode";
 
 import {
   getToken,
   removeToken,
   clearAuthCookies,
-} from "../auth/tokenStore";
+} from "../../auth/tokenStore";
 
 // # Step 4: CSS module
 import styles from "./RecruiterDemoPage.module.css";

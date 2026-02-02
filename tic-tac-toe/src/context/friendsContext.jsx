@@ -7,10 +7,10 @@ import {
     useReducer,
     useCallback,
 } from "react";
-import useFriendAPI from "../../api/useFriendAPI"
+import useFriendAPI from "../api/useFriendAPI"
 import { INITIAL_FRIEND_STATE, friendReducer } from "../reducers/friendReducer";
 import { useUserContext } from "../context/userContext";
-import useFriendStatusSocket from "../hooks/realtime/useFriendStatusSocket"
+import useFriendStatusSocket from "../components/friends/hooks/useFriendStatusSocket"
 
 /**
  * Context for managing and accessing friend-related state and actions

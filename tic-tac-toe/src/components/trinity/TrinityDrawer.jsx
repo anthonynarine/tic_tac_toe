@@ -4,8 +4,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import styles from "./TrinityDrawer.module.css";
 import { IoCloseSharp, IoSend } from "react-icons/io5";
-import useAuthAxios from "../auth/hooks/useAuthAxios";
-import { useUI } from "../context/uiContext";
+import useAuthAxios from "../../auth/hooks/useAuthAxios";
+import { useUI } from "../../context/uiContext";
 import TronNeuralRing from "./svg/TronNeuralRing";
 
 /**

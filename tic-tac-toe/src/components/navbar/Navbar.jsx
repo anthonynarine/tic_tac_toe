@@ -1,11 +1,11 @@
 // # Filename: src/components/navbar/Navbar.jsx
-// ✅ New Code
+
 
 import React, { useCallback } from "react";
 import { CiMenuFries } from "react-icons/ci";
 
 import TrinityOverlay from "../trinity/TrinityOverlay";
-import { useUI } from "../context/uiContext";
+import { useUI } from "../../context/uiContext";
 
 export default function Navbar() {
   const { isSidebarOpen, setSidebarOpen, setTrinityOpen } = useUI();

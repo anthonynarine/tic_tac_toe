@@ -1,5 +1,4 @@
 // # Filename: src/components/friends/AddFriendPanel.jsx
-// ✅ New Code
 
 import React, { useCallback, useMemo, useState } from "react";
 import { CiCircleChevDown, CiCircleChevUp } from "react-icons/ci";
