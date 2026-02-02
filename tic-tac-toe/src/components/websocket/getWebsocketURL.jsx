@@ -1,6 +1,79 @@
-// # Filename: src/components/lobby/utils/getWebsocketURL.jsx
-// ✅ New Code
+// # Filename: src/components/websockets/getWebsocketURL.jsx
 
+// Step 1: Shared base builder (scheme + host)
+function getWsBase() {
+  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
+  const host = window.location.host.includes("localhost")
+    ? "localhost:8000"
+    : window.location.host;
+
+  return { scheme, host };
+}
+
+/**
+ * Step 2: Lobby WS URL
+ * Route: /ws/lobby/<lobbyId>/?token=...&invite=... OR &sessionKey=...
+ */
+export function getLobbyWSUrl({ lobbyId, token, inviteId = null, sessionKey = null }) {
+  const { scheme, host } = getWsBase();
+  const safeLobbyId = encodeURIComponent(String(lobbyId));
+  const params = new URLSearchParams();
+
+  params.set("token", token);
+  if (inviteId) params.set("invite", String(inviteId));
+  if (!inviteId && sessionKey) params.set("sessionKey", String(sessionKey));
+
+  return `${scheme}://${host}/ws/lobby/${safeLobbyId}/?${params.toString()}`;
+}
+
+/**
+ * Step 3: Chat WS URL
+ * Route: /ws/chat/lobby/<lobby_name>/?token=...
+ * (Your backend uses lobby_name — you are passing lobbyId as that name.)
+ */
+export function getChatWSUrl({ lobbyId, token }) {
+  const { scheme, host } = getWsBase();
+  const safeLobbyName = encodeURIComponent(String(lobbyId));
+  const params = new URLSearchParams();
+
+  params.set("token", token);
+
+  return `${scheme}://${host}/ws/chat/lobby/${safeLobbyName}/?${params.toString()}`;
+}
+
+/**
+ * Step 4: Game WS URL
+ * Route: /ws/game/<gameId>/?token=...&sessionKey=...&lobby=...
+ * (Invite is kept optional for backward compatibility until FE fully migrates.)
+ */
+export function getGameWSUrl({
+  gameId,
+  token,
+  sessionKey = null,
+  lobbyId = null,
+  inviteId = null,
+}) {
+  const { scheme, host } = getWsBase();
+  const safeGameId = encodeURIComponent(String(gameId));
+  const params = new URLSearchParams();
+
+  params.set("token", token);
+
+  // Prefer sessionKey. Keep invite optional until you fully deprecate it.
+  if (inviteId) params.set("invite", String(inviteId));
+  if (!inviteId && sessionKey) params.set("sessionKey", String(sessionKey));
+
+  // GameConsumer currently expects lobby=<lobbyId> for continuity
+  const stableLobbyId = lobbyId ? String(lobbyId) : String(gameId);
+  params.set("lobby", stableLobbyId);
+
+  return `${scheme}://${host}/ws/game/${safeGameId}/?${params.toString()}`;
+}
+
+/**
+ * Step 5: Backward-compatible default export.
+ * Existing callers pass { id, token, isLobby, inviteId, sessionKey, lobbyId }.
+ */
 export default function getWebSocketURL({
   id,
   token,
@@ -9,28 +82,9 @@ export default function getWebSocketURL({
   sessionKey = null,
   lobbyId = null,
 }) {
-  // Step 1: Determine scheme + host
-  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-  const host = window.location.host.includes("localhost")
-    ? "localhost:8000"
-    : window.location.host;
+  if (isLobby) {
+    return getLobbyWSUrl({ lobbyId: id, token, inviteId, sessionKey });
+  }
 
-  // Step 2: For BOTH lobby + game, your backend uses /ws/game/<game_id>/
-  const safeId = encodeURIComponent(String(id));
-  const params = new URLSearchParams();
-
-  params.set("token", token);
-
-  if (inviteId) params.set("invite", String(inviteId));
-  if (!inviteId && sessionKey) params.set("sessionKey", String(sessionKey));
-
-  // Step 3: GameConsumer expects lobby=<lobbyId> for invite/session continuity
-  // If lobbyId not provided, use id (stable enough for first join)
-  const stableLobbyId = lobbyId ? String(lobbyId) : String(id);
-  params.set("lobby", stableLobbyId);
-
-  const wsUrl = `${scheme}://${host}/ws/game/${safeId}/?${params.toString()}`;
-
-  console.log("📡 WebSocket URL:", wsUrl);
-  return wsUrl;
+  return getGameWSUrl({ gameId: id, token, sessionKey, lobbyId, inviteId });
 }

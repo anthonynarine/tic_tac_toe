@@ -1,9 +1,19 @@
 // # Filename: src/layout/LayoutFrame.jsx
-// ✅ New Code
+// ✅ Updated: layout-owned centering + max-width container
+// Step 1: Sidebar stays in-flow (no padding-left hacks).
+// Step 2: Main column centers route content via a consistent content wrapper.
+// Step 3: Pages can override max width or opt into full-bleed via props.
 
 import React from "react";
 
-export default function LayoutFrame({ header, sidebar, children }) {
+export default function LayoutFrame({
+  header,
+  sidebar,
+  children,
+  contentMaxWidth = "max-w-[1120px]", // tweak globally if you want (980/1040/1120)
+  contentClassName = "", // per-page padding/spacing overrides
+  fullBleed = false, // if true, route content spans full main width
+}) {
   const hasSidebar = Boolean(sidebar);
 
   return (
@@ -26,7 +36,6 @@ export default function LayoutFrame({ header, sidebar, children }) {
         {header ? <div className="shrink-0">{header}</div> : null}
 
         <div className="flex-1 min-h-0 md:flex">
-          {/* ✅ Only render sidebar column if we actually have one */}
           {hasSidebar ? (
             <aside
               className={[
@@ -43,17 +52,32 @@ export default function LayoutFrame({ header, sidebar, children }) {
 
           <main
             className={[
-              "flex-1 min-h-screen md:min-h-0",
-              "relative bg-black",
+              // ✅ IMPORTANT: keep min-h-0 on desktop so children can flex/scroll properly
+              "flex-1 relative bg-black",
+              "min-h-screen md:min-h-0",
               "bg-[radial-gradient(circle_at_50%_20%,rgba(29,161,242,0.14),rgba(0,0,0,0.92)_55%,rgba(0,0,0,1)_100%)]",
             ].join(" ")}
           >
-            {/* ✅ Only render the left seam fade when a sidebar exists */}
             {hasSidebar ? (
               <div className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-black/70 to-transparent" />
             ) : null}
 
-            {children}
+            {/* ✅ New: consistent content wrapper */}
+            <div
+              className={[
+                // Step 1: consistent padding for all route content
+                "h-full min-h-0",
+                "px-3 sm:px-4 md:px-6",
+                "py-4 md:py-6",
+                // Step 2: center inside main column
+                fullBleed ? "" : "flex justify-center",
+                contentClassName,
+              ].join(" ")}
+            >
+              <div className={fullBleed ? "w-full" : `w-full ${contentMaxWidth}`}>
+                {children}
+              </div>
+            </div>
           </main>
         </div>
       </div>

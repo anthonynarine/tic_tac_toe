@@ -20,6 +20,14 @@ from utils.shared.shared_utils_game_chat import SharedUtils
 
 logger = logging.getLogger("game")
 
+GAME_ALLOWED_TYPES = {
+    "move",
+    "sync_state",         
+    "rematch_request",
+    "rematch_accept",
+    "rematch_decline",
+    "rematch_timeout",
+}
 
 def _extract_drf_validation_message(exc: DRFValidationError) -> str:
     """
@@ -65,39 +73,29 @@ class GameConsumer(JsonWebsocketConsumer):
         
     def connect(self) -> None:
         """
-        WebSocket connect for a specific game.
+        Game WebSocket connect for a specific game.
 
-        Session rules (standard):
-        - First join: invite-based
-            /ws/game/<gameId>/?token=...&invite=<uuid>&lobby=<lobbyId>
-        -> validates invite, mints sessionKey, allow-lists user, sends session_established.
-
-        - Subsequent joins (including rematch games): session-based
-            /ws/game/<newGameId>/?token=...&sessionKey=<sessionKey>&lobby=<lobbyId>
-        -> validates sessionKey + allow-list membership.
-
-        Guarantees:
-        - Joins group + accepts once (or closes with a code).
-        - Initializes Redis manager on self.
-        - Tracks player + channel.
-        - Syncs DB-truth role to Redis roles hash.
-        - Broadcasts player list.
+        Production rules (Game WS):
+        - No invite-based join here (invite belongs to Lobby WS).
+        - Requires sessionKey + lobbyId for authorization.
+        - Joins game group only.
+        - Sends authoritative snapshot immediately (game_state).
         """
-        # Step 1: Extract game_id and derive group name
+        # Step 1: Extract game_id and derive GAME group name (not lobby group)
         self.game_id = self.scope["url_route"].get("kwargs", {}).get("game_id")
-        self.lobby_group_name = f"game_lobby_{self.game_id}"
-
         if not self.game_id:
-            self.close(code=4002)
+            self._accept_and_close(code=4002)
             return
+
+        self.game_group_name = f"game_{self.game_id}"
 
         # Step 2: Authenticate user
         self.user = SharedUtils.authenticate_user(self.scope)
         if not self.user:
-            self.close(code=4001)
+            self._accept_and_close(code=4001)
             return
 
-        # Step 3: Parse query string
+        # Step 3: Parse query string (Game WS requires sessionKey + lobby)
         raw_qs = (self.scope.get("query_string") or b"").decode("utf-8")
         qs = parse_qs(raw_qs)
 
@@ -105,221 +103,104 @@ class GameConsumer(JsonWebsocketConsumer):
         lobby_id = (qs.get("lobby") or [None])[0]
         session_key = (qs.get("sessionKey") or [None])[0]
 
-        # Step 4: Stable lobby_id (required for session continuity)
-        stable_lobby_id = str(lobby_id or self.game_id)
-        self.lobby_id = stable_lobby_id
-
-        logger.info(
-            "[CONNECT] user_id=%s game_id=%s group=%s invite=%s lobby=%s has_sessionKey=%s",
-            self.user.id,
-            self.game_id,
-            self.lobby_group_name,
-            invite_id,
-            stable_lobby_id,
-            bool(session_key),
-        )
-
-        # Step 5: Initialize Redis manager on the instance
-        self.game_lobby_manager = RedisGameLobbyManager()
-
-        # Step 6: Authorization path (invite OR sessionKey)
-        minted_session_key = None
-
-        # queue any post-accept message(s) here
-        pending_post_accept_messages: list[dict] = []
-
+        # Step 3a: Reject invite-based connects on Game WS (use Lobby WS for that)
         if invite_id:
-            # Step 6a: Invite-based join (first join)
-            try:
-                validate_invite_for_lobby_join(
-                    user=self.user,
-                    lobby_id=stable_lobby_id,
-                    invite_id=str(invite_id),
-                )
-            except Exception as exc:
-                logger.error(
-                    "[INVITE_GUARD] reject. game_id=%s invite_id=%s user_id=%s err=%s",
-                    self.game_id,
-                    invite_id,
-                    self.user.id,
-                    exc,
-                )
-                self.close(code=4404)
-                return
-
-            # Step 6b: Create/reuse sessionKey + allow-list user
-            try:
-                minted_session_key = self.game_lobby_manager.ensure_session_key(stable_lobby_id)
-                self.game_lobby_manager.add_user_to_session(stable_lobby_id, self.user.id)
-            except Exception as exc:
-                logger.error(
-                    "[SESSION] failed to mint/allow-list. lobby_id=%s user_id=%s err=%s",
-                    stable_lobby_id,
-                    self.user.id,
-                    exc,
-                )
-                self.close(code=4500)
-                return
-
-        else:
-            # Step 6c: Session-based join (rematches / reconnect)
-            if not session_key:
-                logger.warning(
-                    "[SESSION] missing sessionKey and invite. lobby_id=%s user_id=%s",
-                    stable_lobby_id,
-                    self.user.id,
-                )
-                self.close(code=4404)
-                return
-
-            is_valid = False
-            try:
-                is_valid = self.game_lobby_manager.validate_session_key(
-                    lobby_id=stable_lobby_id,
-                    session_key=str(session_key),
-                    user_id=self.user.id,
-                )
-            except Exception as exc:
-                logger.error(
-                    "[SESSION] validation error. lobby_id=%s user_id=%s err=%s",
-                    stable_lobby_id,
-                    self.user.id,
-                    exc,
-                )
-
-            if not is_valid:
-                logger.warning(
-                    "[SESSION] invalid/expired. lobby_id=%s user_id=%s",
-                    stable_lobby_id,
-                    self.user.id,
-                )
-                self.close(code=4408)
-                return
-
-            # refresh allow-list TTL while they are active (optional but useful)
-            try:
-                self.game_lobby_manager.add_user_to_session(stable_lobby_id, self.user.id)
-            except Exception:
-                pass
-
-            # Step 6d: DO NOT send before accept. Queue it.
-            pending_post_accept_messages.append(
-                {
-                    "type": "session_established",
-                    "lobbyId": stable_lobby_id,
-                    "sessionKey": str(session_key),
-                }
+            logger.warning(
+                "[GAME_CONNECT] invite provided on game ws (reject). game_id=%s lobby_id=%s user_id=%s",
+                self.game_id, lobby_id, self.user.id
             )
-
-        # Step 7: Join group
-        async_to_sync(self.channel_layer.group_add)(self.lobby_group_name, self.channel_name)
-
-        # Step 8: Accept connection
-        self.accept()
-        logger.info("[CONNECT] accepted. user_id=%s game_id=%s", self.user.id, self.game_id)
-
-        # Step 8a: Now safe to send any queued post-accept messages
-        for msg in pending_post_accept_messages:
-            self.send_json(msg)
-
-        # Step 9: If we minted a sessionKey, tell the client (store it for rematch)
-        if minted_session_key:
-            self.send_json(
-                {
-                    "type": "session_established",
-                    "lobbyId": stable_lobby_id,
-                    "sessionKey": minted_session_key,
-                }
-            )
-
-        # Step 10: Track player/channel in Redis
-        try:
-            self.game_lobby_manager.add_player(str(self.game_id), self.user)
-            self.game_lobby_manager.add_channel(str(self.game_id), self.channel_name)
-        except Exception as exc:
-            logger.error(
-                "[CONNECT] Redis presence failed. game_id=%s user_id=%s err=%s",
-                self.game_id,
-                self.user.id,
-                exc,
-            )
-            self.send_json({"type": "error", "message": "Failed to join lobby."})
-            self.close(code=4004)
+            self._accept_and_close(code=4003)  # protocol violation
             return
 
-        # Step 11: DB-authoritative role sync
-        # role = "Spectator"
-        # try:
-        #     GameModel = apps.get_model("game", "Game")  # adjust if needed
-        #     game = GameModel.objects.only("player_x_id", "player_o_id").get(id=self.game_id)
+        if not lobby_id or not session_key:
+            logger.warning(
+                "[GAME_CONNECT] missing lobby/sessionKey. game_id=%s lobby_id=%s user_id=%s",
+                self.game_id, lobby_id, self.user.id
+            )
+            self._accept_and_close(code=4404)
+            return
 
-        #     if game.player_x_id == self.user.id:
-        #         role = "X"
-        #     elif game.player_o_id == self.user.id:
-        #         role = "O"
+        self.lobby_id = str(lobby_id)
 
-        #     logger.info(
-        #         "[CONNECT][ROLE_SYNC] game_id=%s user_id=%s role=%s db_x_id=%s db_o_id=%s",
-        #         self.game_id,
-        #         self.user.id,
-        #         role,
-        #         getattr(game, "player_x_id", None),
-        #         getattr(game, "player_o_id", None),
-        #     )
-        # except Exception as exc:
-        #     logger.error(
-        #         "[CONNECT][ROLE_SYNC] failed. game_id=%s user_id=%s err=%s",
-        #         self.game_id,
-        #         self.user.id,
-        #         exc,
-        #     )
+        # Step 4: Initialize Redis manager
+        self.game_lobby_manager = RedisGameLobbyManager()
 
-        # Step 12: Persist role in Redis
+        # Step 5: Validate sessionKey + allow-list membership
         try:
-            self.game_lobby_manager.set_player_role(str(self.game_id), self.user.id, role)
+            is_valid = self.game_lobby_manager.validate_session_key(
+                lobby_id=self.lobby_id,
+                session_key=str(session_key),
+                user_id=self.user.id,
+            )
         except Exception as exc:
             logger.error(
-                "[CONNECT] set_player_role failed. game_id=%s user_id=%s role=%s err=%s",
-                self.game_id,
-                self.user.id,
-                role,
-                exc,
+                "[GAME_CONNECT] session validation error. lobby_id=%s user_id=%s err=%s",
+                self.lobby_id, self.user.id, exc
             )
+            self._accept_and_close(code=4500)
+            return
 
-        # Step 13: Broadcast player list
-        try:
-            self.game_lobby_manager.broadcast_player_list(self.channel_layer, str(self.game_id))
-        except Exception as exc:
-            logger.error(
-                "[CONNECT] broadcast_player_list failed. game_id=%s user_id=%s err=%s",
-                self.game_id,
-                self.user.id,
-                exc,
+        if not is_valid:
+            logger.warning(
+                "[GAME_CONNECT] invalid/expired session. lobby_id=%s user_id=%s",
+                self.lobby_id, self.user.id
             )
+            self._accept_and_close(code=4408)
+            return
+
+        # Optional: refresh allow-list TTL (best effort)
+        try:
+            self.game_lobby_manager.add_user_to_session(self.lobby_id, self.user.id)
+        except Exception:
+            pass
+
+        # Step 6: Join GAME group + accept
+        async_to_sync(self.channel_layer.group_add)(self.game_group_name, self.channel_name)
+        self.accept()
+
+        # Step 7: Load game + determine role (needed for move validation)
+        try:
+            self.game = GameUtils.get_game_instance(game_id=self.game_id)
+        except Exception as exc:
+            logger.error("[GAME_CONNECT] failed to load game. game_id=%s err=%s", self.game_id, exc)
+            self.send_json({"type": "error", "message": "Failed to load game."})
+            self.close(code=4500)
+            return
+
+        # (Optional) compute role for local validation (no Redis roster broadcasting here)
+        self.role = "Spectator"
+        try:
+            GameModel = apps.get_model("game", "Game")
+            game = GameModel.objects.only("player_x_id", "player_o_id").get(id=self.game_id)
+            if game.player_x_id == self.user.id:
+                self.role = "X"
+            elif game.player_o_id == self.user.id:
+                self.role = "O"
+        except Exception:
+            # keep Spectator
+            pass
+
+        # Step 8: Send authoritative snapshot immediately
+        self.send_game_state_snapshot(reason="connect")
 
     def receive_json(self, content: dict, **kwargs) -> None:
         """
-        Handle incoming game-related messages from the WebSocket client.
+        Handle incoming gameplay-related messages from the WebSocket client.
         """
         logger.info("GameConsumer received message: %s", content)
 
-        # Step 1: Validate the incoming message structure.
-        if not SharedUtils.validate_message(content):
-            # do NOT close the socket for a bad message
-            SharedUtils.send_error(self, "Invalid message payload.")
+        # Step 2: Validate structure + enforce allowed message types (gameplay only)
+        if not SharedUtils.validate_message(content, allowed_types=GAME_ALLOWED_TYPES):
+            # IMPORTANT: Do NOT close for bad client payload; just respond
+            self.send_json({"type": "error", "message": "Invalid message payload/type (gameplay socket)."})
             return
 
-        # Step 2: Normalize message type.
-        message_type_raw = content.get("type")
-        if not isinstance(message_type_raw, str):
-            SharedUtils.send_error(self, "Invalid message type.")
-            return
+        # Step 3: Normalize message type
+        message_type = content.get("type", "").lower().strip()
 
-        message_type = message_type_raw.lower()
-
-        # Step 3: Only load game when needed (avoids unnecessary DB hits + false errors)
+        # Step 4: Only load game when needed (gameplay only)
         requires_game = message_type in {
-            "start_game",
+            "sync_state",
             "move",
             "rematch_request",
             "rematch_accept",
@@ -330,193 +211,60 @@ class GameConsumer(JsonWebsocketConsumer):
         if requires_game and not getattr(self, "game", None):
             try:
                 self.game = GameUtils.get_game_instance(game_id=self.game_id)
-                logger.debug(
-                    "GameConsumer loaded game instance: ID=%s is_completed=%s",
-                    self.game.id,
-                    getattr(self.game, "is_completed", None),
-                )
             except Exception as exc:
                 logger.error("Failed to fetch game instance in receive_json: %s", exc)
-                SharedUtils.send_error(self, "Unable to fetch game instance.")
+                self.send_json({"type": "error", "message": "Unable to fetch game instance."})
                 return
 
+        # Step 5: Route gameplay-only messages
         try:
-            # Step 4: Route the message to the appropriate handler based on its type.
-            if message_type == "join_lobby":
-                self.handle_join_lobby(content)
-
-            elif message_type == "start_game":
-                logger.info(
-                    "GameConsumer received start_game for lobby: %s",
-                    self.lobby_group_name,
-                )
-                self.handle_start_game()
-
-            elif message_type == "move":
-                self.handle_move(content)
-
-            elif message_type == "rematch_request":
-                self.handle_rematch_request()
-
-            elif message_type == "rematch_accept":
-                self.handle_rematch_accept()
-
-            elif message_type == "rematch_decline":
-                self.handle_rematch_decline()
-
-            elif message_type == "rematch_timeout":
-                self.handle_rematch_timeout()
-
-            else:
-                SharedUtils.send_error(self, "Invalid message type.")
+            if message_type == "sync_state":
+                self.handle_sync_state()
                 return
+
+            if message_type == "move":
+                self.handle_move(content)
+                return
+
+            if message_type == "rematch_request":
+                self.handle_rematch_request()
+                return
+
+            if message_type == "rematch_accept":
+                self.handle_rematch_accept()
+                return
+
+            if message_type == "rematch_decline":
+                self.handle_rematch_decline()
+                return
+
+            if message_type == "rematch_timeout":
+                self.handle_rematch_timeout()
+                return
+
+            # Should be unreachable due to allowed_types enforcement
+            self.send_json({"type": "error", "message": "Unsupported gameplay message type."})
+            return
 
         except Exception as exc:
             logger.error("Unexpected error in GameConsumer: %s", exc)
-            SharedUtils.send_error(self, f"An unexpected error occurred: {str(exc)}")
-
-    def handle_join_lobby(self, content: dict) -> None:
-        """
-        Handle the join_lobby WebSocket message for multiplayer games.
-
-        Steps:
-        1. Validate game ID in message vs. route.
-        2. Check if lobby already has 2 players.
-        3. Assign role (X/O/Spectator) using Redis.
-        4. Broadcast updated player list.
-        5. Confirm join to the client.
-        """
-        # Step 1: Validate payload game id vs route game id
-        game_id = content.get("gameId")
-        if str(game_id) != str(self.game_id):
-            logger.warning("Game ID mismatch: %s != %s", game_id, self.game_id)
-            self.send_json({"type": "error", "message": "Invalid game ID."})
+            self.send_json({"type": "error", "message": "Server error handling game message."})
             return
 
-        logger.info("User %s attempting to join game %s", self.user.first_name, game_id)
+    def send_game_state_snapshot(self, reason: str = "unknown") -> None:
+        """
+        Sends authoritative game state snapshot to THIS client.
+        """
+        # You can either implement GameUtils.serialize_game_state(...) or inline fields.
+        snapshot = GameUtils.serialize_game_state(self.game)
 
-        # Step 2: Validate player limit (only allow 2 unique users)
-        players = self.game_lobby_manager.get_players(self.game_id)
-        player_ids = [p.get("id") for p in players]
-
-        if len(players) >= 2 and self.user.id not in player_ids:
-            logger.warning(
-                "Game %s already has 2 players. Rejecting user %s.",
-                game_id,
-                self.user.first_name,
-            )
-            self.send_json(
-                {
-                    "type": "error",
-                    "message": "Game is full. Only two players are allowed.",
-                }
-            )
-            return
-
-        # Step 3: Assign role
-        player_role = self.game_lobby_manager.assign_player_role(self.game_id, self.user)
-        logger.info("Assigned role %s to user %s", player_role, self.user.first_name)
-
-        # Step 4: Broadcast updated player list
-        self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.game_id)
-
-        # Step 5: Confirm join
         self.send_json(
             {
-                "type": "join_lobby_success",
-                "message": f"Successfully joined game {self.game_id} as {player_role}.",
-                "player_role": player_role,
+                "type": "game_state",
+                "reason": reason,          # "connect" | "sync_state"
+                "gameId": str(self.game_id),
+                **snapshot,
             }
-        )
-
-        logger.info(
-            "User %s joined game %s as %s",
-            self.user.first_name,
-            self.game_id,
-            player_role,
-        )
-
-    def handle_start_game(self) -> None:
-        """
-        Handles the game start event and notifies both players in the lobby.
-
-        Production rules:
-        - Lobby roles (X/O) are assigned in Redis during connect.
-        - DB is authoritative for persisted game records (TicTacToeGame).
-        - Start game reads Redis roles and commits them into the DB game record.
-        """
-        logger.info("GameConsumer.handle_start_game triggered for lobby %s", self.lobby_group_name)
-
-        # Step 1: Pull players WITH roles from Redis (authoritative for lobby)
-        try:
-            players = self.game_lobby_manager.get_players_with_roles(str(self.game_id))
-        except Exception as exc:
-            logger.error("[START_GAME] Failed to fetch players from Redis: %s", exc)
-            self.send_json({"type": "error", "message": "Failed to fetch lobby players."})
-            return
-
-        # Step 2: Ensure exactly two active players (X and O) are present
-        player_x = next((p for p in players if p.get("role") == "X"), None)
-        player_o = next((p for p in players if p.get("role") == "O"), None)
-
-        if not player_x or not player_o:
-            logger.warning(
-                "[START_GAME] Cannot start. Missing X or O. players=%s",
-                players,
-            )
-            self.send_json(
-                {
-                    "type": "error",
-                    "message": "Waiting for 2 players (X and O) to join the lobby.",
-                }
-            )
-            return
-
-        # Step 3: Randomize starting turn ONLY (roles are already decided)
-        starting_turn = random.choice(["X", "O"])
-
-        logger.info(
-            "[START_GAME] Starting. game_id=%s X=%s O=%s starting_turn=%s",
-            self.game_id,
-            player_x.get("first_name"),
-            player_o.get("first_name"),
-            starting_turn,
-        )
-
-        # Step 4: Persist into DB (TicTacToeGame is authoritative record)
-        try:
-            TicTacToeGame = apps.get_model("game", "TicTacToeGame")
-
-            game = TicTacToeGame.objects.select_for_update().get(id=self.game_id)
-
-            # If you want idempotency: if already started, just re-ack
-            if game.player_x_id and game.player_o_id:
-                logger.info("[START_GAME] Game already has players persisted. game_id=%s", game.id)
-            else:
-                game.player_x_id = int(player_x["id"])
-                game.player_o_id = int(player_o["id"])
-                game.current_turn = starting_turn  # confirm field name matches your model
-                game.status = "in_progress"        # confirm you have this; else remove
-                game.save(update_fields=["player_x", "player_o", "current_turn", "status"])
-
-        except Exception as exc:
-            logger.error("[START_GAME] Failed to persist game start: %s", exc)
-            self.send_json(
-                {"type": "error", "message": "Failed to start the game due to a server error."}
-            )
-            return
-
-        # Step 5: Broadcast start acknowledgment to entire lobby group
-        async_to_sync(self.channel_layer.group_send)(
-            self.lobby_group_name,
-            {
-                "type": "game_start_acknowledgment",
-                "message": "Game has started successfully!",
-                "game_id": str(game.id),
-                "current_turn": starting_turn,
-                "player_x": player_x,
-                "player_o": player_o,
-            },
         )
 
     def game_start_acknowledgment(self, event: dict) -> None:

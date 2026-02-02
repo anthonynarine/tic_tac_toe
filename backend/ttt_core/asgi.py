@@ -1,3 +1,5 @@
+# Filename: backend/ttt_core/asgi.py
+
 import os
 import logging
 
@@ -23,16 +25,18 @@ import game.routing
 import chat.routing
 import friends.routing
 import notifications.routing
+import lobby.routing 
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AllowedHostsOriginValidator(
         JWTWebSocketMiddleware(
             URLRouter(
-                notifications.routing.websocket_urlpatterns +
-                game.routing.websocket_urlpatterns +
-                chat.routing.websocket_urlpatterns +
-                friends.routing.websocket_urlpatterns
+                notifications.routing.websocket_urlpatterns
+                + lobby.routing.websocket_urlpatterns   
+                + game.routing.websocket_urlpatterns
+                + chat.routing.websocket_urlpatterns
+                + friends.routing.websocket_urlpatterns
             )
         )
     ),

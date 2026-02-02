@@ -1,3 +1,4 @@
+// # Filename: src/components/context/lobbyContext.jsx
 import { createContext, useContext, useReducer } from "react";
 import { lobbyReducer, INITIAL_LOBBY_STATE } from "../reducers/lobbyReducer";
 
@@ -30,8 +31,14 @@ export function useLobbyContext() {
 export const LobbyProvider = ({ children }) => {
   const [state, dispatch] = useReducer(lobbyReducer, INITIAL_LOBBY_STATE);
 
-  // Debug  log to confirm initialization
-  console.debug("LobbyProvider initialized with state:", state);
+  // Step 1: Dev-only debug to confirm initialization (avoid render spam in prod)
+  if (process.env.NODE_ENV !== "production") {
+    // This will still log on every render; keep it lightweight.
+    console.debug("LobbyProvider render:", {
+      players: state.players?.length || 0,
+      messages: state.messages?.length || 0,
+    });
+  }
 
   return (
     <LobbyContext.Provider value={{ state, dispatch }}>

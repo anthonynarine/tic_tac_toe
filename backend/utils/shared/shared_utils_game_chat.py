@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Set
 from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 from channels.layers import BaseChannelLayer
@@ -42,66 +42,39 @@ class SharedUtils:
         return None
 
     @staticmethod
-    def validate_message(content: dict) -> bool:
+    def validate_message(content: dict, allowed_types: Optional[Set[str]] = None) -> bool:
         """
-        Validate the incoming WebSocket message content to ensure it conforms to expected format and types.
-
-        Args:
-            content (dict): The WebSocket message payload.
-
-        Returns:
-            bool: True if valid, False otherwise.
+        Validates minimal WS message structure.
+        If allowed_types is provided, enforce membership.
         """
-        logger.debug(f"Validating message: {content}")
-
-        # Step 1: Ensure the message is a dictionary
+        # Step 1: Ensure dict
         if not isinstance(content, dict):
-            logger.warning(f"Invalid format: Expected dict, got {type(content).__name__}")
+            logger.warning("Invalid WS message format: expected dict got %s", type(content).__name__)
             return False
 
-        # Step 2: Require the "type" field
+        # Step 2: Require type string
         message_type = content.get("type")
-        if message_type is None:
-            logger.warning(f"Missing 'type' field in message: {content}")
+        if not isinstance(message_type, str) or not message_type.strip():
+            logger.warning("Invalid WS message: missing/invalid 'type': %s", content)
             return False
 
-        # Step 3: Type must be a string
-        if not isinstance(message_type, str):
-            logger.warning(f"'type' field must be a string, got {type(message_type).__name__}")
+        message_type_norm = message_type.lower().strip()
+
+        # Step 3: Optional allowed types enforcement
+        if allowed_types is not None and message_type_norm not in allowed_types:
+            logger.warning(
+                "Unsupported WS message type=%s allowed=%s",
+                message_type_norm,
+                sorted(list(allowed_types)),
+            )
             return False
 
-        # Step 4: Normalize the type for consistent validation
-        message_type = message_type.lower()
-
-        # Step 5: Define allowed WebSocket message types (from Game and Chat Consumers)
-        valid_types = {
-            "chat_message",
-            "update_user_list",
-            "start_game",
-            "leave_lobby",
-            "game_update",
-            "game_start_acknowledgment",
-            "connection_success",
-            "player_list",
-            "rematch_request",
-            "rematch_accept",
-            "rematch_decline",
-            "error",
-        }
-
-        # Step 6: Extra validation for chat messages
-        if message_type == "chat_message" and "message" not in content:
-            logger.warning(f"'chat_message' must include a 'message' field: {content}")
+        # Step 4: Minimal per-type checks (optional)
+        if message_type_norm == "chat_message" and "message" not in content:
+            logger.warning("'chat_message' missing 'message' field: %s", content)
             return False
 
-        # Step 7: Ensure it's a valid message type
-        if message_type not in valid_types:
-            logger.warning(f"Unsupported message type: {message_type}. Valid types: {valid_types}")
-            return False
-
-        logger.debug("Message validation passed.")
         return True
-
 
     @staticmethod
     def send_error(consumer, message: str, code: int = 4003):

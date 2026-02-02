@@ -120,3 +120,30 @@ class GameUtils:
         elif user == game.player_o:
             return "O"
         return "Spectator"
+
+    @staticmethod
+    def serialize_game_state(game) -> dict:
+        """
+        Step 1: Return a stable, client-safe snapshot of game state.
+        Step 2: Keep keys consistent across versions.
+        Step 3: Do NOT include secrets or server-only fields.
+        """
+        # Adjust field names below to match your Game model.
+        # These getattr calls make it resilient if you refactor model fields later.
+        board = getattr(game, "board", None)
+        current_turn = getattr(game, "current_turn", None)
+        winner = getattr(game, "winner", None)
+        status = getattr(game, "status", None)
+
+        # Optional extras if they exist in your model
+        is_completed = getattr(game, "is_completed", None)
+        winning_line = getattr(game, "winning_line", None)
+
+        return {
+            "board": board,
+            "currentTurn": current_turn,
+            "winner": winner,
+            "status": status,
+            "isCompleted": is_completed,
+            "winningLine": winning_line,
+        }
