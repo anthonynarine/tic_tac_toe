@@ -17,6 +17,7 @@ from invites.guards import validate_invite_for_lobby_join
 from utils.game.game_utils import GameUtils
 from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
 from utils.shared.shared_utils_game_chat import SharedUtils
+from utils.websockets.ws_groups import game_group
 
 logger = logging.getLogger("game")
 
@@ -82,12 +83,15 @@ class GameConsumer(JsonWebsocketConsumer):
         - Sends authoritative snapshot immediately (game_state).
         """
         # Step 1: Extract game_id and derive GAME group name (not lobby group)
-        self.game_id = self.scope["url_route"].get("kwargs", {}).get("game_id")
-        if not self.game_id:
+        raw_game_id = self.scope.get("url_route", {}).get("kwargs", {}).get("game_id")
+        if not raw_game_id:
             self._accept_and_close(code=4002)
             return
 
-        self.game_group_name = f"game_{self.game_id}"
+        self.game_id = str(raw_game_id)
+
+        # ✅ Step 1b: Canonical game group (imported at module top)
+        self.game_group_name = game_group(self.game_id)
 
         # Step 2: Authenticate user
         self.user = SharedUtils.authenticate_user(self.scope)
@@ -95,19 +99,26 @@ class GameConsumer(JsonWebsocketConsumer):
             self._accept_and_close(code=4001)
             return
 
-        # Step 3: Parse query string (Game WS requires sessionKey + lobby)
+        # Step 3: Parse query string (Game WS requires sessionKey + lobbyId)
         raw_qs = (self.scope.get("query_string") or b"").decode("utf-8")
         qs = parse_qs(raw_qs)
 
         invite_id = (qs.get("invite") or [None])[0]
-        lobby_id = (qs.get("lobby") or [None])[0]
+
+        # ✅ Step 3a: Accept lobby param in any common naming
+        lobby_id = (
+            (qs.get("lobby") or [None])[0]
+            or (qs.get("lobbyId") or [None])[0]
+            or (qs.get("lobby_id") or [None])[0]
+        )
+
         session_key = (qs.get("sessionKey") or [None])[0]
 
-        # Step 3a: Reject invite-based connects on Game WS (use Lobby WS for that)
+        # Step 3b: Reject invite-based connects on Game WS (use Lobby WS for that)
         if invite_id:
             logger.warning(
                 "[GAME_CONNECT] invite provided on game ws (reject). game_id=%s lobby_id=%s user_id=%s",
-                self.game_id, lobby_id, self.user.id
+                self.game_id, lobby_id, getattr(self.user, "id", None),
             )
             self._accept_and_close(code=4003)  # protocol violation
             return
@@ -115,12 +126,22 @@ class GameConsumer(JsonWebsocketConsumer):
         if not lobby_id or not session_key:
             logger.warning(
                 "[GAME_CONNECT] missing lobby/sessionKey. game_id=%s lobby_id=%s user_id=%s",
-                self.game_id, lobby_id, self.user.id
+                self.game_id, lobby_id, getattr(self.user, "id", None),
             )
             self._accept_and_close(code=4404)
             return
 
         self.lobby_id = str(lobby_id)
+
+        # ✅ Step 3c: Hard guard — for TicTacToe, lobby id should equal game id
+        # This prevents a valid sessionKey for lobby A being used to connect to game B.
+        if self.lobby_id != self.game_id:
+            logger.warning(
+                "[GAME_CONNECT] lobby/game mismatch (reject). game_id=%s lobby_id=%s user_id=%s",
+                self.game_id, self.lobby_id, self.user.id,
+            )
+            self._accept_and_close(code=4409)
+            return
 
         # Step 4: Initialize Redis manager
         self.game_lobby_manager = RedisGameLobbyManager()
@@ -135,7 +156,7 @@ class GameConsumer(JsonWebsocketConsumer):
         except Exception as exc:
             logger.error(
                 "[GAME_CONNECT] session validation error. lobby_id=%s user_id=%s err=%s",
-                self.lobby_id, self.user.id, exc
+                self.lobby_id, self.user.id, exc,
             )
             self._accept_and_close(code=4500)
             return
@@ -143,7 +164,7 @@ class GameConsumer(JsonWebsocketConsumer):
         if not is_valid:
             logger.warning(
                 "[GAME_CONNECT] invalid/expired session. lobby_id=%s user_id=%s",
-                self.lobby_id, self.user.id
+                self.lobby_id, self.user.id,
             )
             self._accept_and_close(code=4408)
             return
@@ -177,7 +198,6 @@ class GameConsumer(JsonWebsocketConsumer):
             elif game.player_o_id == self.user.id:
                 self.role = "O"
         except Exception:
-            # keep Spectator
             pass
 
         # Step 8: Send authoritative snapshot immediately
@@ -334,9 +354,9 @@ class GameConsumer(JsonWebsocketConsumer):
         if hasattr(winner_value, "id"):
             winner_value = winner_value.id
 
-        # Step 7: Broadcast game update to group
+        # Step 7: Broadcast game update to GAME group (not lobby)
         async_to_sync(self.channel_layer.group_send)(
-            self.lobby_group_name,
+            self.game_group_name,
             {
                 "type": "game_update",
                 "game_id": str(game.id),
@@ -350,7 +370,7 @@ class GameConsumer(JsonWebsocketConsumer):
 
         logger.info(
             "[BROADCAST] game_update -> group=%s game_id=%s board=%s turn=%s winner=%s",
-            self.lobby_group_name,
+            self.game_group_name,
             game.id,
             game.board_state,
             game.current_turn,

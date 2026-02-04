@@ -1,5 +1,5 @@
 # Filename: utils/redis/redis_game_lobby_manager.py
-# ✅ New Code
+
 
 import json
 import logging
@@ -11,6 +11,7 @@ from channels.layers import BaseChannelLayer
 
 from users.models import CustomUser
 from utils.redis.redis_client import get_redis_client
+from utils.websockets.ws_groups import lobby_group
 
 logger = logging.getLogger(__name__)
 
@@ -274,13 +275,19 @@ class RedisGameLobbyManager:
         # Step 3: Merge roles into player list
         return [{**p, "role": roles.get(str(p["id"]), "Spectator")} for p in players]
 
-    def broadcast_player_list(self, channel_layer: BaseChannelLayer, game_id: str) -> None:
-        """Broadcasts updated players+roles list to the lobby group."""
-        players_with_roles = self.get_players_with_roles(game_id)
+    def broadcast_player_list(self, channel_layer, game_id: str) -> None:
+        """
+        Broadcast updated players list to the lobby group.
+        NOTE: game_id is the lobby_id in your architecture (TicTacToeGame id).
+        """
+        players = self.get_players_with_roles(game_id)
 
         async_to_sync(channel_layer.group_send)(
-            f"game_lobby_{game_id}",
-            {"type": "update_player_list", "players": players_with_roles},
+            lobby_group(str(game_id)),  
+            {
+                "type": "update_player_list",
+                "players": players,
+            },
         )
 
     # ----------------------------

@@ -9,8 +9,10 @@ from django.apps import apps
 
 from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
 from utils.shared.shared_utils_game_chat import SharedUtils
+from utils.websockets.ws_groups import lobby_group
 
 from invites.guards import validate_invite_for_lobby_join
+
 
 logger = logging.getLogger("lobby.consumer")
 
@@ -44,8 +46,10 @@ class LobbyConsumer(JsonWebsocketConsumer):
         self.user = self.scope.get("user")
         self.lobby_id = str(self.scope["url_route"]["kwargs"]["lobby_id"])
 
-        # NOTE: Keep your current group name for now to avoid breaking any existing group_send usage.
-        self.lobby_group_name = f"game_lobby_{self.lobby_id}"
+        # ✅ Root fix: lobby socket must join a *lobby-only* namespace (no game updates here)
+        # This prevents crashes like: "No handler for message type game_update"
+        # Requires: from utils.ws_groups import lobby_group
+        self.lobby_group_name = lobby_group(self.lobby_id)
 
         self.game_lobby_manager = RedisGameLobbyManager()
 
@@ -124,7 +128,7 @@ class LobbyConsumer(JsonWebsocketConsumer):
             self.close(code=4404)
             return
 
-        # Step 4: Join group + persist presence in Redis
+        # Step 4: Join lobby group + accept socket
         async_to_sync(self.channel_layer.group_add)(self.lobby_group_name, self.channel_name)
         self.accept()
 
@@ -146,7 +150,7 @@ class LobbyConsumer(JsonWebsocketConsumer):
                 }
             )
 
-            # Broadcast roster
+            # Broadcast roster (must broadcast to lobby_<id> group internally)
             self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.lobby_id)
 
         except Exception as exc:

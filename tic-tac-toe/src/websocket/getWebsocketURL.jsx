@@ -1,4 +1,4 @@
-// # Filename: src/components/websockets/getWebsocketURL.jsx
+// # Filename: src/websockets/getWebsocketURL.jsx
 
 // Step 1: Shared base builder (scheme + host)
 function getWsBase() {

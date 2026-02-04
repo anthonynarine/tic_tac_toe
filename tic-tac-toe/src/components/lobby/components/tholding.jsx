@@ -10,7 +10,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { CiCirclePlus } from "react-icons/ci";
 import { IoIosSend } from "react-icons/io";
 
-import { useLobbyContext } from "../../../context/lobbyContext";
+import { useLobbyContext } from "../../../context/lobbyContext"
 import { useFriends } from "../../../context/friendsContext";
 import { useUserContext } from "../../../context/userContext";
 
@@ -23,7 +23,7 @@ import { getLobbyWSUrl, getChatWSUrl } from "../../../websocket/getWebsocketURL"
 import { createInvite } from "../../../api/inviteApi";
 import { resolveRecipientUserId } from "../../../invites/resolveRecipientUserId";
 
-import InviteFriendModal from "./InviteFriendModal";
+import InviteFriendModal from "./InviteFriendModal"
 
 // -----------------------------
 // UI helpers
@@ -106,9 +106,8 @@ export default function LobbyPage() {
   const lobbyWsRef = useRef(null);
   const chatWsRef = useRef(null);
 
-  // Step 3: Connection indicators (helps confirm WS is alive)
-  const [lobbyConnected, setLobbyConnected] = useState(false);
-  const [chatConnected, setChatConnected] = useState(false);
+  // Step 3: StrictMode safety (avoid double-connect)
+  const didConnectRef = useRef(false);
 
   // Step 4: UI refs
   const chatContainerRef = useRef(null);
@@ -116,7 +115,6 @@ export default function LobbyPage() {
   const MAX_PLAYERS = 2;
 
   const players = state?.players || [];
-  const messages = state?.messages || [];
 
   const isLobbyFull = useMemo(() => players.length >= MAX_PLAYERS, [players]);
 
@@ -147,17 +145,15 @@ export default function LobbyPage() {
   // WS lifecycle
   // -----------------------------
   useEffect(() => {
+    // Step 1: Guard against duplicate connect in StrictMode
+    if (didConnectRef.current) return;
+    didConnectRef.current = true;
+
     let cancelled = false;
 
     const boot = async () => {
       try {
         if (!lobbyId) return;
-
-        // Step 1: Ensure no stale sockets exist (defense-in-depth)
-        safeClose(chatWsRef);
-        safeClose(lobbyWsRef);
-        setLobbyConnected(false);
-        setChatConnected(false);
 
         // Step 2: Ensure token is fresh BEFORE connecting
         const access = await ensureFreshAccessToken();
@@ -187,25 +183,12 @@ export default function LobbyPage() {
 
         lobbyWs.onopen = () => {
           if (cancelled) return;
-          setLobbyConnected(true);
-
           // join is server-side implicit in many setups, but keep safe:
           try {
             lobbyWs.send(JSON.stringify({ type: "join_lobby" }));
           } catch {
             // ignore
           }
-        };
-
-        lobbyWs.onclose = () => {
-          if (cancelled) return;
-          setLobbyConnected(false);
-        };
-
-        lobbyWs.onerror = () => {
-          if (cancelled) return;
-          // optional toast:
-          // showToast("error", "Lobby connection error.");
         };
 
         lobbyWs.onmessage = (evt) => {
@@ -238,13 +221,11 @@ export default function LobbyPage() {
                 replace: true,
               });
             }
-            return;
           }
 
           // Step 8: Lobby reducer events
           if (data?.type === "update_player_list") {
             dispatch({ type: "SET_PLAYERS", payload: data?.players || [] });
-            return;
           }
 
           if (data?.type === "game_start_acknowledgment") {
@@ -252,7 +233,6 @@ export default function LobbyPage() {
             if (gameId) {
               navigate(`/games/${gameId}`, { replace: true });
             }
-            return;
           }
 
           if (data?.type === "error") {
@@ -260,25 +240,14 @@ export default function LobbyPage() {
           }
         };
 
+        lobbyWs.onerror = () => {
+          if (cancelled) return;
+          // Avoid spamming errors; keep it quiet unless needed
+        };
+
         // Step 9: Connect Chat WS
         const chatWs = new WebSocket(chatUrl);
         chatWsRef.current = chatWs;
-
-        chatWs.onopen = () => {
-          if (cancelled) return;
-          setChatConnected(true);
-        };
-
-        chatWs.onclose = () => {
-          if (cancelled) return;
-          setChatConnected(false);
-        };
-
-        chatWs.onerror = () => {
-          if (cancelled) return;
-          // optional toast:
-          // showToast("error", "Chat connection error.");
-        };
 
         chatWs.onmessage = (evt) => {
           if (cancelled) return;
@@ -291,10 +260,8 @@ export default function LobbyPage() {
           }
 
           if (data?.type === "chat_message") {
-            // IMPORTANT: lobbyReducer expects ADD_MESSAGE (not CHAT_MESSAGE_RECEIVED)
-            // Your reducer handles normalization + dedupe by message.id.
-            dispatch({ type: "ADD_MESSAGE", payload: data?.message ?? data });
-            return;
+            // Defense-in-depth: reducer also dedupes by message.id
+            dispatch({ type: "CHAT_MESSAGE_RECEIVED", payload: data?.message });
           }
 
           if (data?.type === "error") {
@@ -312,11 +279,8 @@ export default function LobbyPage() {
       cancelled = true;
       safeClose(chatWsRef);
       safeClose(lobbyWsRef);
-      setLobbyConnected(false);
-      setChatConnected(false);
       dispatch({ type: "RESET_LOBBY" });
     };
-    // NOTE: keep deps tight to avoid reconnect loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lobbyId]);
 
@@ -326,12 +290,13 @@ export default function LobbyPage() {
   useEffect(() => {
     if (!chatContainerRef.current) return;
     chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-  }, [messages]);
+  }, [state?.messages]);
 
   // -----------------------------
   // Actions
   // -----------------------------
   const handleCopyLink = useCallback(() => {
+    // Step 1: Copies the *current URL* (invite OR sessionKey)
     navigator.clipboard.writeText(
       `${window.location.origin}/lobby/${lobbyId}${location.search}`
     );
@@ -345,6 +310,7 @@ export default function LobbyPage() {
   const handleInviteFriend = useCallback(
     async (friend) => {
       try {
+        // Step 1: Basic guards
         if (!user?.id || !lobbyId) return;
 
         const recipientUserId = resolveRecipientUserId(friend, user.id);
@@ -353,12 +319,14 @@ export default function LobbyPage() {
 
         setIsInviting(true);
 
+        // Step 2: Create invite INTO THIS LOBBY (no navigation)
         const result = await createInvite({
           toUserId: recipientUserId,
           gameType: "tic_tac_toe",
           lobbyId,
         });
 
+        // Step 3: Normalize response (handle mild backend drift)
         const inviteId =
           result?.invite?.inviteId ||
           result?.invite?.id ||
@@ -427,6 +395,8 @@ export default function LobbyPage() {
   // -----------------------------
   // Render
   // -----------------------------
+  const messages = state?.messages || [];
+
   return (
     <div className="w-full h-full min-h-0 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
       <div className="mx-auto max-w-[1100px] space-y-4">
@@ -442,23 +412,8 @@ export default function LobbyPage() {
               </h1>
               <span className="text-xs text-cyan-200/50">ID: {lobbyId}</span>
             </div>
-
-            <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-cyan-200/35">
-              <span>Online friends: {onlineFriends.length}</span>
-              <span className="opacity-60">•</span>
-              <span>
-                Lobby WS:{" "}
-                <span className={lobbyConnected ? "text-cyan-200/70" : ""}>
-                  {lobbyConnected ? "connected" : "disconnected"}
-                </span>
-              </span>
-              <span className="opacity-60">•</span>
-              <span>
-                Chat WS:{" "}
-                <span className={chatConnected ? "text-cyan-200/70" : ""}>
-                  {chatConnected ? "connected" : "disconnected"}
-                </span>
-              </span>
+            <div className="mt-1 text-[11px] text-cyan-200/35">
+              Online friends available: {onlineFriends.length}
             </div>
           </div>
 
@@ -479,7 +434,10 @@ export default function LobbyPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           {/* Players */}
           <div className="lg:col-span-5 space-y-4">
-            <Panel title="Players" right={`${players.length}/${MAX_PLAYERS}`}>
+            <Panel
+              title="Players"
+              right={`${players.length}/${MAX_PLAYERS}`}
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                 {Array.from({ length: MAX_PLAYERS }).map((_, idx) => {
                   const p = players[idx];
@@ -560,12 +518,13 @@ export default function LobbyPage() {
 
           {/* Chat */}
           <div className="lg:col-span-7">
-            <Panel title="Lobby Chat" right={chatConnected ? "Connected" : "..."}>
+            <Panel title="Lobby Chat" right="Chat WS">
               <div className="flex flex-col gap-3">
                 <div
                   ref={chatContainerRef}
                   className={[
                     "overflow-y-auto rounded-xl border border-[#1DA1F2]/10 bg-black/20 p-3 space-y-2",
+                    // Mobile-first: height based on viewport
                     "h-[42vh] sm:h-[360px] lg:h-[420px]",
                   ].join(" ")}
                 >
@@ -597,20 +556,18 @@ export default function LobbyPage() {
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
-                    placeholder={
-                      chatConnected ? "Type a message..." : "Connecting chat..."
-                    }
+                    placeholder="Type a message..."
                     className="flex-1 rounded-lg border border-[#1DA1F2]/15 bg-black/20 px-3 py-2 text-sm text-cyan-50 placeholder:text-cyan-200/35 focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/15"
                   />
 
                   <button
                     type="button"
                     onClick={handleSendChat}
-                    disabled={!message.trim() || !chatConnected}
+                    disabled={!message.trim()}
                     className={[
                       "inline-flex items-center justify-center rounded-lg px-3 py-2",
                       "border border-[#1DA1F2]/20",
-                      message.trim() && chatConnected
+                      message.trim()
                         ? "bg-[#1DA1F2]/10 text-cyan-50/90 active:bg-[#1DA1F2]/15 sm:hover:bg-[#1DA1F2]/15"
                         : "cursor-not-allowed bg-[#1DA1F2]/5 text-cyan-200/40",
                     ].join(" ")}
@@ -624,7 +581,7 @@ export default function LobbyPage() {
         </div>
       </div>
 
-      {/* Invite modal (online friends only) */}
+      {/* Invite modal */}
       <InviteFriendModal
         open={isInviteOpen}
         onClose={() => setIsInviteOpen(false)}

@@ -18,41 +18,54 @@ class CreateInviteSerializer(serializers.Serializer):
     """
     Validate the request payload for creating an invite.
 
-    Expected request body:
+    Expected request body (either key is accepted):
         {
             "to_user_id": 123,
-            "game_type": "tic_tac_toe"
+            "game_type": "tic_tac_toe",
+            "lobby_id": "700"      # optional
+        }
+
+        OR
+
+        {
+            "to_user_id": 123,
+            "game_type": "tic_tac_toe",
+            "lobbyId": "700"       # optional alias (frontend)
         }
     """
 
     to_user_id = serializers.IntegerField()
-    game_type = serializers.CharField(max_length=50, default="tic_tac_toe")
-    lobby_id = serializers.CharField(required=False)
+    game_type = serializers.CharField(max_length=50, default="tic_tac_toe", required=False)
+    lobby_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     def validate_to_user_id(self, value: int) -> int:
         """
         Validate invite recipient.
 
         Rules:
+        - Must be authenticated
         - Cannot invite yourself
-        - Recipient must be a real user
+        - Recipient must exist
         """
-        # Step 1: Get request safely
         request = self.context.get("request")
         if not request or not request.user or not request.user.is_authenticated:
             raise serializers.ValidationError("Authentication required.")
 
         current_user = request.user
 
-        # Step 2: Block self-invites
         if int(value) == int(current_user.id):
             raise serializers.ValidationError("You cannot invite yourself.")
 
-        # Step 3: Ensure recipient exists
         if not User.objects.filter(id=value).exists():
             raise serializers.ValidationError("Recipient user does not exist.")
 
         return value
+
+    def validate_lobby_id(self, value):
+        # Normalize empty -> None, otherwise string
+        if value in (None, ""):
+            return None
+        return str(value)
 
     def validate(self, attrs):
         """
@@ -62,13 +75,13 @@ class CreateInviteSerializer(serializers.Serializer):
         - Lobby must exist
         - Cannot invite into AI game
         - Cannot invite into full lobby
-        - Inviter must be a member of the lobby
+        - Inviter must be a member of the lobby (defense-in-depth)
         """
         # Step 1: Accept lobbyId alias (frontend sends lobbyId)
-        if "lobby_id" not in attrs:
-            lobbyId = self.initial_data.get("lobbyId")
-            if lobbyId:
-                attrs["lobby_id"] = str(lobbyId)
+        if not attrs.get("lobby_id"):
+            lobby_id_alias = self.initial_data.get("lobbyId")
+            if lobby_id_alias not in (None, ""):
+                attrs["lobby_id"] = str(lobby_id_alias)
 
         lobby_id = attrs.get("lobby_id")
         if not lobby_id:
@@ -83,7 +96,7 @@ class CreateInviteSerializer(serializers.Serializer):
         TicTacToeGame = apps.get_model("game", "TicTacToeGame")
 
         try:
-            game = TicTacToeGame.objects.get(id=lobby_id)
+            game = TicTacToeGame.objects.get(id=str(lobby_id))
         except TicTacToeGame.DoesNotExist:
             raise serializers.ValidationError({"lobby_id": "Lobby does not exist."})
 
@@ -99,7 +112,9 @@ class CreateInviteSerializer(serializers.Serializer):
 
         # Step 6: Ensure inviter is actually in the lobby (defense-in-depth)
         inviter_id = int(request.user.id)
-        in_lobby = (player_x_id and int(player_x_id) == inviter_id) or (player_o_id and int(player_o_id) == inviter_id)
+        in_lobby = (player_x_id and int(player_x_id) == inviter_id) or (
+            player_o_id and int(player_o_id) == inviter_id
+        )
 
         # If one slot is filled and it's not inviter, reject.
         # (If both are empty, this is an odd state; allow for now.)
