@@ -75,7 +75,7 @@ class RedisChatLobbyManager:
         player = {"id": user.id, "first_name": user.first_name}
         # Serialize and store user info in Redis hash under their user ID
         self.redis.hset(key, user.id, json.dumps(player))
-        logger.info(f"✅ Added player {user.first_name} to Redis lobby {lobby_id}")
+        logger.info(f"Added player {user.first_name} to Redis lobby {lobby_id}")
 
     def remove_player(self, lobby_id: str, user: CustomUser) -> None:
         """
@@ -154,7 +154,7 @@ class RedisChatLobbyManager:
         # Only delete the lobby if both the players hash and channels set are empty
         if self.redis.hlen(players_key) == 0 and self.redis.scard(channels_key) == 0:
             self.redis.delete(players_key, channels_key)
-            logger.info(f"♻️ Cleaned up empty Redis lobby {lobby_id}")
+            logger.info(f"Cleaned up empty Redis lobby {lobby_id}")
 
     def broadcast_player_list(self, channel_layer: BaseChannelLayer, lobby_id: str) -> None:
         """

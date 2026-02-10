@@ -62,6 +62,9 @@ INSTALLED_APPS = [
     "game",
     "friends",
     "chat",
+    "invites",
+    "notifications",
+    "lobby",
     "users.apps.UsersConfig",  # Signals
 ]
 

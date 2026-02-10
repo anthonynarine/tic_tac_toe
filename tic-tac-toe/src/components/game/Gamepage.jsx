@@ -1,81 +1,120 @@
-// File: components/game/GamePage.jsx
+// # Filename: src/components/game/GamePage.jsx
+// ✅ New Code
+
+import React, { useEffect, useMemo, useRef } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 
 import GameLoader from "../../utils/gameLoader/Gameloader";
-import GameManager from "./GameManager";
+import MultiplayerGameManager from "./managers/MultiplayerGameManager";
 import GameResult from "./GameResult";
-import ResponsiveBoard from "./board/ResponsiveBoard"
-import { useParams } from "react-router-dom";
+import ResponsiveBoard from "./board/ResponsiveBoard";
 
 /**
- * GamePage
- * --------------------------------------------
- * Handles logic for loading a game and rendering it
- * through ResponsiveBoard and GameResult.
+ * GamePage (Multiplayer ONLY)
+ * --------------------------------------------------
+ * - WS-backed
+ * - Must be entered from lobby flow
+ * - AI games use /games/ai/:id and a DIFFERENT page
  */
-export const GamePage = () => {
-    const { id: gameId } = useParams();
+const GamePage = () => {
+  const { id: gameId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    return (
-        <GameManager gameId={gameId}>
-        {({
-            state,
-            loading,
-            error,
-            handleCellClick,
-            playAgainAI,
-            finalizeGame,
-            requestRematch,
-        }) => {
-            const {
-            game,
-            isGameOver,
-            winner,
-            winningCombination,
-            cellValues,
-            isAI,
-            } = state;
+  // 🔒 Prevent double-redirect in StrictMode
+  const didRedirectRef = useRef(false);
 
-            const playerRole =
-            state.playerRole || (game?.player_x === state.userEmail ? "X" : "O");
+  // # Step 1: Read query params safely
+  const query = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search]
+  );
 
-            const isDisabled =
-            isGameOver || game?.current_turn !== playerRole;
+  const hasLobby = Boolean(query.get("lobby"));
+  const hasSessionKey = Boolean(query.get("sessionKey"));
 
-            const handleNewGameClicked = () => {
-            state.isAI ? playAgainAI() : requestRematch();
-            };
+  // # Step 2: Redirect logic MUST live in useEffect
+  useEffect(() => {
+    if (didRedirectRef.current) return;
 
-            return (
-            <>
-                <GameLoader loading={loading} error={error} />
+    // Missing required multiplayer context → bounce back to lobby
+    if (!hasLobby && !hasSessionKey && gameId) {
+      didRedirectRef.current = true;
+      navigate(`/lobby/${gameId}`, { replace: true });
+    }
+  }, [hasLobby, hasSessionKey, gameId, navigate]);
 
-                {!loading && !error && game && (
-                <>
-                    <ResponsiveBoard
-                    cellValues={cellValues}
-                    winningCombination={winningCombination}
-                    handleCellClick={handleCellClick}
-                    isDisabled={isDisabled}
-                    playerRole={playerRole}
-                    currentTurn={game.current_turn}
-                    winner={winner}
-                    isGameOver={isGameOver}
-                    />
+  // # Step 3: While redirecting, render nothing
+  if (!hasLobby && !hasSessionKey) {
+    return null;
+  }
 
-                    <GameResult
-                    isGameOver={isGameOver}
-                    isAI={isAI}
-                    winner={winner}
-                    onNewGameClicked={handleNewGameClicked}
-                    onCompleteGame={() =>
-                        finalizeGame(gameId, winner, state.isCompleted)
-                    }
-                    />
-                </>
-                )}
-            </>
-            );
-        }}
-        </GameManager>
-    );
+  return (
+    <MultiplayerGameManager gameId={gameId}>
+      {({
+        state,
+        loading,
+        error,
+        handleCellClick,
+        finalizeGame,
+        requestRematch,
+      }) => {
+        const {
+          game,
+          isGameOver,
+          winner,
+          winningCombination,
+          cellValues,
+        } = state;
+
+        // # Step 4: Determine player role safely
+        const playerRole =
+          state.playerRole ||
+          (game?.player_x === state.userEmail ? "X" : "O");
+
+        // # Step 5: Disable clicks when not your turn or game is over
+        const isDisabled = Boolean(
+          isGameOver || game?.current_turn !== playerRole
+        );
+
+        // # Step 6: Multiplayer rematch = WS flow
+        const handleNewGameClicked = async () => {
+          return requestRematch();
+        };
+
+        return (
+          <>
+            <GameLoader loading={loading} error={error} />
+
+            {!loading && !error && game && (
+              <>
+                <ResponsiveBoard
+                  cellValues={cellValues}
+                  winningCombination={winningCombination}
+                  handleCellClick={handleCellClick}
+                  isDisabled={isDisabled}
+                  playerRole={playerRole}
+                  currentTurn={game.current_turn}
+                  winner={winner}
+                  isGameOver={isGameOver}
+                />
+
+                <GameResult
+                  isGameOver={isGameOver}
+                  isAI={false}
+                  winner={winner}
+                  onNewGameClicked={handleNewGameClicked}
+                  onCompleteGame={() =>
+                    finalizeGame(gameId, winner, state.isCompleted)
+                  }
+                />
+              </>
+            )}
+          </>
+        );
+      }}
+    </MultiplayerGameManager>
+  );
 };
+
+export default GamePage;

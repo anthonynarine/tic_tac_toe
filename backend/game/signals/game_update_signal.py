@@ -1,3 +1,4 @@
+# # Filename: backend/game/signals/game_update_signal.py
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from asgiref.sync import async_to_sync
@@ -7,30 +8,35 @@ import logging
 
 logger = logging.getLogger("game")
 
+
+def game_group(game_id: str) -> str:
+    """
+    Canonical group name for in-game WebSocket updates.
+    Keeps game updates isolated from lobby sockets.
+    """
+    return f"game_{game_id}"
+
+
 @receiver(post_save, sender=TicTacToeGame)
 def game_update_signal(sender, instance, created, **kwargs):
     """
     Signal to broadcast game updates to WebSocket clients.
-
-    Args:
-        sender: The model class that triggered the signal.
-        instance (TicTacToeGame): The specific instance that was saved.
-        created (bool): Whether this is a new instance (True) or an update (False).
-        **kwargs: Additional arguments.
     """
+    # Step 1: Skip new instances
     if created:
         logger.info(f"Skipping broadcast for newly created game ID {instance.id}")
         return
 
-    # Skip broadcasting for AI games
+    # Step 2: Skip broadcasting for AI games
     if instance.is_ai_game:
         logger.debug(f"Skipping broadcast for AI game ID {instance.id}")
         return
 
-    # Prepare the WebSocket payload
+    # Step 3: Prepare the WebSocket payload
     payload = {
+        # IMPORTANT: This "type" maps to GameConsumer.game_update(event)
         "type": "game_update",
-        "game_id": instance.id,
+        "game_id": str(instance.id),
         "board_state": instance.board_state,
         "current_turn": instance.current_turn,
         "winner": instance.winner,
@@ -40,16 +46,16 @@ def game_update_signal(sender, instance, created, **kwargs):
         } if instance.player_x else None,
         "player_o": {
             "id": instance.player_o.id,
-            "first_name": instance.player_o.first_name if instance.player_o else "Waiting..."
+            "first_name": instance.player_o.first_name,
         } if instance.player_o else None,
     }
 
-    # Broadcast the update to the WebSocket channel
+    # Step 4: Broadcast ONLY to the game group (never the lobby group)
     try:
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f"game_lobby_{instance.id}",
-            payload
+            game_group(str(instance.id)),
+            payload,
         )
         logger.info(f"Game update broadcasted successfully for game ID {instance.id}")
     except Exception as e:

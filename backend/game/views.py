@@ -7,12 +7,12 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import AccessToken
 from django.db import transaction
 import logging
-import random
 
 from .models import TicTacToeGame
 from .serializers import TicTacToeGameSerializer
 from .ai_logic.ai_logic import get_best_move
-from .models import DEFAULT_BOARD_STATE
+from .services.game_factory import create_tictactoe_game
+from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -26,73 +26,43 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
     serializer_class = TicTacToeGameSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_create(self, serializer):
-        """
-        Handle the creation of a new TicTacToe game.
-        """
-        logger.debug(f"Request data received: {self.request.data}")
+    def create(self, request, *args, **kwargs):
+        # Step 1: Validate request data shape
+        if not isinstance(request.data, dict):
+            raise ValidationError({"detail": "Invalid request data."})
 
-        #  Validate that self.request.data is a dictionary
-        if not isinstance(self.request.data, dict):  
-            logger.error("Request data is not valid.")  
-            raise ValidationError("Invalid request data.")  
+        # Step 2: Determine AI mode
+        is_ai_game = bool(request.data.get("is_ai_game", False))
 
-        # Ensure the authenticated user is set as Player X
-        player_x = self.request.user
-        if not player_x:
-            logger.error("Authenticated user not found.")
-            raise ValidationError("Player X (authenticated user) is missing.")
-
-        # Determine if the game is an AI game
-        is_ai_game = bool(self.request.data.get("is_ai_game", False))
-
-        # Fetch the AI user if the game is against AI
-        ai_user = User.objects.filter(email="ai@tictactoe.com").first() if is_ai_game else None  
-        if is_ai_game and not ai_user:  
-            error_message = "AI user (ai@tictactoe.com) is missing. Ensure this user exists in the database."  # $$$$
-            logger.error(error_message) 
-            raise ValidationError(error_message)  
-
-        # Assign Player O
-        player_o = ai_user if is_ai_game else None
-        if not is_ai_game:
-            logger.info("Game created without Player O. Waiting for a second player to join.")
-
-        # Randomly assign the starting turn
-        randomized_turn = random.choice(["X", "O"])
-        logger.debug(f"Randomized starting turn: {randomized_turn}")
-
-        # Save the game with all required fields
-        game = serializer.save(
-            player_x=player_x,
-            player_o=player_o,
+        # Step 3: Create game via service
+        result = create_tictactoe_game(
+            creator_user=request.user,
             is_ai_game=is_ai_game,
-            board_state=DEFAULT_BOARD_STATE,  # Use the imported constant for board initialization
-            current_turn=randomized_turn,
-            winner=None,
-            is_completed=False,  # Explicit, but technically unnecessary due to model default
+            opponent_user=None,
         )
-        logger.debug(f"Game created successfully with ID: {game.id}, starting turn: {game.current_turn}")
+        game = result["game"]
+        player_role = result["player_role"]
 
-        # Handle AI's first move if applicable
-        if is_ai_game and game.current_turn in ["X", "O"]:
-            ai_player = game.player_x if game.current_turn == "X" else game.player_o
-            if ai_player == ai_user:
-                logger.debug(f"AI ({game.current_turn}) is making its first move.")
-                game.handle_ai_move()
-                game.refresh_from_db()
-                logger.debug(f"AI move completed. Updated board state: {game.board_state}")
+        # Step 4: Serialize + add player_role (preserve response contract)
+        data = self.get_serializer(game).data
+        data["player_role"] = player_role
 
-        # Determine the requesting user's role in the game
-        player_role = "X" if game.player_x == self.request.user else "O" if game.player_o == self.request.user else "Spectator"
-        logger.debug(f"Determined player role: {player_role} for user: {self.request.user.email}")
+        # Step 5: Mint sessionKey only for MULTIPLAYER (WS games)
+        if not is_ai_game:
+            lobby_id = str(game.id)
+            manager = RedisGameLobbyManager()
 
-        # Prepare the response
-        response_data = self.get_serializer(game).data
-        response_data["player_role"] = player_role
-        logger.debug(f"Response data prepared: {response_data}")
+            # Step 5a: Create/ensure sessionKey
+            session_key = manager.ensure_session_key(lobby_id)
 
-        return Response(response_data, status=status.HTTP_201_CREATED)
+            # Step 5b: Allow-list creator in this lobby session
+            manager.add_user_to_session(lobby_id, request.user.id)
+
+            # Step 5c: Include join hints for frontend routing
+            data["lobbyId"] = lobby_id
+            data["sessionKey"] = session_key
+
+        return Response(data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="join")
     def join_game(self, request, pk=None):

@@ -11,7 +11,7 @@ This document explains the **entire backend** for the project: how HTTP + WebSoc
   - presence (online/offline)
   - lobby chat
   - direct messages (DMs)
-  - notifications
+  - **global notifications** (invites + badges + presence fanout)
   - gameplay
 - **Redis** as the Channels **channel layer** (and optionally caching).
 
@@ -116,50 +116,87 @@ If token is missing/invalid:
 
 These are the WS URLs your frontend should connect to.
 
-### Chat app routes
+### notifications app routes (global user socket)
+- **Global notifications (single per user)**
+  - `/ws/notifications/`
+
+> This is the **single, authenticated user socket** used for:
+> - invite lifecycle events (create/accept/decline/cancel/expire)
+> - unread badges (DM + invites)
+> - presence fanout events (online/offline)
+
+### chat app routes
 - **Lobby chat**
   - `/ws/chat/lobby/<lobby_name>/`
 - **Direct messages**
   - `/ws/chat/<friend_id>/`
-- **Notifications**
-  - `/ws/notifications/`
 
-### Friends app routes (presence)
+> Direct-message sockets should be treated as **message-only** channels.
+> (Invites do not ride on the DM socket.)
+
+### friends app routes (presence)
 - `/ws/friends/status/`
 
-### Game app routes (gameplay)
+### game app routes (gameplay)
 - `/ws/game/<game_id>/`
 
 ---
 
 ## 7) App responsibilities (who owns what)
 
+### notifications app
+**Owns:**
+- the **global user socket** (`/ws/notifications/`)
+- forwarding server events to the client (transport only)
+
+**Does NOT own:**
+- invite business logic
+- DM persistence
+- presence logic
+- DB writes
+
+**Key model:**
+- There are **no models** by default (no DB tables required).
+
+---
+
+### invites app
+**Owns:**
+- invite creation and lifecycle via **HTTP** (server-authoritative)
+- inbox rehydration endpoint (pending invites list)
+
+**Produces notification events to:**
+- `user_<to_user_id>` (receiver)
+- optionally `user_<from_user_id>` (sender acknowledgements)
+
+---
+
 ### friends app
 **Owns:**
 - friend requests / friendship graph (REST)
-- presence (WS)
+- presence state (WS)
+  - on connect/disconnect: mark online/offline
+  - notify accepted friends (usually by emitting events to their `user_<id>` groups)
 
-**Presence consumer behavior:**
-- On connect: mark user online + notify accepted friends
-- On disconnect: mark offline + notify accepted friends
-- Uses per-user groups like `user_<id>` to broadcast status updates
+---
 
 ### chat app
 **Owns:**
 - lobby chat (WS)
 - direct messages (WS + DB persistence)
-- notifications channel (WS)
 
 **Direct messaging responsibilities:**
 - validate friendship
 - persist messages
 - broadcast to both users
-- optionally emit notification events (badge/toast) through notification channel
+- optionally emit a lightweight **badge ping** through the notifications channel
+
+---
 
 ### game app
 **Owns:**
 - gameplay consumer(s) and game-state synchronization (WS)
-- typically uses Redis/channel layer for broadcasts to game groups
+- uses Redis/channel layer for broadcasts to game groups
 
 ---
 
@@ -168,7 +205,7 @@ These are the WS URLs your frontend should connect to.
 Channels uses **groups** to broadcast to multiple clients.
 
 Common patterns in this backend:
-- `user_<id>` — personal group for presence/notifications targeted at a single user
+- `user_<id>` — personal group for notifications/presence targeted at a single user
 - `lobby_<name>` — lobby group for chat + lobby state
 - `dm_<sorted_user_ids>` — DM group so both users share the same room
 - `game_<id>` — game group to broadcast moves/state
@@ -188,8 +225,10 @@ Common patterns in this backend:
 **Fix:** ensure token is sent (header or `?token=`) and not expired
 
 ### C) Presence updates don't arrive
-**Why:** friends are not `is_accepted=True`, or receiver not connected to presence socket  
-**Fix:** confirm friendship accepted + both users have active WS connections
+**Why:** friends are not `is_accepted=True`, or receiver not connected to a socket that receives presence fanout  
+**Fix:** confirm friendship accepted + both users have active WS connections:
+- presence socket (`/ws/friends/status/`)
+- and/or global notifications socket (`/ws/notifications/`) depending on your fanout design
 
 ### D) DMs send but receiver doesn't see them
 **Why:** receiver not connected to the DM route for that friend, or group naming mismatch  
@@ -212,9 +251,9 @@ To make recruiter onboarding effortless, add:
 ## Appendix: Where the WS routing is composed
 
 At the project ASGI level, websocket routing is assembled by combining patterns from:
+- `notifications.routing.websocket_urlpatterns`
 - `game.routing.websocket_urlpatterns`
 - `chat.routing.websocket_urlpatterns`
 - `friends.routing.websocket_urlpatterns`
 
 and wrapped with `JWTWebSocketMiddleware` + `AllowedHostsOriginValidator`.
-

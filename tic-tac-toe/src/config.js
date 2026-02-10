@@ -1,7 +1,7 @@
 // # Filename: src/config.js
 
 
-import { getToken } from "./components/auth/tokenStore";
+import { getToken } from "./auth/tokenStore";
 
 // Step 1: Environment-aware mode
 const isProduction = process.env.NODE_ENV === "production";
