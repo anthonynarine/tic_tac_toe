@@ -79,3 +79,7 @@ ttt_venv
 
 # ===== Ignore Git Directory in Subfolders =====
 */.git
+
+# AI agent vector index artifacts
+ai_agent_index/*.faiss
+ai_agent_index/*.pkl
