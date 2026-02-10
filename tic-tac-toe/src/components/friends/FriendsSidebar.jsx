@@ -47,6 +47,22 @@ export default function FriendsSidebar() {
   const { logout } = useAuth();
   const { createNewGame } = useGameCreation();
 
+  // ✅ New Code
+  // # Step 0: Harden navigation (SPA first, hard redirect fallback)
+  // Keeps behavior consistent with HomePage.
+  const safeNavigate = useCallback(
+    async (targetUrl) => {
+      const before = `${window.location.pathname}${window.location.search}`;
+      navigate(targetUrl);
+
+      setTimeout(() => {
+        const after = `${window.location.pathname}${window.location.search}`;
+        if (after === before) window.location.assign(targetUrl);
+      }, 0);
+    },
+    [navigate]
+  );
+
   // # Step 1: Track lg breakpoint to separate “mobile drawer” vs “desktop dock”
   const [isLgUp, setIsLgUp] = useState(() => {
     if (typeof window === "undefined") return true;
@@ -141,36 +157,54 @@ export default function FriendsSidebar() {
     return () => clearTimeout(t);
   }, [isDMOpen, pendingFriend, openChat]);
 
-  // # Step 8: Game actions
+  // ✅ New Code
+  // # Step 8: Game actions (MATCH HomePage)
   const startMultiplayerGame = useCallback(async () => {
     try {
-      const newGame = await createNewGame(user?.first_name || "Player", false);
-      if (!newGame?.id) return;
+      if (!isLoggedIn) {
+        navigate("/login");
+        return;
+      }
+
+      const newGame = await createNewGame(false);
+      if (!newGame?.id) throw new Error("Create multiplayer game: missing id");
 
       const params = new URLSearchParams();
-      if (newGame?.sessionKey) params.set("sessionKey", String(newGame.sessionKey));
+      if (newGame?.sessionKey) {
+        params.set("sessionKey", String(newGame.sessionKey));
+      }
 
       const suffix = params.toString() ? `?${params.toString()}` : "";
-      navigate(`/lobby/${newGame.id}${suffix}`);
+      await safeNavigate(`/lobby/${newGame.id}${suffix}`);
 
       if (isMobile) closeSidebar();
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("Multiplayer error:", err);
+      console.error("[FriendsSidebar] Multiplayer error:", err);
+      showToast("error", "Failed to create a multiplayer game.");
     }
-  }, [createNewGame, navigate, user?.first_name, isMobile, closeSidebar]);
+  }, [isLoggedIn, navigate, createNewGame, safeNavigate, isMobile, closeSidebar]);
 
   const startAIGame = useCallback(async () => {
     try {
-      const newGame = await createNewGame(user?.first_name || "Player", true);
-      if (newGame?.id) navigate(`/games/${newGame.id}`);
+      if (!isLoggedIn) {
+        navigate("/login");
+        return;
+      }
+
+      const newGame = await createNewGame(true);
+      if (!newGame?.id) throw new Error("Create AI game: missing id");
+
+      // ✅ Correct AI route (same as HomePage)
+      await safeNavigate(`/games/ai/${newGame.id}`);
 
       if (isMobile) closeSidebar();
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("AI game error:", err);
+      console.error("[FriendsSidebar] AI game error:", err);
+      showToast("error", "Failed to create an AI game.");
     }
-  }, [createNewGame, navigate, user?.first_name, isMobile, closeSidebar]);
+  }, [isLoggedIn, navigate, createNewGame, safeNavigate, isMobile, closeSidebar]);
 
   const goHome = useCallback(() => {
     navigate("/");
@@ -289,7 +323,6 @@ export default function FriendsSidebar() {
     if (!isMobile) return "hidden";
 
     return [
-      // ✅ below navbar so hamburger remains clickable
       "fixed left-0 right-0 z-[55]",
       "top-[76px] sm:top-[80px] md:top-[84px]",
       "h-[calc(100dvh-76px)] sm:h-[calc(100dvh-80px)] md:h-[calc(100dvh-84px)]",
@@ -299,7 +332,6 @@ export default function FriendsSidebar() {
   }, [isMobile, isSidebarOpen]);
 
   const drawerClassName = useMemo(() => {
-    // Closed on mobile: offscreen LEFT. Desktop always visible.
     const openClose = isSidebarOpen
       ? "translate-x-0"
       : "-translate-x-full lg:translate-x-0";
@@ -312,13 +344,11 @@ export default function FriendsSidebar() {
       "transform transition-transform duration-300 ease-out",
       openClose,
 
-      // ✅ Mobile drawer: below navbar
       "fixed left-0 z-[70]",
       "top-[76px] sm:top-[80px] md:top-[84px]",
       "h-[calc(100dvh-76px)] sm:h-[calc(100dvh-80px)] md:h-[calc(100dvh-84px)]",
       "w-[88vw] max-w-[380px]",
 
-      // ✅ Desktop dock
       "lg:static lg:z-auto lg:h-full lg:w-full lg:max-w-none",
     ].join(" ");
   }, [isSidebarOpen]);
@@ -340,7 +370,7 @@ export default function FriendsSidebar() {
         aria-modal={isMobile ? "true" : undefined}
         aria-label="Friends sidebar"
       >
-        {/* ✅ Sticky drawer header (mobile only) so content never scrolls under it */}
+        {/* ✅ Sticky drawer header (mobile only) */}
         <div className="lg:hidden sticky top-0 z-10 bg-black/70 backdrop-blur-xl border-b border-[#1DA1F2]/10">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="text-[11px] tracking-[0.35em] text-[#1DA1F2]/70">
@@ -357,10 +387,7 @@ export default function FriendsSidebar() {
           </div>
         </div>
 
-        {/* ✅ Content area
-            - Mobile: internal scroll enabled
-            - Desktop: no internal scroll (no scrollbar) — page handles scrolling
-        */}
+        {/* Content */}
         <div className="flex-1 px-4 pb-4 pt-5 space-y-4 overflow-y-auto lg:overflow-visible">
           <GamesPanel
             isLoggedIn={isLoggedIn}
