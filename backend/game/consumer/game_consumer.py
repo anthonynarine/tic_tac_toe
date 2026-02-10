@@ -466,13 +466,25 @@ class GameConsumer(JsonWebsocketConsumer):
         - Dedupe: if an offer already exists, do not create a new one; resync broadcast instead.
         - Broadcasts requesterUserId + receiverUserId so frontend never guesses.
         - Socket-safe: never throws and closes the connection.
+
+        FIXES (root-correct):
+        - GameConsumer must broadcast on the GAME group, not lobby_group_name.
+        - Uses self.game_group_name and event type 'rematch_offer_broadcast' which must have a handler.
         """
+
         logger.info(
             "[REMATCH][REQUEST] user_id=%s name=%s game_id=%s",
             self.user.id,
             self.user.first_name,
             self.game_id,
         )
+
+        # Step 0: Ensure we have a group name (defense-in-depth)
+        game_group_name = getattr(self, "game_group_name", None)
+        if not game_group_name:
+            logger.error("[REMATCH][REQUEST] Missing game_group_name on GameConsumer. game_id=%s", self.game_id)
+            self.send_json({"type": "error", "message": "Unable to process rematch request (socket not ready)."})
+            return
 
         # Step 1: Load the game from DB (authoritative mapping)
         try:
@@ -558,25 +570,23 @@ class GameConsumer(JsonWebsocketConsumer):
                 self.user.id,
             )
 
+            # Step 6.1: Normalize fields and enforce visibility/pending flags
+            resync = {
+                "type": "rematch_offer_broadcast",
+                "game_id": str(self.game_id),
+                **existing_offer,
+                "message": existing_offer.get("message", f"{self.user.first_name} wants a rematch!"),
+                "isRematchOfferVisible": True,
+                "rematchPending": True,
+            }
+
             try:
-                async_to_sync(self.channel_layer.group_send)(
-                    self.lobby_group_name,
-                    {
-                        "type": "rematch_offer_broadcast",
-                        "game_id": str(self.game_id),
-                        **existing_offer,
-                        "message": existing_offer.get(
-                            "message",
-                            f"{self.user.first_name} wants a rematch!",
-                        ),
-                        "isRematchOfferVisible": True,
-                        "rematchPending": True,
-                    },
-                )
+                # ✅ Broadcast on GAME group (not lobby group)
+                async_to_sync(self.channel_layer.group_send)(game_group_name, resync)
                 logger.info(
                     "[REMATCH][REQUEST] Resync broadcast sent. game_id=%s group=%s",
                     self.game_id,
-                    self.lobby_group_name,
+                    game_group_name,
                 )
             except Exception as exc:
                 logger.error(
@@ -589,8 +599,8 @@ class GameConsumer(JsonWebsocketConsumer):
         # Step 7: Build offer payload (authoritative)
         offer = {
             "rematchRequestedBy": requester_role,
-            "requesterUserId": self.user.id,
-            "receiverUserId": receiver_user.id,
+            "requesterUserId": int(self.user.id),
+            "receiverUserId": int(receiver_user.id),
             "createdAtMs": int(time.time() * 1000),
             "message": f"{self.user.first_name} wants a rematch!",
             "isRematchOfferVisible": True,
@@ -612,10 +622,10 @@ class GameConsumer(JsonWebsocketConsumer):
             self.send_json({"type": "error", "message": "Unable to store rematch offer."})
             return
 
-        # Step 9: Broadcast offer to group
+        # Step 9: Broadcast offer to GAME group
         try:
             async_to_sync(self.channel_layer.group_send)(
-                self.lobby_group_name,
+                game_group_name,
                 {
                     "type": "rematch_offer_broadcast",
                     "game_id": str(self.game_id),
@@ -625,7 +635,7 @@ class GameConsumer(JsonWebsocketConsumer):
             logger.info(
                 "[REMATCH][REQUEST] Broadcast sent. game_id=%s group=%s",
                 self.game_id,
-                self.lobby_group_name,
+                game_group_name,
             )
         except Exception as exc:
             logger.error(
@@ -633,24 +643,44 @@ class GameConsumer(JsonWebsocketConsumer):
                 self.game_id,
                 exc,
             )
+            # Socket-safe: do not crash connection
+            self.send_json({"type": "error", "message": "Failed to broadcast rematch offer."})
 
     def rematch_offer_broadcast(self, event: dict) -> None:
         """
         Send a rematch_offer payload to this client.
+
+        Notes:
+        - This is a Channels group_send handler for type="rematch_offer_broadcast".
+        - It converts the internal event into a client-facing message type="rematch_offer".
+        - Fix: make receiverUserId comparison int-safe (string vs int).
         """
         logger.info(
             "[REMATCH][OFFER_BROADCAST][IN] user_id=%s game_id=%s channel=%s event=%s",
-            self.user.id,
-            self.game_id,
-            self.channel_name,
+            getattr(self.user, "id", None),
+            getattr(self, "game_id", None),
+            getattr(self, "channel_name", None),
             event,
         )
+
         try:
-            receiver_user_id = event.get("receiverUserId")
-            show_actions = bool(receiver_user_id and self.user.id == receiver_user_id)
+            # Step 1: Normalize receiverUserId for safe comparisons
+            receiver_user_id_raw = event.get("receiverUserId")
+
+            try:
+                receiver_user_id = int(receiver_user_id_raw) if receiver_user_id_raw is not None else None
+            except (TypeError, ValueError):
+                receiver_user_id = None
+
+            try:
+                my_user_id = int(getattr(self.user, "id", None)) if getattr(self.user, "id", None) is not None else None
+            except (TypeError, ValueError):
+                my_user_id = None
+
+            show_actions = bool(receiver_user_id is not None and my_user_id is not None and my_user_id == receiver_user_id)
             ui_mode = "receiver" if show_actions else "requester"
 
-            # Step 1: Optional role compute (safe)
+            # Step 2: Optional role compute (safe)
             player_role = None
             try:
                 game = GameUtils.get_game_instance(game_id=self.game_id)
@@ -658,13 +688,14 @@ class GameConsumer(JsonWebsocketConsumer):
             except Exception:
                 player_role = None
 
+            # Step 3: Build client payload
             payload = {
                 "type": "rematch_offer",
                 "game_id": event.get("game_id", self.game_id),
                 "message": event.get("message", "Rematch requested."),
                 "rematchRequestedBy": event.get("rematchRequestedBy"),
                 "requesterUserId": event.get("requesterUserId"),
-                "receiverUserId": receiver_user_id,
+                "receiverUserId": receiver_user_id,  # normalized int (or None)
                 "showActions": show_actions,
                 "uiMode": ui_mode,
                 "playerRole": player_role,
@@ -673,11 +704,12 @@ class GameConsumer(JsonWebsocketConsumer):
                 "rematchPending": event.get("rematchPending", True),
             }
 
+            # Step 4: Send to this client
             self.send_json(payload)
 
             logger.info(
                 "[REMATCH][OFFER_SENT] to_user_id=%s ui_mode=%s requester_user_id=%s receiver_user_id=%s requested_by=%s game_id=%s",
-                self.user.id,
+                my_user_id,
                 ui_mode,
                 event.get("requesterUserId"),
                 receiver_user_id,
@@ -693,50 +725,81 @@ class GameConsumer(JsonWebsocketConsumer):
         """
         Handle when the receiver accepts a rematch.
 
-        Key fixes:
-        - Requires an active offer in Redis.
-        - Only receiverUserId can accept.
-        - pop_rematch_offer() prevents double accept.
-        - ✅ Fix: validate receiver BEFORE deleting the offer.
+        Fixes aligned with GameConsumer.connect():
+        - Game WS requires (sessionKey + lobbyId) and for TicTacToe lobbyId == gameId.
+        - Therefore on rematch we mint a NEW lobby/session for the NEW game_id.
+        - Broadcasts on game group (self.game_group_name), never lobby_group_name.
         """
+
         logger.info(
             "[REMATCH][ACCEPT] user_id=%s name=%s game_id=%s",
-            self.user.id,
-            self.user.first_name,
-            self.game_id,
+            getattr(self.user, "id", None),
+            getattr(self.user, "first_name", None),
+            getattr(self, "game_id", None),
         )
 
-        # Step 1: Read offer WITHOUT deleting (prevents wrong-user clicks from deleting state)
-        offer_preview = self.game_lobby_manager.get_rematch_offer(self.game_id)
+        # Step 0: Ensure correct broadcast group exists
+        game_group_name = getattr(self, "game_group_name", None)
+        if not game_group_name:
+            SharedUtils.send_error(self, "Game socket not ready for rematch.")
+            return
+
+        # Step 1: Preview offer WITHOUT deleting (prevents wrong-user click deleting state)
+        try:
+            offer_preview = self.game_lobby_manager.get_rematch_offer(str(self.game_id))
+        except Exception as exc:
+            logger.error("[REMATCH][ACCEPT] Failed reading offer preview from Redis: %s", exc)
+            offer_preview = None
+
         if not offer_preview:
             SharedUtils.send_error(self, "No pending rematch offer found.")
             return
 
-        receiver_user_id = offer_preview.get("receiverUserId")
-        if receiver_user_id and self.user.id != receiver_user_id:
+        # Step 1.1: Validate receiver (int-safe)
+        receiver_user_id_raw = offer_preview.get("receiverUserId")
+        try:
+            receiver_user_id = int(receiver_user_id_raw) if receiver_user_id_raw is not None else None
+        except (TypeError, ValueError):
+            receiver_user_id = None
+
+        try:
+            my_user_id = int(getattr(self.user, "id", None)) if getattr(self.user, "id", None) is not None else None
+        except (TypeError, ValueError):
+            my_user_id = None
+
+        if receiver_user_id is not None and my_user_id != receiver_user_id:
             SharedUtils.send_error(self, "Only the other player may accept this rematch.")
             return
 
-        # Step 2: Now atomically pop the offer (prevents double-accept race)
-        offer = self.game_lobby_manager.pop_rematch_offer(self.game_id)
+        # Step 2: Atomically pop the offer (prevents double-accept)
+        try:
+            offer = self.game_lobby_manager.pop_rematch_offer(str(self.game_id))
+        except Exception as exc:
+            logger.error("[REMATCH][ACCEPT] Failed popping offer from Redis: %s", exc)
+            offer = None
+
         if not offer:
             SharedUtils.send_error(self, "Rematch offer already consumed.")
             return
 
-        # Step 3: Load old game
+        # Step 3: Load old game (authoritative players)
         try:
             old_game = GameUtils.get_game_instance(game_id=self.game_id)
         except ValidationError as exc:
             SharedUtils.send_error(self, str(exc))
             return
+        except Exception as exc:
+            logger.error("[REMATCH][ACCEPT] Failed fetching old game: %s", exc)
+            SharedUtils.send_error(self, "Unable to load game for rematch.")
+            return
 
-        old_x = old_game.player_x
-        old_o = old_game.player_o
+        old_x = getattr(old_game, "player_x", None)
+        old_o = getattr(old_game, "player_o", None)
         if not old_x or not old_o:
             SharedUtils.send_error(self, "Cannot rematch because one of the players is missing.")
             return
 
-        # Step 4: Randomize / create new game
+        # Step 4: Create new game (your existing utility)
         players = [
             {"id": old_x.id, "first_name": old_x.first_name},
             {"id": old_o.id, "first_name": old_o.first_name},
@@ -749,31 +812,59 @@ class GameConsumer(JsonWebsocketConsumer):
                 player_x_id=player_x_dict["id"],
                 starting_turn=starting_turn,
             )
+            new_game_id = str(new_game.id)
         except ValueError as exc:
             SharedUtils.send_error(self, str(exc))
             return
+        except Exception as exc:
+            logger.error("[REMATCH][ACCEPT] Failed creating new game: %s", exc)
+            SharedUtils.send_error(self, "Failed to create rematch game.")
+            return
 
-        # Step 5: Broadcast new game id
-        # Step 5a: Include lobby/session continuity so next WS connect does NOT require invite
-        stable_lobby_id = getattr(self, "lobby_id", str(self.game_id))
+        # Step 5: Mint NEW session for NEW lobby/game id and add both users
+        # This satisfies GameConsumer.connect() requirements (lobby_id == game_id).
         session_key = None
         try:
-            session_key = self.game_lobby_manager.ensure_session_key(stable_lobby_id)
-        except Exception:
+            session_key = self.game_lobby_manager.ensure_session_key(new_game_id)
+            # add both users to allow-list for the new session (best effort)
+            try:
+                self.game_lobby_manager.add_user_to_session(new_game_id, int(old_x.id))
+            except Exception:
+                pass
+            try:
+                self.game_lobby_manager.add_user_to_session(new_game_id, int(old_o.id))
+            except Exception:
+                pass
+        except Exception as exc:
+            logger.error("[REMATCH][ACCEPT] Failed ensuring new sessionKey. new_game_id=%s err=%s", new_game_id, exc)
             session_key = None
 
-        async_to_sync(self.channel_layer.group_send)(
-            self.lobby_group_name,
-            {
-                "type": "rematch_start",
-                "old_game_id": self.game_id,
-                "new_game_id": new_game.id,
-                "requesterUserId": offer.get("requesterUserId"),
-                "receiverUserId": offer.get("receiverUserId"),
-                "lobby_id": stable_lobby_id,
-                "sessionKey": session_key,
-            },
-        )
+        # Step 6: Broadcast rematch start on CURRENT game group so both clients navigate together
+        # IMPORTANT: include lobby_id=new_game_id (not old).
+        try:
+            async_to_sync(self.channel_layer.group_send)(
+                game_group_name,
+                {
+                    "type": "rematch_start",  # requires handler rematch_start(self, event)
+                    "old_game_id": str(self.game_id),
+                    "new_game_id": new_game_id,
+                    "starting_turn": starting_turn,
+                    "requesterUserId": offer.get("requesterUserId"),
+                    "receiverUserId": offer.get("receiverUserId"),
+                    "lobby_id": new_game_id,   # ✅ must match new_game_id for your connect() hard guard
+                    "sessionKey": session_key, # ✅ required by Game WS connect()
+                },
+            )
+            logger.info(
+                "[REMATCH][ACCEPT] Broadcast rematch_start sent. old_game_id=%s new_game_id=%s group=%s",
+                self.game_id,
+                new_game_id,
+                game_group_name,
+            )
+        except Exception as exc:
+            logger.error("[REMATCH][ACCEPT] Broadcast failed. old_game_id=%s err=%s", self.game_id, exc)
+            SharedUtils.send_error(self, "Failed to start rematch.")
+            return
         
     def handle_rematch_decline(self) -> None:
         """
@@ -943,30 +1034,84 @@ class GameConsumer(JsonWebsocketConsumer):
     def rematch_start(self, event: dict) -> None:
         """
         Notify this client that a rematch has been accepted and a new game has been created.
+
+        Guarantees:
+        - new_game_id is required and normalized to str
+        - lobby id ALWAYS equals new_game_id (hard-guard safe)
+        - sessionKey normalized to str when present
+        - sends lobby in multiple common keys to prevent frontend param drift:
+            lobby_id, lobbyId, lobby
+
+        Payload:
+        type: "rematch_start"
+        new_game_id: str
+        lobby_id: str
+        lobbyId: str
+        lobby: str
+        sessionKey: str | None
+        message: str
         """
         try:
+            user_id = getattr(self.user, "id", None)
+
+            # Step 1: Validate + normalize new_game_id
             new_game_id = event.get("new_game_id")
             if not new_game_id:
                 raise ValueError("Missing new_game_id in rematch_start event")
+            new_game_id = str(new_game_id)
 
+            # Step 2: Force lobby id correctness (do NOT trust inbound lobby_id)
+            inbound_lobby_id = event.get("lobby_id")
+            inbound_lobby_id = str(inbound_lobby_id) if inbound_lobby_id else None
+
+            lobby_id = new_game_id
+            if inbound_lobby_id and inbound_lobby_id != new_game_id:
+                logger.warning(
+                    "[REMATCH][START] inbound lobby_id mismatch -> forcing. inbound=%s new_game_id=%s user_id=%s",
+                    inbound_lobby_id,
+                    new_game_id,
+                    user_id,
+                )
+
+            # Step 3: Normalize session key (don’t log it)
+            session_key = event.get("sessionKey") or event.get("session_key")
+            session_key = str(session_key) if session_key else None
+
+            if not session_key:
+                logger.warning(
+                    "[REMATCH][START] Missing sessionKey in rematch_start event. new_game_id=%s user_id=%s",
+                    new_game_id,
+                    user_id,
+                )
+
+            # Step 4: Send navigation payload with redundant lobby fields
             self.send_json(
                 {
                     "type": "rematch_start",
                     "new_game_id": new_game_id,
-                    "lobby_id": event.get("lobby_id"),
-                    "sessionKey": event.get("sessionKey"),
-                    "message": f"A new rematch game has been created: Game {new_game_id}",
+                    # Provide all common lobby param names to prevent drift:
+                    "lobby_id": lobby_id,
+                    "lobbyId": lobby_id,
+                    "lobby": lobby_id,
+                    "sessionKey": session_key,
+                    "message": event.get("message") or f"Rematch created: Game {new_game_id}",
                 }
             )
 
             logger.info(
-                "Sent rematch_start to %s for new game ID %s",
-                getattr(self.user, "first_name", "?"),
+                "[REMATCH][START] Sent rematch_start to user=%s new_game_id=%s lobby_id=%s has_session=%s",
+                user_id,
                 new_game_id,
+                lobby_id,
+                bool(session_key),
             )
 
         except Exception as exc:
-            logger.error("[rematch_start] Error sending new game ID to %s: %s", getattr(self.user, "first_name", "?"), exc)
+            logger.exception(
+                "[REMATCH][START] Error sending rematch_start to user=%s: %s",
+                getattr(self.user, "id", None),
+                exc,
+            )
             SharedUtils.send_error(self, "Failed to initiate rematch transition.")
 
     def disconnect(self, close_code: int) -> None:

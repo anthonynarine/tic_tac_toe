@@ -1,200 +1,295 @@
-// # Filename: src/components/reducer/directMessaeReducer.jsx
-// ✅ New Code
+// # Filename: src/components/reducers/directMessaeReducer.jsx
 
 /**
- * directMessaeReducer
- * ------------------------------------------------------------
- * DM reducer is now responsible ONLY for direct message threads + DM UI state.
+ * directMessaeReducer.jsx
+ * ----------------------
+ * Single source of truth for DM state:
+ * - activeChat (selected friend object)
+ * - activeFriendId (other user id)
+ * - socket (WebSocket instance)
+ * - messages (keyed by friendId)
+ * - unreadCounts (keyed by friendId)
  *
- * Contract:
- * - Invites are NOT stored in DM threads anymore.
- * - DM threads are stored by friendId: messages[friendId] = [...]
- * - Unread counts are stored by friendId: unreadCounts[friendId] = number
- *
- * Added:
- * - CLEAR_THREAD: clears a friend thread (client-side) + resets unread
- * - INCREMENT_UNREAD / RESET_UNREAD: included in action types (was missing)
+ * NOTE (tech debt):
+ * This file currently writes to localStorage in SET_ACTIVE_LOBBY / SET_ACTIVE_GAME to preserve
+ * existing behavior. In a strict “pure reducer” setup, move those writes to effects in the provider.
  */
 
 export const initialDMState = {
   activeChat: null,
-  socket: null,
-  messages: {}, // { [friendId]: [message1, message2, ...] }
-  isLoading: false,
   activeFriendId: null,
-  unreadCounts: {}, // { [friendId]: number }
+
+  socket: null,
+  isLoading: false,
+
+  // messages[friendId] = array of message objects
+  messages: {},
+
+  // unreadCounts[friendId] = number
+  unreadCounts: {},
+
+  // optional: used by your current app for navigation hints
   activeLobbyId: null,
   activeGameId: null,
+
+  // optional: friendId -> conversationId (useful for delete/mark-read flows)
+  conversationIds: {},
 };
 
 export const DmActionTypes = {
+  // chat lifecycle
   OPEN_CHAT: "OPEN_CHAT",
   CLOSE_CHAT: "CLOSE_CHAT",
-  RECEIVE_MESSAGE: "RECEIVE_MESSAGE",
-  SET_MESSAGES: "SET_MESSAGES",
   SET_LOADING: "SET_LOADING",
-  SET_ACTIVE_LOBBY: "SET_ACTIVE_LOBBY",
-  SET_ACTIVE_GAME: "SET_ACTIVE_GAME",
 
-  // ✅ New Code
+  // history + realtime
+  SET_MESSAGES: "SET_MESSAGES",
+  RECEIVE_MESSAGE: "RECEIVE_MESSAGE",
+  CLEAR_THREAD: "CLEAR_THREAD",
+
+  // unread
   INCREMENT_UNREAD: "INCREMENT_UNREAD",
   RESET_UNREAD: "RESET_UNREAD",
-  CLEAR_THREAD: "CLEAR_THREAD",
+  SET_UNREAD_COUNTS: "SET_UNREAD_COUNTS",
+
+  // optional conversation id cache
+  SET_CONVERSATION_ID: "SET_CONVERSATION_ID",
+
+  // app integrations (kept for compatibility)
+  SET_ACTIVE_LOBBY: "SET_ACTIVE_LOBBY",
+  SET_ACTIVE_GAME: "SET_ACTIVE_GAME",
+};
+
+const normalizeFriendKey = (friendId) => String(friendId);
+
+const safeNumber = (n) => {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : 0;
 };
 
 export function directMessageReducer(state, action) {
   switch (action.type) {
-    case DmActionTypes.OPEN_CHAT:
+    // ---------------------------
+    // Step 1: Open / Close chat
+    // ---------------------------
+    case DmActionTypes.OPEN_CHAT: {
+      const { friend, socket, friendId } = action.payload || {};
+      const key = normalizeFriendKey(friendId);
+
       return {
         ...state,
-        activeChat: action.payload.friend,
-        socket: action.payload.socket,
-
-        // keep current threads in memory
-        messages: state.messages,
-        unreadCounts: state.unreadCounts,
-
-        isLoading: true,
-        activeFriendId: action.payload.friendId,
+        activeChat: friend || null,
+        activeFriendId: key,
+        socket: socket || null,
+        isLoading: false,
       };
+    }
 
     case DmActionTypes.CLOSE_CHAT: {
-      // Step 1: Close socket safely
-      try {
-        state.socket?.close();
-      } catch (err) {
-        console.warn("WebSocket close error:", err);
-      }
-
-      // Step 2: Do NOT wipe message threads (we want persistence across open/close)
       return {
         ...state,
         activeChat: null,
+        activeFriendId: null,
         socket: null,
         isLoading: false,
-        activeFriendId: null,
+      };
+    }
+
+    case DmActionTypes.SET_LOADING: {
+      return {
+        ...state,
+        isLoading: Boolean(action.payload),
+      };
+    }
+
+    // ---------------------------
+    // Step 2: Messages
+    // ---------------------------
+    case DmActionTypes.SET_MESSAGES: {
+      const { friendId, messages } = action.payload || {};
+      const key = normalizeFriendKey(friendId);
+
+      return {
+        ...state,
+        isLoading: false,
+        messages: {
+          ...state.messages,
+          [key]: Array.isArray(messages) ? messages : [],
+        },
       };
     }
 
     case DmActionTypes.RECEIVE_MESSAGE: {
-      const {
-        sender_id,
-        receiver_id,
-        message,
-        message_id,
-        currentUserId,
-        type,
-        game_id,
-      } = action.payload;
+      // Expected payload from WS handler:
+      // {
+      //   type: "message",
+      //   sender_id,
+      //   receiver_id,
+      //   message_id?,
+      //   timestamp?,
+      //   message/content,
+      //   currentUserId
+      // }
+      const payload = action.payload || {};
+      const senderId = payload.sender_id;
+      const receiverId = payload.receiver_id;
+      const currentUserId = payload.currentUserId;
 
-      const friendId = sender_id === currentUserId ? receiver_id : sender_id;
+      // Determine which friend bucket this message belongs to:
+      // - If I'm the sender, bucket under receiverId
+      // - If I'm the receiver, bucket under senderId
+      const friendId =
+        String(senderId) === String(currentUserId) ? receiverId : senderId;
 
-      const newMessage = {
-        id: message_id,
-        sender_id,
-        receiver_id,
-        content: message,
-        type: type || "message",
-        game_id: game_id || null,
+      if (!friendId) return state;
+
+      const key = normalizeFriendKey(friendId);
+      const existing = Array.isArray(state.messages[key]) ? state.messages[key] : [];
+
+      // De-dupe by message_id if present (safer on reconnect)
+      const msgId = payload.message_id ?? payload.id ?? null;
+      const alreadyExists =
+        msgId != null && existing.some((m) => String(m.id ?? m.message_id) === String(msgId));
+
+      const nextMessage = {
+        // normalize fields to what your UI likely expects
+        id: msgId ?? undefined,
+        message_id: msgId ?? undefined,
+        sender_id: senderId,
+        receiver_id: receiverId,
+        content: payload.message ?? payload.content ?? "",
+        message: payload.message ?? payload.content ?? "",
+        timestamp: payload.timestamp ?? null,
+        is_read: payload.is_read ?? false,
       };
 
-      const thread = Array.isArray(state.messages?.[friendId])
-        ? state.messages[friendId]
-        : [];
-
-      // Step 1: Dedupe by message_id (prevents reconnect duplicates)
-      const alreadyExists = thread.some((msg) => msg.id === message_id);
-      if (alreadyExists) return state;
+      const nextThread = alreadyExists ? existing : [...existing, nextMessage];
 
       return {
         ...state,
         messages: {
           ...state.messages,
-          [friendId]: [...thread, newMessage],
+          [key]: nextThread,
         },
+        // IMPORTANT:
+        // Do NOT increment unread here. Unread is driven by Notification WS (badge bus)
+        // to avoid double-counting.
       };
     }
 
+    case DmActionTypes.CLEAR_THREAD: {
+      const { friendId } = action.payload || {};
+      const key = normalizeFriendKey(friendId);
+
+      const nextMessages = { ...state.messages };
+      delete nextMessages[key];
+
+      const nextUnread = { ...state.unreadCounts };
+      nextUnread[key] = 0;
+
+      return {
+        ...state,
+        messages: nextMessages,
+        unreadCounts: nextUnread,
+      };
+    }
+
+    // ---------------------------
+    // Step 3: Unread counts
+    // ---------------------------
     case DmActionTypes.INCREMENT_UNREAD: {
       const { friendId } = action.payload || {};
-      if (!friendId) return state;
+      const key = normalizeFriendKey(friendId);
 
-      const count = state.unreadCounts?.[friendId] || 0;
-
+      const prev = safeNumber(state.unreadCounts[key]);
       return {
         ...state,
         unreadCounts: {
           ...state.unreadCounts,
-          [friendId]: count + 1,
+          [key]: prev + 1,
         },
       };
     }
 
     case DmActionTypes.RESET_UNREAD: {
       const { friendId } = action.payload || {};
-      if (!friendId) return state;
+      const key = normalizeFriendKey(friendId);
 
       return {
         ...state,
         unreadCounts: {
           ...state.unreadCounts,
-          [friendId]: 0,
+          [key]: 0,
         },
       };
     }
 
-    case DmActionTypes.CLEAR_THREAD: {
-      const { friendId } = action.payload || {};
-      if (!friendId) return state;
+    case DmActionTypes.SET_UNREAD_COUNTS: {
+      // payload: { unreadCounts: { [friendId]: number } }
+      const next = action.payload?.unreadCounts;
+
+      // Defensive: don't wipe state if payload is missing/bad
+      if (!next || typeof next !== "object") return state;
+
+      // Normalize keys to strings + values to numbers
+      const normalized = Object.fromEntries(
+        Object.entries(next).map(([k, v]) => [String(k), safeNumber(v)])
+      );
 
       return {
         ...state,
-        messages: {
-          ...state.messages,
-          [friendId]: [],
-        },
-        unreadCounts: {
-          ...state.unreadCounts,
-          [friendId]: 0,
+        unreadCounts: normalized,
+      };
+    }
+
+    // ---------------------------
+    // Step 4: Conversation id cache
+    // ---------------------------
+    case DmActionTypes.SET_CONVERSATION_ID: {
+      const { friendId, conversationId } = action.payload || {};
+      const key = normalizeFriendKey(friendId);
+
+      return {
+        ...state,
+        conversationIds: {
+          ...state.conversationIds,
+          [key]: conversationId,
         },
       };
     }
 
-    case DmActionTypes.SET_MESSAGES: {
-      const { friendId, messages: newMessages } = action.payload;
+    // ---------------------------
+    // Step 5: Compatibility actions
+    // ---------------------------
+    case DmActionTypes.SET_ACTIVE_LOBBY: {
+      // NOTE: side-effect in reducer retained to preserve existing behavior
+      try {
+        localStorage.setItem("activeLobbyId", action.payload);
+      } catch (_) {}
 
-      return {
-        ...state,
-        messages: {
-          ...state.messages,
-          [friendId]: Array.isArray(newMessages) ? newMessages : [],
-        },
-        isLoading: false,
-      };
-    }
-
-    case DmActionTypes.SET_LOADING:
-      return {
-        ...state,
-        isLoading: Boolean(action.payload),
-      };
-
-    case DmActionTypes.SET_ACTIVE_LOBBY:
-      localStorage.setItem("activeLobbyId", action.payload);
       return {
         ...state,
         activeLobbyId: action.payload,
       };
+    }
 
-    case DmActionTypes.SET_ACTIVE_GAME:
-      localStorage.setItem("activeGameId", action.payload);
+    case DmActionTypes.SET_ACTIVE_GAME: {
+      // NOTE: side-effect in reducer retained to preserve existing behavior
+      try {
+        localStorage.setItem("activeGameId", action.payload);
+      } catch (_) {}
+
       return {
         ...state,
         activeGameId: action.payload,
       };
+    }
 
-    default:
+    default: {
+      // Keep your existing warning pattern (helps catch typos)
+      // eslint-disable-next-line no-console
       console.warn("Unknown action type in directMessageReducer:", action.type);
       return state;
+    }
   }
 }

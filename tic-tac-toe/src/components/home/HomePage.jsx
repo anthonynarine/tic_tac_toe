@@ -1,29 +1,31 @@
-// # Filename: src/components/home/HomePage.jsx
-
-
+// # Filename: src/home/HomePage.jsx
 import React, { useMemo, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { showToast } from "../../utils/toast/Toast";
-import { useUserContext } from "../../context/userContext";
-import useGameCreation from "../game/hooks/useGameCreation";
-import FooterTicker from "./FooterTicker";
-
+import { useNavigate } from "react-router-dom";
 import {
   CiGrid42,
-  CiPlay1,
-  CiCloudOn,
-  CiTimer,
-  CiWifiOn,
+  CiChat1,
+  CiPen,
+  CiStreamOn,
+  CiCircleInfo,
   CiUser,
+  CiWifiOn,
   CiHome,
 } from "react-icons/ci";
 
-const HomePage = () => {
+import HomeFeatureCard from "./HomeFeatureCard";
+import HomeGameCard from "./HomeGameCard";
+
+// NOTE: Keep your existing import paths if they differ.
+import { useUserContext } from "../../context/userContext";
+import useGameCreation from "../game/hooks/useGameCreation";
+import { showToast } from "../../utils/toast/Toast";
+
+export default function HomePage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { isLoggedIn, user } = useUserContext();
   const { createNewGame } = useGameCreation();
 
+  // Step 0: Display name (mobile header uses this)
   const displayName = useMemo(() => {
     const first = user?.first_name?.trim();
     if (first) return first;
@@ -32,374 +34,204 @@ const HomePage = () => {
     return "Player";
   }, [user]);
 
-  // ✅ New Code
-  // # Step 1: Navigate safely (SPA first, hard redirect only if SPA fails)
+  // Step 1: Harden navigation (SPA first, hard redirect fallback)
   const safeNavigate = useCallback(
     async (targetUrl) => {
       const before = `${window.location.pathname}${window.location.search}`;
-      console.log("[HomePage] Navigating to:", targetUrl);
-
-      // Step 1: Try normal SPA navigation
       navigate(targetUrl);
 
-      // Step 2: If SPA didn't commit, force it (next tick)
       setTimeout(() => {
         const after = `${window.location.pathname}${window.location.search}`;
-
-        if (after === before) {
-          console.warn(
-            "[HomePage] SPA navigate did not change URL. Forcing location:",
-            targetUrl
-          );
-          window.location.assign(targetUrl);
-        }
+        if (after === before) window.location.assign(targetUrl);
       }, 0);
     },
     [navigate]
   );
 
-  // ✅ New Code
-  // # Step 2: Multiplayer MUST enter via Lobby (host uses sessionKey)
-  const navigateToMultiplayerGame = useCallback(async () => {
-    console.log("[HomePage] MP click fired");
+  const handleComingSoon = useCallback(async (label) => {
+    showToast("info", `${label} is coming soon.`);
+  }, []);
 
+  const handleCreateMultiplayer = useCallback(async () => {
     if (!isLoggedIn) {
       navigate("/login");
       return;
     }
 
     try {
-      // Step 1: Create multiplayer game
       const newGame = await createNewGame(false);
-      console.log("[HomePage] Multiplayer game created:", newGame);
+      if (!newGame?.id) throw new Error("Create multiplayer game: missing id");
 
-      if (!newGame?.id) {
-        throw new Error("Create multiplayer game: missing id");
-      }
-
-      // Step 2: Build lobby URL using sessionKey (host flow)
       const qs = new URLSearchParams();
-      if (newGame?.sessionKey) {
-        qs.set("sessionKey", String(newGame.sessionKey));
-      }
+      if (newGame?.sessionKey) qs.set("sessionKey", String(newGame.sessionKey));
 
       const suffix = qs.toString() ? `?${qs.toString()}` : "";
-      const target = `/lobby/${newGame.id}${suffix}`;
-
-      // Step 3: Use hardened navigation
-      await safeNavigate(target);
+      await safeNavigate(`/lobby/${newGame.id}${suffix}`);
     } catch (err) {
-      console.error("Create multiplayer game failed:", err);
+      console.error("[HomePage] Create multiplayer failed:", err);
       showToast("error", "Failed to create a multiplayer game.");
     }
   }, [isLoggedIn, navigate, createNewGame, safeNavigate]);
 
-  // # Step 3: AI games are HTTP-only (/games/ai/:id)
-    const navigateToAIGame = useCallback(async () => {
-      if (!isLoggedIn) {
-        navigate("/login");
-        return;
-      }
+  const handleCreateAI = useCallback(async () => {
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
 
-      try {
-        const newGame = await createNewGame(true);
-        if (!newGame?.id) throw new Error("Create AI game: missing id");
+    try {
+      const newGame = await createNewGame(true);
+      if (!newGame?.id) throw new Error("Create AI game: missing id");
+      await safeNavigate(`/games/ai/${newGame.id}`);
+    } catch (err) {
+      console.error("[HomePage] Create AI failed:", err);
+      showToast("error", "Failed to create an AI game.");
+    }
+  }, [isLoggedIn, navigate, createNewGame, safeNavigate]);
 
-        // ✅ Use the same hardened navigation path
-        await safeNavigate(`/games/ai/${newGame.id}`);
-      } catch (err) {
-        console.error("Create AI game failed:", err);
-        showToast("error", "Failed to create an AI game.");
-      }
-    }, [isLoggedIn, navigate, createNewGame, safeNavigate]);
-
-  // # Step 4: Utility actions
-  const handleGoHome = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
-
-  const handleComingSoon = useCallback((gameTitle) => {
-    showToast("info", `${gameTitle} is coming soon.`);
-  }, []);
-
-  const games = useMemo(
-    () => [
-      {
-        id: "ttt",
-        title: "Tic-Tac-Toe",
-        statusText: "Live",
-        icon: CiGrid42,
-        actions: [
-          {
-            id: "ttt-mp",
-            label: "Multiplayer",
-            onClick: async () => {
-              await navigateToMultiplayerGame();
-            },
-          },
-          {
-            id: "ttt-ai",
-            label: "Play vs AI",
-            onClick: async () => {
-              await navigateToAIGame();
-            },
-          },
-        ],
-      },
-      {
-        id: "connect4",
-        title: "Connect 4",
-        statusText: "Coming soon",
-        icon: CiPlay1,
-      },
-      {
-        id: "sudoku",
-        title: "Sudoku",
-        statusText: "Coming soon",
-        icon: CiTimer,
-      },
-      {
-        id: "checkers",
-        title: "Checkers",
-        statusText: "Coming soon",
-        icon: CiCloudOn,
-      },
-    ],
-    [navigateToAIGame, navigateToMultiplayerGame]
+  const liveGame = useMemo(
+    () => ({
+      id: "ttt",
+      title: "Tic-Tac-Toe",
+      statusText: "Live • More games coming",
+      icon: CiGrid42,
+      actions: [
+        { id: "mp", label: "Multiplayer", onClick: handleCreateMultiplayer },
+        { id: "ai", label: "Play vs AI", onClick: handleCreateAI },
+      ],
+    }),
+    [handleCreateAI, handleCreateMultiplayer]
   );
 
-  const nextUpItems = useMemo(
+  const features = useMemo(
     () => [
-      "Connect 4 — real-time matchmaking.",
-      "Sudoku — clean solo mode.",
-      "Checkers — classic strategy, then real-time.",
-      "Social layer stays consistent across games: invites + chat + presence.",
+      {
+        key: "tweets",
+        title: "Feed / Tweets",
+        description: "Short posts + reactions in a clean timeline.",
+        icon: <CiStreamOn size={26} />,
+        badge: "SOON",
+      },
+      {
+        key: "groups",
+        title: "Group Chats",
+        description: "Rooms, presence, and real-time chat.",
+        icon: <CiChat1 size={26} />,
+        badge: "SOON",
+      },
+      {
+        key: "blog",
+        title: "Blog / Writing",
+        description: "Long-form posts, drafts, and profiles.",
+        icon: <CiPen size={26} />,
+        badge: "SOON",
+      },
     ],
     []
   );
 
   return (
-    <div className="w-full px-4 pt-8 pb-24">
+    <div className="w-full px-4 pt-6 pb-24">
       <div className="mx-auto max-w-5xl">
-        {/* Nexus Hero (quiet / rich) */}
+        {/* UPDATED HEADER (mobile-friendly + welcome back) */}
         <div
           className="
             relative overflow-hidden
-            rounded-2xl
+            rounded-3xl
             border border-slate-800/70
-            bg-black/70
+            bg-black/55
             backdrop-blur
-            p-6 sm:p-8
-            shadow-[0_0_30px_rgba(29,161,242,0.08)]
+            p-5 sm:p-6
+            shadow-[0_0_26px_rgba(29,161,242,0.06)]
+            mb-5
           "
         >
-          {/* Subtle glow */}
-          <div
-            className="pointer-events-none absolute -top-56 left-1/2 h-[720px] w-[720px] -translate-x-1/2 rounded-full opacity-70"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(29,161,242,0.14) 0%, rgba(0,0,0,0) 70%)",
-            }}
-          />
+          {/* subtle top glow */}
+          <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[520px] -translate-x-1/2 rounded-full bg-[#1DA1F2]/10 blur-3xl" />
 
-          {/* Soft interior sheen */}
-          <div
-            className="pointer-events-none absolute inset-0 opacity-40"
-            style={{
-              background:
-                "linear-gradient(120deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 28%, rgba(29,161,242,0.05) 62%, rgba(0,0,0,0) 100%)",
-            }}
-          />
-
-          <div className="relative">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="min-w-0">
-                <p className="text-[11px] tracking-[0.28em] uppercase text-slate-300/55">
-                  hub
-                </p>
-
-                <h1 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-wide text-slate-200/85">
-                  Welcome back,{" "}
-                  <span className="text-[#1DA1F2]/85">{displayName}</span>
-                </h1>
-
-                <p className="mt-2 text-sm sm:text-base text-slate-300/70"></p>
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-[11px] tracking-[0.28em] text-slate-400/70">
+                HUB
               </div>
 
-              {/* Status + Home */}
-              <div className="flex items-center gap-3">
-                <div
-                  className="
-                    inline-flex items-center gap-2
-                    rounded-xl
-                    border border-slate-800/70
-                    bg-slate-950/35
-                    px-3 py-2
-                    text-xs text-slate-300/70
-                  "
-                >
-                  <CiUser size={18} className="text-[#1DA1F2]/75" />
-                  <span>Status</span>
-                  <span className="text-slate-500/70">•</span>
-                  <span
-                    className={[
-                      "font-semibold inline-flex items-center gap-1",
-                      isLoggedIn ? "text-emerald-300/85" : "text-slate-300/60",
-                    ].join(" ")}
-                  >
-                    <CiWifiOn
-                      size={18}
-                      className={
-                        isLoggedIn
-                          ? "text-emerald-300/85"
-                          : "text-slate-400/60"
-                      }
-                    />
-                    {isLoggedIn ? "Online" : "Guest"}
-                  </span>
-                </div>
+              <h1 className="mt-2 text-3xl sm:text-4xl font-semibold text-slate-100/90 tracking-wide">
+                Welcome back,{" "}
+                <span className="text-[#1DA1F2]/90">{displayName}</span>
+              </h1>
 
-                <button
-                  type="button"
-                  onClick={handleGoHome}
-                  className="
-                    inline-flex items-center gap-2
-                    rounded-xl
-                    border border-slate-800/70
-                    bg-slate-950/25
-                    px-3 py-2
-                    text-xs font-semibold
-                    text-slate-300/70
-                    hover:bg-[#1DA1F2]/08
-                    hover:border-[#1DA1F2]/25
-                    hover:text-[#1DA1F2]/85
-                    transition
-                    focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/20
-                  "
-                  title="Home"
-                  aria-label="Go to home"
-                >
-                  <CiHome size={18} />
-                  Home
-                </button>
+              <p className="mt-2 text-sm sm:text-[15px] text-slate-400/75 max-w-2xl">
+                Real-time multiplayer hub with invites, presence, and fast state sync.
+                <span className="text-slate-200/70"> Tic-Tac-Toe</span> is live now —
+                more games and modules are on the way.
+              </p>
+            </div>
+
+            {/* HUD chips (stack on mobile, row on desktop) */}
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              <div
+                className="
+                  inline-flex items-center gap-2
+                  rounded-2xl border border-slate-800/70 bg-black/40
+                  px-3 py-2 text-xs text-slate-300/70
+                "
+              >
+                <CiUser size={16} />
+                <span>Status</span>
+                <span className="mx-1 text-slate-500/60">•</span>
+                <CiWifiOn size={16} />
+                <span className="text-emerald-300/80">
+                  {isLoggedIn ? "Online" : "Guest"}
+                </span>
               </div>
+
+              <button
+                type="button"
+                onClick={async () => navigate("/")}
+                className="
+                  inline-flex items-center gap-2
+                  rounded-2xl border border-slate-800/70 bg-black/40
+                  px-3 py-2 text-xs text-slate-300/70
+                  hover:border-[#1DA1F2]/25 hover:bg-[#1DA1F2]/08 hover:text-[#1DA1F2]/85
+                  transition
+                "
+              >
+                <CiHome size={16} />
+                Home
+              </button>
+
+              {/* <div className="hidden sm:inline-flex items-center gap-2 text-xs text-slate-300/60 border border-slate-800/70 bg-black/40 rounded-2xl px-3 py-2">
+                <CiCircleInfo size={16} />
+                <span>Roadmap cards are disabled</span>
+              </div> */}
             </div>
           </div>
         </div>
 
-        {/* Game Cards */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {games.map((game) => {
-            const Icon = game.icon;
-            const isLive = game.statusText === "Live";
+        {/* Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="md:col-span-2">
+            <HomeGameCard game={liveGame} onComingSoon={handleComingSoon} />
+          </div>
 
-            return (
-              <div
-                key={game.id}
-                className="
-                  group relative
-                  rounded-2xl
-                  border border-slate-800/70
-                  bg-black/55
-                  backdrop-blur
-                  p-5
-                  shadow-[0_0_18px_rgba(29,161,242,0.04)]
-                  transition
-                  hover:border-[#1DA1F2]/25
-                  hover:shadow-[0_0_22px_rgba(29,161,242,0.08)]
-                "
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span
-                      className="
-                        grid h-11 w-11 place-items-center
-                        rounded-xl
-                        border border-slate-800/70
-                        bg-slate-950/35
-                        text-[#1DA1F2]/75
-                        transition
-                        group-hover:border-[#1DA1F2]/25
-                        group-hover:bg-[#1DA1F2]/08
-                        group-hover:text-[#1DA1F2]/90
-                      "
-                    >
-                      <Icon size={26} />
-                    </span>
+          {features.map((f) => (
+            <HomeFeatureCard
+              key={f.key}
+              title={f.title}
+              description={f.description}
+              icon={f.icon}
+              badge={f.badge}
+              disabled
+              onClick={async () => await handleComingSoon(f.title)}
+            />
+          ))}
+        </div>
 
-                    <div className="min-w-0">
-                      <h3 className="text-base font-semibold text-slate-200/80 truncate">
-                        {game.title}
-                      </h3>
-
-                      <p
-                        className={[
-                          "mt-1 text-xs tracking-wide",
-                          isLive
-                            ? "text-emerald-300/70"
-                            : "text-slate-400/70",
-                        ].join(" ")}
-                      >
-                        {game.statusText}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {game.actions ? (
-                    game.actions.map((a) => (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={async () => await a.onClick()}
-                        className="
-                          inline-flex items-center justify-center
-                          rounded-xl px-3 py-2
-                          text-sm font-semibold
-                          border border-slate-800/70
-                          bg-slate-950/35
-                          text-slate-200/70
-                          hover:bg-[#1DA1F2]/08
-                          hover:border-[#1DA1F2]/25
-                          hover:text-[#1DA1F2]/85
-                          transition
-                          focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/20
-                        "
-                      >
-                        {a.label}
-                      </button>
-                    ))
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={async () => handleComingSoon(game.title)}
-                      className="
-                        inline-flex items-center justify-center
-                        rounded-xl px-3 py-2
-                        text-sm font-semibold
-                        border border-slate-800/70
-                        bg-slate-950/25
-                        text-slate-300/65
-                        hover:bg-slate-900/30
-                        hover:text-slate-200/75
-                        transition
-                      "
-                    >
-                      Coming soon
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="sm:hidden mt-4 text-xs text-slate-400/65">
+          Roadmap modules are marked <span className="text-slate-200/70">SOON</span>{" "}
+          and aren’t clickable yet.
         </div>
       </div>
-
-      {/* <FooterTicker items={nextUpItems} /> */}
     </div>
   );
-};
-
-export default HomePage;
+}

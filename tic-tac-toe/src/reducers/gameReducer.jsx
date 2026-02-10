@@ -1,58 +1,150 @@
 // # Filename: src/components/reducers/gameReducer.jsx
 
 /**
- * gameReducer.jsx
+ * Production-grade gameReducer for TicTacToe (WS-backed)
  *
- * Description:
- * This file defines the initial game state and reducer function for managing the
- * Tic Tac Toe game state, player list, WebSocket updates, and rematch offer flows.
- *
- * The reducer is primarily used with React's `useReducer` hook inside the game context provider
- * to ensure predictable state transitions.
- *
- * Organization:
- * - Game Setup Actions (SET_GAME, MAKE_MOVE, UPDATE_GAME_STATE)
- * - Game Reset Actions (RESET_GAME, RESET_GAME_STATE, MARK_COMPLETED)
- * - Player Management (PLAYER_LIST)
- * - Rematch Offer Flow (SHOW_REMATCH_MODAL, RECEIVE_RAW_REMATCH_OFFER, HIDE_REMATCH_MODAL, LOCK_REMATCH_BUTTON, CLEAR_REMATCH_STATE)
- * - Miscellaneous (default)
+ * Goals:
+ * - Accept both "game_state" (connect snapshot) and "game_update" (live updates)
+ * - Normalize payload keys (gameId vs game_id, winning_combination vs winningCombination, etc.)
+ * - Never crash on partial payloads
+ * - Keep reducer pure and deterministic
  */
 
-/// --------------------
-/// Initial State
-/// --------------------
+const EMPTY_BOARD = "_".repeat(9);
+
+function normalizeBoardState(boardState) {
+  if (typeof boardState !== "string") return EMPTY_BOARD;
+  if (boardState.length !== 9) return EMPTY_BOARD;
+  return boardState;
+}
+
+function boardToCells(boardState) {
+  const safe = normalizeBoardState(boardState);
+  return safe.split("").map((cell) => (cell === "_" ? "" : cell));
+}
+
+function countTurnsLeft(boardState) {
+  const safe = normalizeBoardState(boardState);
+  return safe.split("").filter((c) => c === "_").length;
+}
+
+function normalizeWinner(winner) {
+  // winner might be null, "X", "O", "D", or sometimes "" depending on server
+  if (winner === "" || winner === undefined) return null;
+  return winner ?? null;
+}
+
+function normalizeWinningCombo(payload) {
+  const combo =
+    payload?.winning_combination ??
+    payload?.winningCombination ??
+    payload?.winning_combo ??
+    payload?.winningCombo ??
+    [];
+
+  return Array.isArray(combo) ? combo : [];
+}
+
+function normalizePlayers(payload) {
+  // best-effort; not required for moves
+  const playerX = payload?.player_x ?? payload?.playerX ?? null;
+  const playerO = payload?.player_o ?? payload?.playerO ?? null;
+
+  return {
+    player_x: playerX,
+    player_o: playerO,
+  };
+}
+
+function normalizeGameId(payload) {
+  return (
+    payload?.game_id ??
+    payload?.gameId ??
+    payload?.id ??
+    payload?.game ??
+    null
+  );
+}
+
+function normalizePayload(payload) {
+  const board_state = normalizeBoardState(
+    payload?.board_state ?? payload?.boardState ?? payload?.board ?? EMPTY_BOARD
+  );
+
+  const current_turn =
+    payload?.current_turn ?? payload?.currentTurn ?? payload?.turn ?? "X";
+
+  const winner = normalizeWinner(payload?.winner);
+
+  const is_completed =
+    payload?.is_completed ??
+    payload?.isCompleted ??
+    payload?.completed ??
+    false;
+
+  const is_ai_game =
+    payload?.is_ai_game ??
+    payload?.isAI ??
+    payload?.is_ai ??
+    false;
+
+  const player_role =
+    payload?.player_role ??
+    payload?.playerRole ??
+    payload?.role ??
+    null;
+
+  const game_id = normalizeGameId(payload);
+
+  const { player_x, player_o } = normalizePlayers(payload);
+
+  return {
+    // core
+    game_id,
+    board_state,
+    current_turn,
+    winner,
+    is_completed: Boolean(is_completed),
+    is_ai_game: Boolean(is_ai_game),
+    player_role,
+
+    // extras
+    player_x,
+    player_o,
+    winning_combination: normalizeWinningCombo(payload),
+
+    // keep everything else (safe for future fields)
+    rest: payload ?? {},
+  };
+}
+
 export const INITIAL_STATE = {
-  game: {}, // (prevents state.game merge issues)
-  cellValues: Array(9).fill(null), // 3x3 Board initialized as empty
-  xIsNext: true, // Tracks whose turn it is (X starts first)
-  isGameOver: false, // True when game finishes
-  isCompleted: false, // True when game is completed (even if no winner)
-  numOfTurnsLeft: 9, // Countdown for available turns
-  winner: null, // 'X', 'O', or 'D' for draw
-  winningCombination: [], // Array of winning cell indices
-  isAI: false, // Whether playing against AI
-  playerRole: null, // Current player's role ('X' or 'O')
-  players: [], // Connected players (WebSocket)
+  game: {},
+  cellValues: Array(9).fill(""),
+  xIsNext: true,
+  isGameOver: false,
+  isCompleted: false,
+  numOfTurnsLeft: 9,
+  winner: null,
+  winningCombination: [],
+  isAI: false,
+  playerRole: null,
+  players: [],
 
   // Rematch modal state
-  rematchMessage: "", // Rematch modal message
-  isRematchOfferVisible: false, // Whether rematch modal is visible
-  rematchRequestedBy: null, // Role who initiated rematch request
-  rematchPending: false, // True if waiting for response
-  rawRematchOffer: null, // Raw WebSocket rematch offer payload
-  rematchButtonLocked: false, // Prevent spamming rematch button
+  rematchMessage: "",
+  isRematchOfferVisible: false,
+  rematchRequestedBy: null,
+  rematchPending: false,
+  rawRematchOffer: null,
+  rematchButtonLocked: false,
   rematchRequesterUserId: null,
   rematchReceiverUserId: null,
   rematchShowActions: false,
-  rematchUiMode: null, // "receiver" | "requester" (optional)
+  rematchUiMode: null,
   rematchCreatedAtMs: null,
   rematchGameId: null,
 };
-
-/// --------------------
-/// Helper: Rematch Reset
-/// --------------------
-
 
 const resetRematchState = () => ({
   rematchMessage: "",
@@ -70,127 +162,66 @@ const resetRematchState = () => ({
   rematchGameId: null,
 });
 
-/// --------------------
-/// Reducer Function
-/// --------------------
+function applyGameSnapshot(state, payload) {
+  const normalized = normalizePayload(payload);
+
+  const cells = boardToCells(normalized.board_state);
+  const turnsLeft = countTurnsLeft(normalized.board_state);
+
+  const isGameOver = Boolean(normalized.winner) || normalized.is_completed;
+
+  return {
+    ...state,
+    game: {
+      ...state.game,
+      ...normalized.rest,
+      game_id: normalized.game_id ?? state.game?.game_id,
+      board_state: normalized.board_state,
+      current_turn: normalized.current_turn,
+      winner: normalized.winner,
+      // keep player info inside game for convenience
+      player_x: normalized.player_x ?? state.game?.player_x,
+      player_o: normalized.player_o ?? state.game?.player_o,
+    },
+
+    cellValues: cells,
+    xIsNext: normalized.current_turn === "X",
+    isGameOver,
+    isCompleted: normalized.is_completed,
+    winner: normalized.winner,
+    winningCombination: normalized.winning_combination,
+    numOfTurnsLeft: turnsLeft,
+
+    isAI: normalized.is_ai_game,
+    playerRole: normalized.player_role ?? state.playerRole,
+  };
+}
+
 export const gameReducer = (state, action) => {
   if (process.env.NODE_ENV === "development") {
-    console.log(`Reducer action received: ${action.type}`, action.payload);
+    // Avoid logging tokens; payload should be safe.
+    console.log(`[gameReducer] ${action.type}`, action?.payload);
   }
 
   switch (action.type) {
-    // --------------------
-    // Game Setup Actions
-    // --------------------
-
-    case "SET_GAME": {
-      const {
-        board_state,
-        current_turn,
-        winner,
-        is_ai_game,
-        is_completed = false,
-        winning_combination = [],
-        player_role,
-        ...restGame
-      } = action.payload;
-
-      return {
-        ...state,
-        game: { ...restGame, board_state, current_turn, winner },
-        cellValues: board_state
-          .split("")
-          .map((cell) => (cell === "_" ? "" : cell)),
-        xIsNext: current_turn === "X",
-        isGameOver: !!winner || is_completed,
-        isCompleted: is_completed,
-        winner,
-        winningCombination: winning_combination,
-        numOfTurnsLeft: board_state.split("").filter((cell) => cell === "_").length,
-        isAI: is_ai_game,
-        playerRole: player_role || restGame.playerRole,
-      };
-    }
-
+    // --- WS snapshots / updates ---
+    // Backend connect snapshot
+    case "GAME_STATE":
+    case "SET_GAME":
+    case "UPDATE_GAME_STATE":
     case "MAKE_MOVE": {
-      const {
-        board_state,
-        current_turn,
-        winner,
-        is_ai_game,
-        is_completed = false,
-        winning_combination = [],
-        player_role,
-        ...restGame
-      } = action.payload;
-
-      return {
-        ...state,
-        game: { ...state.game, ...restGame, board_state, current_turn, winner },
-        cellValues: board_state
-          .split("")
-          .map((cell) => (cell === "_" ? "" : cell)),
-        xIsNext: current_turn === "X",
-        isGameOver: !!winner,
-        isCompleted: is_completed,
-        winner,
-        winningCombination: winning_combination,
-        numOfTurnsLeft: board_state.split("").filter((cell) => cell === "_").length,
-        isAI: is_ai_game !== undefined ? is_ai_game : state.isAI,
-        playerRole: player_role || state.playerRole,
-      };
+      return applyGameSnapshot(state, action.payload);
     }
 
-    case "UPDATE_GAME_STATE": {
-      const {
-        board_state,
-        current_turn,
-        winner,
-        is_completed = false,
-        winning_combination = [],
-        player_role,
-        player_x,
-        player_o,
-        ...restGame
-      } = action.payload;
-
-      return {
-        ...state,
-        game: {
-          ...state.game,
-          ...restGame,
-          board_state,
-          current_turn,
-          winner,
-          player_x,
-          player_o,
-        },
-        cellValues: board_state
-          .split("")
-          .map((cell) => (cell === "_" ? "" : cell)),
-        xIsNext: current_turn === "X",
-        isGameOver: !!winner,
-        isCompleted: is_completed,
-        winner,
-        winningCombination: winning_combination,
-        playerRole: player_role || state.playerRole,
-        numOfTurnsLeft: board_state.split("").filter((cell) => cell === "_").length,
-      };
-    }
-
-    // --------------------
-    // Game Reset Actions
-    // --------------------
-
+    // --- Reset ---
     case "RESET_GAME": {
-      const { board_state = "_".repeat(9) } = action.payload;
+      const board_state = normalizeBoardState(action?.payload?.board_state ?? EMPTY_BOARD);
 
       return {
         ...INITIAL_STATE,
         game: {},
-        cellValues: board_state
-          .split("")
-          .map((cell) => (cell === "_" ? "" : cell)),
+        cellValues: boardToCells(board_state),
+        numOfTurnsLeft: countTurnsLeft(board_state),
       };
     }
 
@@ -206,60 +237,37 @@ export const gameReducer = (state, action) => {
       };
     }
 
-    // --------------------
-    // Player Management
-    // --------------------
-
+    // --- Player list ---
     case "PLAYER_LIST": {
       return {
         ...state,
-        players: action.payload,
+        players: Array.isArray(action.payload) ? action.payload : [],
       };
     }
 
-    // --------------------
-    // Rematch Offer Flow
-    // --------------------
-
+    // --- Rematch flow ---
     case "SHOW_REMATCH_MODAL": {
-      const {
-        message = "",
-        rematchRequestedBy = null,
-        isRematchOfferVisible = true,
-        rematchPending = false,
-
-        // ✅ New Code
-        requesterUserId = null,
-        receiverUserId = null,
-        showActions = false,
-        uiMode = null,
-        createdAtMs = null,
-        game_id = null,
-      } = action.payload || {};
-
+      const p = action.payload || {};
       return {
         ...state,
-        rematchMessage: message,
-        rematchRequestedBy,
-        isRematchOfferVisible,
-        rematchPending,
+        rematchMessage: p.message || "",
+        rematchRequestedBy: p.rematchRequestedBy ?? null,
+        isRematchOfferVisible: p.isRematchOfferVisible ?? true,
+        rematchPending: p.rematchPending ?? false,
 
-        // ✅ New Code
-        rematchRequesterUserId: requesterUserId,
-        rematchReceiverUserId: receiverUserId,
-        rematchShowActions: Boolean(showActions),
-        rematchUiMode: uiMode,
-        rematchCreatedAtMs: createdAtMs,
-        rematchGameId: game_id,
+        rematchRequesterUserId: p.requesterUserId ?? null,
+        rematchReceiverUserId: p.receiverUserId ?? null,
+        rematchShowActions: Boolean(p.showActions),
+        rematchUiMode: p.uiMode ?? null,
+        rematchCreatedAtMs: p.createdAtMs ?? null,
+        rematchGameId: p.game_id ?? p.gameId ?? null,
       };
     }
 
     case "RECEIVE_RAW_REMATCH_OFFER": {
-      if (!action.payload) return state;
-
       return {
         ...state,
-        rawRematchOffer: action.payload,
+        rawRematchOffer: action.payload ?? null,
       };
     }
 
@@ -270,14 +278,7 @@ export const gameReducer = (state, action) => {
       };
     }
 
-    case "HIDE_REMATCH_MODAL": {
-      return {
-        ...state,
-        ...resetRematchState(),
-      };
-    }
-
-    // ✅ New Code
+    case "HIDE_REMATCH_MODAL":
     case "CLEAR_REMATCH_STATE": {
       return {
         ...state,
@@ -285,12 +286,8 @@ export const gameReducer = (state, action) => {
       };
     }
 
-    // --------------------
-    // Default (Error Handling)
-    // --------------------
-
     default: {
-      console.warn(`Unknown action type: ${action.type}`);
+      console.warn(`[gameReducer] Unknown action type: ${action.type}`);
       return state;
     }
   }

@@ -1,69 +1,60 @@
 // # Filename: src/components/friends/FriendsPanel.jsx
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CiCircleChevDown, CiCircleChevUp, CiChat1 } from "react-icons/ci";
+import { CiCircleChevDown, CiCircleChevUp } from "react-icons/ci";
 import FriendRow from "./FriendRow";
-import { useUI } from "../../context/uiContext";
-import { useDirectMessage } from "../../context/directMessageContext";
 
+/**
+ * FriendsPanel
+ * ------------
+ * Step 1: Shows "Friends List" header + online count pill (>= 1).
+ * Step 2: Shows "New N" pill when totalUnread >= 1.
+ *         - Clicking "New N" ONLY expands the panel (does NOT open DM drawer).
+ *         - This avoids the "drawer opens but no active conversation" connecting hang.
+ * Step 3: Rows own actions (chat bubble opens DM thread; game icon creates game).
+ */
 export default function FriendsPanel({
   friends = [],
   user,
   onFriendClick,
   onInvite,
-  unreadCounts = {},
+  unreadCounts = {}, // { [friendUserId]: number }
   defaultOpen = false,
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
-  const { setDMOpen } = useUI();
-  const { activeChat } = useDirectMessage();
-
-  // Step 1: Track whether the user has manually toggled this panel
+  // Step 1: Respect user intent (prevents auto-open overriding manual collapse)
   const userToggledRef = useRef(false);
-
-  // Step 2: Track previous online count so we can detect a 0 -> >0 transition
   const prevOnlineCountRef = useRef(0);
 
-  // Step 3: Online-only count
+  // Step 2: Online friends count
   const onlineCount = useMemo(() => {
     return friends.filter((f) => f?.friend_status === "online").length;
   }, [friends]);
 
-  // Step 4: Total unread across all threads (panel badge)
+  // Step 3: Total unread across all threads
   const totalUnread = useMemo(() => {
-    return Object.values(unreadCounts || {}).reduce(
-      (sum, n) => sum + Number(n || 0),
-      0
-    );
+    return Object.values(unreadCounts || {}).reduce((sum, n) => sum + Number(n || 0), 0);
   }, [unreadCounts]);
 
   const handleToggle = useCallback(() => {
-    // Step 1: Mark manual intent before toggling
     userToggledRef.current = true;
     setIsOpen((v) => !v);
   }, []);
 
-  // Step 2: Explicit DM affordance (never “mystery opens”)
-  const handleOpenDM = useCallback(
-    (e) => {
-      e.stopPropagation();
-      if (!activeChat) return;
-      setDMOpen(true);
-    },
-    [activeChat, setDMOpen]
-  );
+  // Step 4: Clicking New badge only expands panel (no DM drawer open here)
+  const handleShowNewMessages = useCallback((e) => {
+    e.stopPropagation();
+    userToggledRef.current = true;
+    setIsOpen(true);
+  }, []);
 
-  // Step 3: Auto-open rules:
-  // - Only auto-open when onlineCount becomes > 0 AFTER being 0
-  // - Only auto-open if the user has NOT manually toggled this panel
+  // Step 5: Optional auto-open when onlineCount transitions 0 -> >0
   useEffect(() => {
     const prev = prevOnlineCountRef.current;
     const next = onlineCount;
 
-    const becameNonZero = prev === 0 && next > 0;
-
-    if (becameNonZero && !userToggledRef.current) {
+    if (prev === 0 && next > 0 && !userToggledRef.current) {
       setIsOpen(true);
     }
 
@@ -71,8 +62,7 @@ export default function FriendsPanel({
   }, [onlineCount]);
 
   const bodyClassName = useMemo(() => {
-    const base =
-      "transition-all duration-300 ease-out will-change-[max-height,opacity]";
+    const base = "transition-all duration-300 ease-out will-change-[max-height,opacity]";
     return isOpen
       ? `${base} max-h-[420px] opacity-100 mt-3`
       : `${base} max-h-0 opacity-0 mt-0 pointer-events-none`;
@@ -93,27 +83,8 @@ export default function FriendsPanel({
             Friends List
           </h3>
 
-          {/* Panel badge: total unread DMs */}
-          {totalUnread > 0 && (
-            <span
-              className="
-                inline-flex items-center justify-center
-                px-2.5 py-[1px]
-                text-xs font-semibold
-                rounded-full
-                bg-[#1DA1F2]/12 text-[#1DA1F2]
-                border border-[#1DA1F2]/30
-                shadow-[0_0_10px_rgba(29,161,242,0.08)]
-              "
-              aria-label={`${totalUnread} unread messages`}
-              title={`${totalUnread} unread messages`}
-            >
-              {totalUnread > 99 ? "99+" : totalUnread}
-            </span>
-          )}
-
-          {/* Optional: online count badge (kept calm) */}
-          {onlineCount > 0 && (
+          {/* Step 1: Online count pill (show if >= 1) */}
+          {onlineCount >= 1 ? (
             <span
               className="
                 inline-flex items-center justify-center
@@ -126,42 +97,45 @@ export default function FriendsPanel({
               aria-label={`${onlineCount} friends online`}
               title={`${onlineCount} friends online`}
             >
-              {onlineCount}
+              {onlineCount > 99 ? "99+" : onlineCount}
             </span>
-          )}
-        </div>
+          ) : null}
 
-        <div className="flex items-center gap-2">
-          {/* Explicit DM button: opens drawer if there is an active chat */}
-          {activeChat && (
+          {/* Step 2: New messages pill (show if >= 1) */}
+          {totalUnread >= 1 ? (
             <button
               type="button"
-              onClick={handleOpenDM}
+              onClick={handleShowNewMessages}
               className="
-                h-9 w-9 grid place-items-center
-                rounded-lg hover:bg-[#1DA1F2]/10
-                text-[#1DA1F2]/90 hover:text-[#1DA1F2]
-                focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/40
+                inline-flex items-center justify-center
+                px-2.5 py-[1px]
+                text-xs font-semibold
+                rounded-full
+                bg-[#1DA1F2]/10 text-[#1DA1F2]
+                border border-[#1DA1F2]/25
+                hover:bg-[#1DA1F2]/15
+                focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/35
               "
-              title="Open DM drawer"
-              aria-label="Open DM drawer"
+              aria-label={`${totalUnread} new messages`}
+              title={`${totalUnread} new messages`}
             >
-              <CiChat1 size={22} />
+              {totalUnread > 99 ? "99+" : totalUnread} Unread
             </button>
-          )}
-
-          <span
-            className="
-              h-9 w-9 grid place-items-center
-              rounded-lg hover:bg-[#1DA1F2]/10
-              text-[#1DA1F2]/90 hover:text-[#1DA1F2]
-              focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/40
-            "
-            aria-hidden="true"
-          >
-            {isOpen ? <CiCircleChevUp size={26} /> : <CiCircleChevDown size={26} />}
-          </span>
+          ) : null}
         </div>
+
+        {/* Step 3: Expand/collapse chevron only */}
+        <span
+          className="
+            h-9 w-9 grid place-items-center
+            rounded-lg hover:bg-[#1DA1F2]/10
+            text-[#1DA1F2]/90 hover:text-[#1DA1F2]
+            focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/40
+          "
+          aria-hidden="true"
+        >
+          {isOpen ? <CiCircleChevUp size={26} /> : <CiCircleChevDown size={26} />}
+        </span>
       </button>
 
       {/* Body */}
@@ -172,22 +146,18 @@ export default function FriendsPanel({
           ) : (
             <ul className="space-y-2">
               {friends.map((friend) => {
-                const isCurrentUserSender =
-                  Number(friend?.from_user) === Number(user?.id);
-                const friendUserId = isCurrentUserSender
-                  ? friend?.to_user
-                  : friend?.from_user;
-
+                const isCurrentUserSender = Number(friend?.from_user) === Number(user?.id);
+                const friendUserId = isCurrentUserSender ? friend?.to_user : friend?.from_user;
                 const unreadCount = Number(unreadCounts?.[friendUserId] || 0);
 
                 return (
                   <FriendRow
-                    key={friend.id}
+                    key={friend.id || `${friend?.from_user}-${friend?.to_user}`}
                     friend={friend}
                     user={user}
                     onClick={onFriendClick}
                     onInvite={onInvite}
-                    unreadCount={unreadCount}
+                    unreadCount={unreadCount} // row can show per-friend indicator if you want
                   />
                 );
               })}
@@ -198,3 +168,4 @@ export default function FriendsPanel({
     </section>
   );
 }
+

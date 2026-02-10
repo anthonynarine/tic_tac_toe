@@ -43,17 +43,17 @@ export const useNotification = () => {
  * Responsibilities (lock these in):
  * - Maintain 1 authenticated WS connection after login
  * - Route invite events -> InviteContext
- * - (Optional later) route presence + badge events to their own contexts
+ * - Fan-out raw notification payloads to subscribers (DM unread badges, etc.)
  *
  * Non-responsibilities:
  * - Does NOT store invites locally
- * - Does NOT mutate DM state
+ * - Does NOT mutate DM state directly
  * - Does NOT manage unread counts
  */
 export const NotificationProvider = ({ children }) => {
   const { user } = useUserContext();
 
-  // ✅ New Code: InviteContext is the single source of truth for invites
+  // ✅ InviteContext is the single source of truth for invites
   const { upsertInvite, removeInvite, resetInvites } = useInviteContext();
 
   // Step 1: WebSocket refs & state
@@ -71,15 +71,32 @@ export const NotificationProvider = ({ children }) => {
   // Step 3: One-time auth refresh + reconnect guard
   const authRetryAttemptRef = useRef(false);
 
+  // ✅ Step 4: Subscriber registry (other contexts can listen without coupling)
+  const subscribersRef = useRef(new Set());
+
   /**
-   * Step 4: Build notification WS URL
+   * subscribe(handler)
+   * ----------------------------
+   * Step 1: Register a handler to receive normalized payloads.
+   * Returns an unsubscribe function.
+   */
+  const subscribe = useCallback((handler) => {
+    if (typeof handler !== "function") return () => {};
+    subscribersRef.current.add(handler);
+    return () => {
+      subscribersRef.current.delete(handler);
+    };
+  }, []);
+
+  /**
+   * Step 5: Build notification WS URL
    */
   const buildNotificationUrl = (token) => {
     return `${config.websocketBaseUrl}/notifications/?token=${token}`;
   };
 
   /**
-   * Step 5: Detect auth-like close
+   * Step 6: Detect auth-like close
    */
   const isAuthLikeClose = (event) => {
     const code = Number(event?.code);
@@ -87,8 +104,7 @@ export const NotificationProvider = ({ children }) => {
   };
 
   /**
-   * ✅ New Code
-   * Step 6: Rehydrate pending invites via REST inbox
+   * Step 7: Rehydrate pending invites via REST inbox
    *
    * Server truth -> reset -> upsert.
    * This prevents invite resurrection and duplicates on reconnect.
@@ -108,72 +124,86 @@ export const NotificationProvider = ({ children }) => {
   }, [resetInvites, upsertInvite]);
 
   /**
-   * Step 7: Handle WS notifications (router only)
+   * Step 8: Fan-out to subscribers (router only)
+   */
+  const fanOut = useCallback((payload) => {
+    subscribersRef.current.forEach((fn) => {
+      try {
+        fn(payload);
+      } catch (err) {
+        console.warn("⚠️ Notification subscriber error:", err);
+      }
+    });
+  }, []);
+
+  /**
+   * Step 9: Handle WS notifications (router only)
    */
   const handleNotificationMessage = useCallback(
-  (rawEvent) => {
-    let data;
+    (rawEvent) => {
+      let data;
 
-    // Step 1: Parse WS payload safely
-    try {
-      data = JSON.parse(rawEvent?.data || "{}");
-    } catch (err) {
-      console.error("❌ Notification WS: invalid JSON:", err);
-      return;
-    }
-
-    // -------------------
-    // INVITES (Invite v2 – LOCKED CONTRACT)
-    // -------------------
-    if (data?.type === "invite") {
-      const event = data.event;
-      const inviteId = data.inviteId;
-      const status = String(data.status || "").toLowerCase();
-
-      // Malformed invite payload → ignore safely
-      if (!inviteId) {
-        console.warn("⚠️ Invite event missing inviteId:", data);
+      // Step 1: Parse WS payload safely
+      try {
+        data = JSON.parse(rawEvent?.data || "{}");
+      } catch (err) {
+        console.error("❌ Notification WS: invalid JSON:", err);
         return;
       }
 
-      // Created or updated invite
-      if (event === "invite_created" || event === "invite_updated") {
-        if (status === "pending") {
-          upsertInvite(data); // ✅ flattened payload includes fromUserName
+      // Step 2: Normalize envelope -> payload (supports both shapes)
+      // - flattened: { type: "invite", ... }
+      // - enveloped: { type: "notify", payload: { type: "invite", ... } }
+      if (data?.type === "notify" && data?.payload) {
+        data = data.payload;
+      }
+
+      // -------------------
+      // INVITES (Invite v2 – LOCKED CONTRACT)
+      // -------------------
+      if (data?.type === "invite") {
+        const event = data.event;
+        const inviteId = data.inviteId;
+        const status = String(data.status || "").toLowerCase();
+
+        if (!inviteId) {
+          console.warn("⚠️ Invite event missing inviteId:", data);
+          fanOut(data); // still allow subscribers to see raw payload
           return;
         }
 
-        // Any non-pending state → remove immediately
-        removeInvite(inviteId);
+        if (event === "invite_created" || event === "invite_updated") {
+          if (status === "pending") {
+            upsertInvite(data);
+            fanOut(data);
+            return;
+          }
+          removeInvite(inviteId);
+          fanOut(data);
+          return;
+        }
+
+        if (event === "invite_expired") {
+          removeInvite(inviteId);
+          fanOut(data);
+          return;
+        }
+
+        console.warn("⚠️ Unknown invite event:", event, data);
+        fanOut(data);
         return;
       }
 
-      // Explicit expire
-      if (event === "invite_expired") {
-        removeInvite(inviteId);
-        return;
-      }
-
-      // Unknown invite event → ignore
-      console.warn("⚠️ Unknown invite event:", event, data);
-      return;
-    }
-
-    // -------------------
-    // PRESENCE (future)
-    // -------------------
-    // if (data?.type === "presence") { ... }
-
-    // -------------------
-    // BADGES / OTHER (future)
-    // -------------------
-    // if (data?.type === "badge") { ... }
-  },
-  [upsertInvite, removeInvite]
-);
+      // -------------------
+      // EVERYTHING ELSE (DM unread badges, future presence, etc.)
+      // -------------------
+      fanOut(data);
+    },
+    [upsertInvite, removeInvite, fanOut]
+  );
 
   /**
-   * Step 8: Disconnect safely
+   * Step 10: Disconnect safely
    */
   const disconnect = async ({ resetAttempts = false } = {}) => {
     try {
@@ -202,7 +232,7 @@ export const NotificationProvider = ({ children }) => {
   };
 
   /**
-   * Step 9: Connect WS
+   * Step 11: Connect WS
    */
   const connect = async ({ forceRefresh = false } = {}) => {
     await disconnect({ resetAttempts: false });
@@ -227,7 +257,7 @@ export const NotificationProvider = ({ children }) => {
       setIsConnected(true);
       console.log("🔔 Notification socket connected.");
 
-      // ✅ New Code: Rehydrate invites from server truth on connect
+      // Step 1: Rehydrate invites from server truth on connect
       await rehydratePendingInvites();
     };
 
@@ -240,9 +270,8 @@ export const NotificationProvider = ({ children }) => {
     socket.onclose = (event) => {
       setIsConnected(false);
 
-      if (!user?.id) {
-        return;
-      }
+      // If user logged out, don't reconnect.
+      if (!user?.id) return;
 
       // Auth-like close -> force refresh then reconnect once
       if (isAuthLikeClose(event) && !authRetryAttemptRef.current) {
@@ -277,7 +306,7 @@ export const NotificationProvider = ({ children }) => {
   };
 
   /**
-   * Step 10: Auto-connect when user becomes available
+   * Step 12: Auto-connect when user becomes available
    */
   useEffect(() => {
     if (!user?.id) {
@@ -295,6 +324,10 @@ export const NotificationProvider = ({ children }) => {
 
   const contextValue = {
     isConnected,
+
+    // ✅ allow other providers to listen (DM unread)
+    subscribe,
+
     reconnect: async () => await connect({ forceRefresh: false }),
     disconnect: async () => await disconnect({ resetAttempts: true }),
   };

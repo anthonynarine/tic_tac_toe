@@ -1,91 +1,133 @@
-/* # Filename: src/components/trinity/TrinityDrawer.module.css */
 /* ✅ New Code */
+/* # Filename: src/components/trinity/TrinityDrawer.module.css */
 
-/* File: TrinityDrawer.module.css - Tron Terminal */
+/* Step 1: Fix medium/tablet transform bug by removing translateX centering entirely.
+   Step 2: Respect Layout max width (no overlap) with width: min(calc(100% - gutter), maxw).
+   Step 3: Animate ONLY translateY (no cross-breakpoint transform conflicts).
+   Step 4: Lift drawer slightly from bottom + safe-area.
+   Step 5: Highlight User vs Trinity with neon label pills + subtle message panels.
+*/
 
-/* =========================================================
-   Tron Dark Scrollbar Vars (Drawer)
-   - Subtle by default
-   - Accent glow only on hover
-========================================================= */
 :root {
-  --tron-scroll-track: rgba(0, 0, 0, 0.82);
-  --tron-scroll-thumb: rgba(15, 23, 42, 0.92);      /* slate-900-ish */
-  --tron-scroll-border: rgba(29, 161, 242, 0.16);   /* #1DA1F2 */
-  --tron-scroll-border-hover: rgba(29, 161, 242, 0.34);
-  --tron-scroll-glow-hover: rgba(29, 161, 242, 0.14);
-
-  /* Legacy vars you already rely on elsewhere */
   --glow-color: #00f7ff;
   --accent-color: #00ffff;
   --border-color: rgba(0, 255, 255, 0.3);
+
+  --app-maxw: 1400px;
+  --gutter: 24px;
+
+  --user-accent: rgba(0, 255, 157, 0.95);
+  --ai-accent: rgba(0, 191, 255, 0.95);
+
+  --panel-bg: rgba(0, 0, 0, 0.35);
+  --panel-border: rgba(29, 161, 242, 0.12);
+
+  --scroll-track: rgba(0, 0, 0, 0.82);
+  --scroll-thumb: rgba(15, 23, 42, 0.92);
+  --scroll-border: rgba(29, 161, 242, 0.16);
+  --scroll-border-hover: rgba(29, 161, 242, 0.34);
+  --scroll-glow-hover: rgba(29, 161, 242, 0.14);
 }
 
+/* Backdrop (mobile/tablet only, controlled in JSX) */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 998;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.backdropOpen {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 180ms ease;
+}
+
+.backdropClosed {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+/* Drawer */
 .drawer {
   position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 1440px;
+
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+
+  /* ✅ Lift slightly above bottom */
+  bottom: calc(12px + env(safe-area-inset-bottom));
+
+  width: min(calc(100% - var(--gutter)), var(--app-maxw));
+
   height: 40vh;
+  height: 40dvh;
+
   background: linear-gradient(135deg, #000000, #101010);
   border-top: 2px solid var(--glow-color);
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
   box-shadow: 0 -2px 20px rgba(0, 247, 255, 0.2);
+
   z-index: 999;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 
-  animation: slideInDrawer 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  /* ✅ animate only translateY */
+  transform: translateY(110%);
+  opacity: 0;
+  animation: slideUpDrawer 420ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
+@keyframes slideUpDrawer {
   to {
     transform: translateY(0);
-  }
-}
-
-@keyframes tetrisSlideUp {
-  0% { transform: translate(-50%, 100%); }
-  20% { transform: translate(-50%, 85%); }
-  40% { transform: translate(-50%, 70%); }
-  60% { transform: translate(-50%, 50%); }
-  80% { transform: translate(-50%, 30%); }
-  100% { transform: translate(-50%, 0%); }
-}
-
-/* === Smooth Drawer Entrance Animation === */
-@keyframes slideInDrawer {
-  from {
-    transform: translate(-50%, 100%);
-    opacity: 0;
-  }
-  to {
-    transform: translate(-50%, 0%);
     opacity: 1;
   }
 }
 
+/* Header */
 .header {
-  padding: 0.5rem 1rem;
+  padding: 0.55rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+
   background: #000;
   border-bottom: 1px solid rgba(0, 255, 255, 0.15);
 }
 
-.title {
-  font-size: 0.9rem;
-  color: var(--accent-color);
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glowSvg {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 0 10px rgba(0, 247, 255, 0.22));
+}
+
+.brandText {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 14px;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  color: rgba(0, 247, 255, 0.9);
 }
 
 .closeBtn {
@@ -94,99 +136,157 @@
   font-size: 1rem;
   color: var(--accent-color);
   cursor: pointer;
-  border-radius: 6px;
-  margin-right: 12px;
+  border-radius: 10px;
+  padding: 8px 10px;
 }
 
 .closeBtn:hover {
-  background-color: black;
-  transform: translateY(-1.2px) scale(0.75);
+  background-color: rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px);
   box-shadow:
     0 0 6px var(--glow-color),
     0 0 10px rgba(0, 247, 255, 0.15),
     0 0 12px var(--glow-color);
 }
 
-/* =========================================================
-   CONTENT + SCROLLING
-   ✅ Make ONLY messageLog scroll (prevents double-scroll feel)
-========================================================= */
+/* Content */
 .content {
   flex: 1;
-  overflow: hidden; /* ✅ was overflow-y: auto */
-  padding: 1rem 1.5rem;
+  overflow: hidden;
+  padding: 1rem 1.25rem;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
 }
 
-/* =========================================================
-   MESSAGE LOG
-   ✅ Single scrollbar lives here
-========================================================= */
 .messageLog {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  font-family: monospace;
+  gap: 0.75rem;
+
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   font-size: 0.95rem;
-  color: #cfffff;
+
   padding-bottom: 1rem;
 
-  /* Firefox support */
   scrollbar-width: thin;
-  scrollbar-color: var(--tron-scroll-border) var(--tron-scroll-track);
+  scrollbar-color: var(--scroll-border) var(--scroll-track);
 }
 
-/* === Tron Dark Scrollbar (WebKit) === */
 .messageLog::-webkit-scrollbar {
   width: 7px;
 }
 
 .messageLog::-webkit-scrollbar-track {
-  background: var(--tron-scroll-track);
+  background: var(--scroll-track);
   border-radius: 999px;
 }
 
 .messageLog::-webkit-scrollbar-thumb {
-  background: var(--tron-scroll-thumb);
+  background: var(--scroll-thumb);
   border-radius: 999px;
-  border: 1px solid var(--tron-scroll-border);
+  border: 1px solid var(--scroll-border);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .messageLog::-webkit-scrollbar-thumb:hover {
-  border-color: var(--tron-scroll-border-hover);
-  box-shadow: 0 0 10px var(--tron-scroll-glow-hover);
+  border-color: var(--scroll-border-hover);
+  box-shadow: 0 0 10px var(--scroll-glow-hover);
 }
 
+/* Lines + highlighting */
 .line {
   display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.55;
 }
 
-.prompt {
-  color: #00ff9d;
-  margin-right: 0.5rem;
+.userLine {
+  color: rgba(204, 255, 245, 0.98);
 }
 
-.label {
-  color: #00bfff;
-  margin-right: 0.5rem;
-  min-width: 64px;
+.aiLine {
+  color: rgba(190, 235, 255, 0.98);
+}
+
+.userTag,
+.aiTag {
+  flex: 0 0 auto;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 14px rgba(0, 247, 255, 0.06);
+}
+
+.userTag {
+  color: var(--user-accent);
+  border-color: rgba(0, 255, 157, 0.22);
+  box-shadow: 0 0 18px rgba(0, 255, 157, 0.06);
+}
+
+.aiTag {
+  color: var(--ai-accent);
+  border-color: rgba(0, 191, 255, 0.22);
+  box-shadow: 0 0 18px rgba(0, 191, 255, 0.06);
 }
 
 .text {
   flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
+/* Optional subtle panels behind message text */
+.userText,
+.aiText {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+}
+
+.userText {
+  border-color: rgba(0, 255, 157, 0.14);
+}
+
+.aiText {
+  border-color: rgba(0, 191, 255, 0.14);
+}
+
+.errorText {
+  color: #ff4d4d;
+  border-color: rgba(255, 77, 77, 0.25);
+}
+
+/* Dots */
+.dots::after {
+  content: ".";
+  animation: blink 1.2s infinite steps(1);
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Input */
 .inputRow {
-  padding: 1rem 1.5rem;
   border-top: 1px solid rgba(0, 255, 255, 0.1);
   background: #000;
   width: 100%;
+
+  padding: 0.9rem 0;
+  padding-bottom: calc(0.9rem + env(safe-area-inset-bottom));
 }
 
 .inputContainer {
@@ -200,12 +300,15 @@
   background-color: #111;
   border: 1px solid var(--border-color);
   color: var(--glow-color);
-  border-radius: 8px;
+  border-radius: 12px;
+
   font-family: inherit;
   font-size: 1rem;
-  padding: 0.75rem 3rem 0.75rem 1rem;
+
+  padding: 0.8rem 3rem 0.8rem 1rem;
   resize: none;
   outline: none;
+
   transition: box-shadow 0.3s ease;
 }
 
@@ -214,7 +317,7 @@
   border-color: var(--glow-color);
 }
 
-/* Hide textarea scrollbar (kept from your original) */
+/* Hide textarea scrollbar */
 .textarea::-webkit-scrollbar {
   width: 0px;
   height: 0px;
@@ -226,29 +329,32 @@
   -ms-overflow-style: none;
 }
 
-/* ✅ Unified Glow Button Style for Close & Send */
 .sendButton {
   position: absolute;
-  right: 0.5rem;
+  right: 0.6rem;
   top: 50%;
   transform: translateY(-50%);
+
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
+
   font-size: 1rem;
   color: var(--accent-color);
   font-weight: 600;
+
   cursor: pointer;
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.75rem;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: none;
+
   transition: box-shadow 0.25s ease-in-out, color 0.25s ease-in-out;
 }
 
 .sendButton:hover {
-  background-color: black;
+  background-color: rgba(0, 0, 0, 0.35);
   box-shadow:
     0 0 8px var(--glow-color),
     0 0 12px rgba(0, 247, 255, 0.15),
@@ -259,79 +365,34 @@
 .sendButton:disabled {
   opacity: 0.4;
   cursor: not-allowed;
-  pointer-events: auto;
   box-shadow: none;
   color: var(--accent-color);
 }
 
-/* === Mobile: Fullscreen === */
+/* ✅ Phone */
 @media (max-width: 767px) {
   .drawer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
     width: 100%;
-    height: 70vh;
-    max-width: 100%;
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
-    border-top: 2px solid var(--glow-color);
-    z-index: 999;
-    animation: tetrisSlideMobile 0.5s ease-in-out forwards;
-    transform: none; /* ✅ prevent translateX centering issues on mobile */
+
+    height: 70vh;
+    height: 70dvh;
+
+    /* slightly higher on mobile */
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+
+  .content {
+    padding: 0.9rem 1rem;
   }
 }
 
-/* === Tablet: Bottom 45% drawer === */
+/* ✅ Tablet / medium */
 @media (min-width: 768px) and (max-width: 1024px) {
   .drawer {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: 45vh;
-    max-width: 100%;
-    transform: none;
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    border-top: 2px solid var(--glow-color);
-    animation: tetrisSlideTablet 0.5s ease-in-out forwards;
+    width: min(calc(100% - 24px), 980px);
+    height: 48vh;
+    height: 48dvh;
   }
-}
-
-@keyframes tetrisSlideMobile {
-  0% { transform: translateY(70vh); opacity: 0.4; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-
-@keyframes tetrisSlideTablet {
-  0% { transform: translateY(100%); }
-  50% { transform: translateY(40%); }
-  100% { transform: translateY(0%); }
-}
-
-@keyframes tetrisSlideFull {
-  0% { transform: translateY(100%); }
-  30% { transform: translateY(60%); }
-  60% { transform: translateY(30%); }
-  100% { transform: translateY(0%); }
-}
-
-.icon {
-  width: 64px;
-  height: 64px;
-  margin-right: 0.75rem;
-}
-
-.glowSvg {
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 0 6px var(--glow-color));
-  animation: pulse 3s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.04); }
 }

@@ -1,8 +1,8 @@
 // # Filename: src/layout/LayoutFrame.jsx
-// ✅ Updated: layout-owned centering + max-width container
-// Step 1: Sidebar stays in-flow (no padding-left hacks).
-// Step 2: Main column centers route content via a consistent content wrapper.
-// Step 3: Pages can override max width or opt into full-bleed via props.
+// ✅ Updated: mount sidebar on mobile (so hamburger can control it) while keeping docked sidebar on lg+
+// Step 1: Sidebar stays in-flow on desktop (no padding-left hacks).
+// Step 2: Sidebar is STILL rendered on mobile, but takes no layout space (w-0) so the fixed drawer can work.
+// Step 3: Main column centers route content via a consistent content wrapper.
 
 import React from "react";
 
@@ -39,11 +39,15 @@ export default function LayoutFrame({
           {hasSidebar ? (
             <aside
               className={[
-                "hidden md:block",
-                "w-[320px] lg:w-[340px]",
-                "bg-black",
-                "border-r border-[#1DA1F2]/10",
-                "shadow-[inset_-12px_0_24px_rgba(0,0,0,0.45)]",
+                // ✅ New: ALWAYS mount the sidebar so the mobile fixed drawer can render
+                // ✅ New: only allocate docked width on lg+ (matches FriendsSidebar lg:static)
+                "relative shrink-0",
+                "w-0 lg:w-[340px]",
+
+                // Desktop-only dock styling
+                "lg:bg-black",
+                "lg:border-r lg:border-[#1DA1F2]/10",
+                "lg:shadow-[inset_-12px_0_24px_rgba(0,0,0,0.45)]",
               ].join(" ")}
             >
               {sidebar}
@@ -58,8 +62,9 @@ export default function LayoutFrame({
               "bg-[radial-gradient(circle_at_50%_20%,rgba(29,161,242,0.14),rgba(0,0,0,0.92)_55%,rgba(0,0,0,1)_100%)]",
             ].join(" ")}
           >
+            {/* ✅ New: only show this desktop vignette when sidebar is docked */}
             {hasSidebar ? (
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-black/70 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-4 bg-gradient-to-r from-black/70 to-transparent lg:block" />
             ) : null}
 
             {/* ✅ New: consistent content wrapper */}

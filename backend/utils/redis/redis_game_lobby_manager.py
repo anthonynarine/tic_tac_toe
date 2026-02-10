@@ -275,19 +275,13 @@ class RedisGameLobbyManager:
         # Step 3: Merge roles into player list
         return [{**p, "role": roles.get(str(p["id"]), "Spectator")} for p in players]
 
-    def broadcast_player_list(self, channel_layer, game_id: str) -> None:
-        """
-        Broadcast updated players list to the lobby group.
-        NOTE: game_id is the lobby_id in your architecture (TicTacToeGame id).
-        """
-        players = self.get_players_with_roles(game_id)
+    def broadcast_player_list(self, channel_layer: BaseChannelLayer, game_id: str) -> None:
+        """Broadcasts updated players+roles list to the lobby group."""
+        players_with_roles = self.get_players_with_roles(game_id)
 
         async_to_sync(channel_layer.group_send)(
             lobby_group(str(game_id)),  
-            {
-                "type": "update_player_list",
-                "players": players,
-            },
+            {"type": "update_player_list", "players": players_with_roles},
         )
 
     # ----------------------------

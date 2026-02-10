@@ -1,8 +1,5 @@
-
 // # Filename: src/components/notifications/InvitePanelContainer.jsx
-
-
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 import InvitePanel from "./InvitePanel";
@@ -14,37 +11,43 @@ export default function InvitePanelContainer() {
   const { pendingInvites, removeInvite, resetInvites, upsertInvite } =
     useInviteContext();
 
-  // Step 1: Server-truth refresh (prevents resurrection)
+  const didHydrateRef = useRef(false);
+
   const rehydratePendingInvites = useCallback(async () => {
     try {
       const pending = await fetchInvites({ status: "pending", role: "to_user" });
+
+      // Normalize (in case API returns { results: [...] } later)
+      const list = Array.isArray(pending) ? pending : pending?.results || pending?.invites || [];
+
       resetInvites();
-      pending.forEach((inv) => upsertInvite(inv));
+      list.forEach((inv) => upsertInvite(inv));
     } catch (err) {
       console.error("❌ Invite rehydrate failed:", err);
     }
   }, [resetInvites, upsertInvite]);
+
+  // ✅ Run once per mount (prevents render-loop storms)
+  useEffect(() => {
+    if (didHydrateRef.current) return;
+    didHydrateRef.current = true;
+
+    rehydratePendingInvites();
+  }, [rehydratePendingInvites]);
 
   const handleAccept = useCallback(
     async (invite) => {
       const inviteId = invite?.inviteId;
       if (!inviteId) return;
 
-      // Step 1: Optimistic remove
       removeInvite(inviteId);
 
       try {
-        // Step 2: HTTPS accept
         const result = await acceptInvite(inviteId);
-
-        // Step 3: Prefer backend lobbyId, fallback to payload
         const nextLobbyId = result?.lobbyId || invite?.lobbyId;
 
-        // Step 4: Invite v2 invariant: must include ?invite=<uuid>
         if (nextLobbyId) {
-          navigate(
-            `/lobby/${nextLobbyId}?invite=${encodeURIComponent(inviteId)}`
-          );
+          navigate(`/lobby/${nextLobbyId}?invite=${encodeURIComponent(inviteId)}`);
         }
       } catch (error) {
         console.error("Invite accept failed:", error);
@@ -59,11 +62,9 @@ export default function InvitePanelContainer() {
       const inviteId = invite?.inviteId;
       if (!inviteId) return;
 
-      // Step 1: Optimistic remove
       removeInvite(inviteId);
 
       try {
-        // Step 2: Tell backend (authoritative)
         await declineInvite(inviteId);
       } catch (error) {
         console.error("Invite decline failed:", error);

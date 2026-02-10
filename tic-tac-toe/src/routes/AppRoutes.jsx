@@ -1,8 +1,15 @@
 // # Filename: src/routes/AppRoutes.jsx
-// ✅ New Code
+// ✅ Updated Code: key Game WS route by :id + location.search (rematch-safe)
 
 import React from "react";
-import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import {
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 
 import AppShell from "../layout/AppShell";
 import ResponsiveLayout from "../layout/ResponsiveLayout";
@@ -17,7 +24,7 @@ import SignupPage from "../components/user/RegisterPage";
 
 import Lobby from "../components/lobby/components/Lobby";
 import GamePage from "../components/game/Gamepage";
-import AIGamePage from "../components/game/AIGamePage"; 
+import AIGamePage from "../components/game/AIGamePage";
 import RecruiterDemoPage from "../components/recruiter/RecruiterDemoPage";
 import TechnicalPaper from "../components/technical-paper/TechnicalPaper";
 
@@ -29,7 +36,7 @@ import { FriendsProvider } from "../context/friendsContext";
 import { DirectMessageProvider } from "../context/directMessageContext";
 import { LobbyProvider } from "../context/lobbyContext";
 
-// ✅ IMPORTANT: Lobby requires GameProvider (adjust path if needed)
+
 import { GameProvider } from "../context/gameContext";
 
 function AuthedProviders({ children }) {
@@ -52,6 +59,26 @@ function ProtectedLayout() {
     <RequireAuth>
       <Outlet />
     </RequireAuth>
+  );
+}
+
+/**
+ * ✅ Keyed route wrapper:
+ * - Remounts GameWebSocketProvider when:
+ *   - :id changes (new game)
+ *   - query params change (new sessionKey/lobby)
+ */
+function GameRoute() {
+  const { id } = useParams();
+  const location = useLocation();
+
+  // Step 1: Key on id + querystring so rematch navigation forces a clean remount
+  const providerKey = `${id}:${location.search}`;
+
+  return (
+    <GameWebSocketProvider key={providerKey}>
+      <GamePage />
+    </GameWebSocketProvider>
   );
 }
 
@@ -81,15 +108,8 @@ export default function AppRoutes() {
                 {/* ✅ AI route must exist and must mount AIGamePage */}
                 <Route path="/games/ai/:id" element={<AIGamePage />} />
 
-                {/* Multiplayer WS route */}
-                <Route
-                  path="/games/:id"
-                  element={
-                    <GameWebSocketProvider>
-                      <GamePage />
-                    </GameWebSocketProvider>
-                  }
-                />
+                {/* ✅ Multiplayer WS route (keyed) */}
+                <Route path="/games/:id" element={<GameRoute />} />
 
                 <Route path="/recruiter-demo" element={<RecruiterDemoPage />} />
                 <Route path="/technical-paper" element={<TechnicalPaper />} />

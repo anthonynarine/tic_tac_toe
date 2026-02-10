@@ -6,6 +6,7 @@ from urllib.parse import parse_qs
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.apps import apps
+from django.db import transaction
 
 from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
 from utils.shared.shared_utils_game_chat import SharedUtils
@@ -240,63 +241,98 @@ class LobbyConsumer(JsonWebsocketConsumer):
 
     def handle_start_game(self):
         """
-        Start game orchestration:
+        Start game orchestration (lobby socket responsibility):
         - requires X and O present in Redis
-        - randomize starting turn
-        - persist to DB
-        - broadcast game_start_acknowledgment
+        - only X can start (prevents double-start races)
+        - persist player assignments + current_turn to DB (transaction + row lock)
+        - ensure sessionKey exists for this lobby
+        - broadcast game_start_acknowledgment with game_id + sessionKey
         """
+
         # Step 1: Require X and O (roles are Redis-authoritative)
-        players = self.game_lobby_manager.get_players_with_roles(self.lobby_id)
+        players = self.game_lobby_manager.get_players_with_roles(self.lobby_id) or []
         player_x = next((p for p in players if p.get("role") == "X"), None)
         player_o = next((p for p in players if p.get("role") == "O"), None)
 
         if not player_x or not player_o:
-            self.send_json({"type": "error", "message": "Waiting for 2 players (X and O) to join the lobby."})
+            self.send_json(
+                {
+                    "type": "error",
+                    "message": "Waiting for 2 players (X and O) to join the lobby.",
+                }
+            )
             return
 
-        # Step 2: Optional: only X can start (prevents double-start races)
-        me = next((p for p in players if int(p.get("id")) == int(self.user.id)), None)
+        # Step 2: Only X can start (prevents double-start races)
+        me = next((p for p in players if str(p.get("id")) == str(getattr(self.user, "id", ""))), None)
         if not me or me.get("role") != "X":
             self.send_json({"type": "error", "message": "Only Player X can start the game."})
             return
 
-        # Step 3: Randomize starting turn ONLY
-        starting_turn = random.choice(["X", "O"])
+        # Step 3: Ensure there is a stable lobby sessionKey for BOTH clients
+        # (used by FE to navigate into /games/:id?sessionKey=... and by server-side guards)
+        session_key = None
+        try:
+            session_key = self.game_lobby_manager.ensure_session_key(self.lobby_id)
+        except Exception as exc:
+            logger.error("[LOBBY] ensure_session_key failed lobby_id=%s err=%s", self.lobby_id, exc)
 
-        # Step 4: Persist into DB
+        # Step 4: Persist into DB safely (transaction + row lock)
         try:
             TicTacToeGame = apps.get_model("game", "TicTacToeGame")
-            game = TicTacToeGame.objects.select_for_update().get(id=self.lobby_id)
 
-            # Idempotency: if already started, just re-ack
-            if not (game.player_x_id and game.player_o_id):
-                game.player_x_id = int(player_x["id"])
-                game.player_o_id = int(player_o["id"])
-                game.current_turn = starting_turn
+            with transaction.atomic():
+                game = TicTacToeGame.objects.select_for_update().get(id=self.lobby_id)
 
-                if hasattr(game, "status"):
-                    game.status = "in_progress"
+                # Step 4.1: Idempotency: if already started, do NOT re-randomize
+                already_started = bool(game.player_x_id and game.player_o_id)
 
-                update_fields = ["player_x", "player_o", "current_turn"]
-                if hasattr(game, "status"):
-                    update_fields.append("status")
+                if not already_started:
+                    starting_turn = random.choice(["X", "O"])
 
-                game.save(update_fields=update_fields)
+                    game.player_x_id = int(player_x["id"])
+                    game.player_o_id = int(player_o["id"])
+                    game.current_turn = starting_turn
 
+                    if hasattr(game, "status"):
+                        game.status = "in_progress"
+
+                    update_fields = ["player_x", "player_o", "current_turn"]
+                    if hasattr(game, "status"):
+                        update_fields.append("status")
+
+                    game.save(update_fields=update_fields)
+                else:
+                    # If already started, use the canonical DB turn
+                    starting_turn = game.current_turn or "X"
+
+            # Step 4.2: If session_key couldn't be ensured earlier, try a second time
+            # (non-fatal, but improves navigation reliability)
+            if not session_key:
+                try:
+                    session_key = self.game_lobby_manager.ensure_session_key(self.lobby_id)
+                except Exception:
+                    session_key = None
+
+        except TicTacToeGame.DoesNotExist:
+            self.send_json({"type": "error", "message": "Lobby game not found."})
+            return
         except Exception as exc:
             logger.error("[LOBBY] start_game persist failed lobby_id=%s err=%s", self.lobby_id, exc)
-            self.send_json({"type": "error", "message": "Failed to start the game due to a server error."})
+            self.send_json(
+                {"type": "error", "message": "Failed to start the game due to a server error."}
+            )
             return
 
-        # Step 5: Broadcast ack
+        # Step 5: Broadcast ack (include sessionKey + canonical state)
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
                 "type": "game_start_acknowledgment",
                 "message": "Game has started successfully!",
                 "game_id": str(self.lobby_id),
-                "current_turn": starting_turn,
+                "sessionKey": session_key,         
+                "current_turn": starting_turn,     
                 "player_x": player_x,
                 "player_o": player_o,
             },

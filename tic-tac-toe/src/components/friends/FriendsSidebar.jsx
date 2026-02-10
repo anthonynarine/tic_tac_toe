@@ -1,11 +1,13 @@
+// ✅ New Code
 // # Filename: src/components/friends/FriendsSidebar.jsx
-// Step 1: Replace CSS module with Tailwind-only container styles
-// Step 2: Use useActiveLobbyId() to detect when we're already inside a lobby
-// Step 3: If in lobby, create invite for that lobby and do NOT navigate away
-// Step 4: If not in lobby, keep old behavior: navigate sender into new lobby URL
+// Step 1: Mobile drawer starts BELOW navbar (top offset) so content never scrolls under the navbar.
+// Step 2: Overlay also starts BELOW navbar so hamburger remains clickable.
+// Step 3: Scroll is MOBILE-ONLY (no desktop scrollbar).
+// Step 4: Drawer header is sticky (mobile) so sections never scroll under it.
+// Step 5: ESC closes + body scroll lock (mobile only).
 
 import React, { useEffect, useCallback, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import { useFriends } from "../../context/friendsContext";
 import { useDirectMessage } from "../../context/directMessageContext";
@@ -32,9 +34,11 @@ import { showToast } from "../../utils/toast/Toast";
 
 export default function FriendsSidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const activeLobbyId = useActiveLobbyId();
 
-  const { isSidebarOpen, setDMOpen, isDMOpen } = useUI();
+  const { isSidebarOpen, setSidebarOpen, setDMOpen, isDMOpen } = useUI();
+
   const { friends, pending, acceptRequest, declineRequest, refreshFriends } =
     useFriends();
 
@@ -43,19 +47,68 @@ export default function FriendsSidebar() {
   const { logout } = useAuth();
   const { createNewGame } = useGameCreation();
 
-  // # Step 1: Stage the friend we intend to connect to AFTER drawer is open
-  const [pendingFriend, setPendingFriend] = useState(null);
+  // # Step 1: Track lg breakpoint to separate “mobile drawer” vs “desktop dock”
+  const [isLgUp, setIsLgUp] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.matchMedia("(min-width: 1024px)").matches;
+  });
 
-  // # Step 2: Refresh friends on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const handleChange = () => setIsLgUp(mq.matches);
+
+    handleChange();
+    mq.addEventListener("change", handleChange);
+    return () => mq.removeEventListener("change", handleChange);
+  }, []);
+
+  const isMobile = !isLgUp;
+
+  // # Step 2: Close helper
+  const closeSidebar = useCallback(() => {
+    setSidebarOpen(false);
+  }, [setSidebarOpen]);
+
+  // # Step 3: ESC closes (mobile only)
+  useEffect(() => {
+    if (!isMobile || !isSidebarOpen) return undefined;
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") closeSidebar();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isMobile, isSidebarOpen, closeSidebar]);
+
+  // # Step 4: Lock body scroll when drawer is open (mobile only)
+  useEffect(() => {
+    if (!isMobile || !isSidebarOpen) return undefined;
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isMobile, isSidebarOpen]);
+
+  // # Step 5: Auto-close on route change (mobile only)
+  useEffect(() => {
+    if (!isMobile) return;
+    closeSidebar();
+  }, [location.pathname, isMobile, closeSidebar]);
+
+  // # Step 6: Refresh friends on mount
   useEffect(() => {
     refreshFriends();
   }, [refreshFriends]);
 
-  /**
-   * # Step 3: Intent-only handler (no socket calls here)
-   * - Opens UI immediately
-   * - Stores friend intent
-   */
+  // # Step 7: DM open intent + race-safe openChat
+  const [pendingFriend, setPendingFriend] = useState(null);
+
   const handleOpenDM = useCallback(
     (friend) => {
       if (!friend) return;
@@ -63,22 +116,22 @@ export default function FriendsSidebar() {
 
       setPendingFriend(friend);
       setDMOpen(true);
+
+      if (isMobile) {
+        setSidebarOpen(false);
+      }
     },
-    [setDMOpen]
+    [setDMOpen, isMobile, setSidebarOpen]
   );
 
-  /**
-   * # Step 4: Connect ONLY once the UI state says the drawer is open.
-   * Removes the “click twice” race.
-   */
   useEffect(() => {
-    if (!isDMOpen || !pendingFriend) return;
+    if (!isDMOpen || !pendingFriend) return undefined;
 
-    // # Step 1: Defer one tick so UI state + refs settle everywhere
     const t = setTimeout(async () => {
       try {
         await openChat(pendingFriend);
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("[FriendsSidebar] openChat failed:", err);
       } finally {
         setPendingFriend(null);
@@ -88,37 +141,43 @@ export default function FriendsSidebar() {
     return () => clearTimeout(t);
   }, [isDMOpen, pendingFriend, openChat]);
 
-  // # Step 5: Game actions
+  // # Step 8: Game actions
   const startMultiplayerGame = useCallback(async () => {
     try {
       const newGame = await createNewGame(user?.first_name || "Player", false);
       if (!newGame?.id) return;
 
-      // ✅ Host lobby entry invariant: must include ?sessionKey=...
       const params = new URLSearchParams();
-      if (newGame?.sessionKey) {
-        params.set("sessionKey", String(newGame.sessionKey));
-      }
+      if (newGame?.sessionKey) params.set("sessionKey", String(newGame.sessionKey));
 
       const suffix = params.toString() ? `?${params.toString()}` : "";
       navigate(`/lobby/${newGame.id}${suffix}`);
+
+      if (isMobile) closeSidebar();
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error("Multiplayer error:", err);
     }
-  }, [createNewGame, navigate, user?.first_name]);
+  }, [createNewGame, navigate, user?.first_name, isMobile, closeSidebar]);
 
   const startAIGame = useCallback(async () => {
     try {
       const newGame = await createNewGame(user?.first_name || "Player", true);
       if (newGame?.id) navigate(`/games/${newGame.id}`);
+
+      if (isMobile) closeSidebar();
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error("AI game error:", err);
     }
-  }, [createNewGame, navigate, user?.first_name]);
+  }, [createNewGame, navigate, user?.first_name, isMobile, closeSidebar]);
 
-  const goHome = useCallback(() => navigate("/"), [navigate]);
+  const goHome = useCallback(() => {
+    navigate("/");
+    if (isMobile) closeSidebar();
+  }, [navigate, isMobile, closeSidebar]);
 
-  // # Step 6: Invite v2 (HTTPS create, Notification WS delivers)
+  // # Step 9: Invite flow
   const handleInvite = useCallback(
     async (friend) => {
       try {
@@ -131,11 +190,9 @@ export default function FriendsSidebar() {
         const result = await createInvite({
           toUserId: recipientUserId,
           gameType: "tic_tac_toe",
-          // ✅ If we’re already inside a lobby, invite into THIS lobby
           lobbyId: activeLobbyId || undefined,
         });
 
-        // # Step 1: Normalize response (supports minor backend naming drift)
         const lobbyId =
           result?.lobbyId ||
           result?.lobby_id ||
@@ -150,38 +207,40 @@ export default function FriendsSidebar() {
           result?.invite_id;
 
         if (!lobbyId || !inviteId) {
-          console.error(
-            "[Invite v2] Missing lobbyId/inviteId from createInvite response:",
-            result
-          );
+          // eslint-disable-next-line no-console
+          console.error("[Invite] missing lobbyId/inviteId:", result);
           showToast("error", "Invite failed (missing lobbyId/inviteId).");
           return;
         }
 
-        // ✅ Step 2: If already in lobby, do NOT navigate away
         if (activeLobbyId) {
           showToast("success", "Invite sent!");
           return;
         }
 
-        // ✅ Step 3: Old behavior: Sender enters lobby WITH invite query param
         const url = buildInviteLobbyUrl({ lobbyId, inviteId });
         navigate(url);
+
+        if (isMobile) closeSidebar();
       } catch (error) {
-        console.error("Invite v2: Failed to create invite:", error);
+        // eslint-disable-next-line no-console
+        console.error("Invite failed:", error);
         showToast("error", "Invite failed.");
       }
     },
-    [navigate, user?.id, activeLobbyId]
+    [navigate, user?.id, activeLobbyId, isMobile, closeSidebar]
   );
 
-  // # Step 7: Pending accept/decline
+  // # Step 10: Pending accept/decline
+  const pendingReceived = pending?.received || [];
+
   const handleAccept = useCallback(
     async (id) => {
       try {
         await acceptRequest(id);
         refreshFriends();
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error("Failed to accept request:", error);
       }
     },
@@ -194,75 +253,151 @@ export default function FriendsSidebar() {
         await declineRequest(id);
         refreshFriends();
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error("Failed to decline request:", error);
       }
     },
     [declineRequest, refreshFriends]
   );
 
-  const pendingReceived = pending?.received || [];
+  // # Step 11: Account actions
+  const handleLogin = useCallback(() => {
+    navigate("/login");
+    if (isMobile) closeSidebar();
+  }, [navigate, isMobile, closeSidebar]);
 
-  // # Step 8: Account actions
-  const handleLogin = useCallback(() => navigate("/login"), [navigate]);
-  const handleProfile = useCallback(() => navigate("/profile"), [navigate]);
-  const handleAbout = useCallback(() => navigate("/technical-paper"), [navigate]);
+  const handleProfile = useCallback(() => {
+    navigate("/profile");
+    if (isMobile) closeSidebar();
+  }, [navigate, isMobile, closeSidebar]);
 
-  // ✅ Tailwind-only sidebar container
-  const sidebarClassName = useMemo(() => {
-    const base =
-      "bg-black text-[#080808] max-w-full flex flex-col h-full " +
-      "backdrop-blur-[12px] " +
-      "shadow-[2px_0_8px_rgba(0,170,255,0.15),0_0_30px_rgba(12,12,12,0.04)] " +
-      "transition-transform duration-[400ms] ease-in-out";
+  const handleAbout = useCallback(() => {
+    navigate("/technical-paper");
+    if (isMobile) closeSidebar();
+  }, [navigate, isMobile, closeSidebar]);
 
-    // Mobile/Tablet drawer (default), Desktop static
-    const responsive =
-      "fixed top-0 left-0 w-screen h-dvh overflow-y-auto z-[1000] " +
-      "lg:static lg:z-50 lg:w-[22rem] lg:h-full lg:overflow-visible";
+  /**
+   * # Step 12: Drawer sizing + navbar offsets
+   * Navbar heights in your Navbar.jsx:
+   * - base: 76px
+   * - sm:   80px
+   * - md:   84px
+   *
+   * Mobile drawer runs until lg, so we offset top and height accordingly.
+   */
+  const overlayClassName = useMemo(() => {
+    if (!isMobile) return "hidden";
 
-    const openClose = isSidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0";
+    return [
+      // ✅ below navbar so hamburger remains clickable
+      "fixed left-0 right-0 z-[55]",
+      "top-[76px] sm:top-[80px] md:top-[84px]",
+      "h-[calc(100dvh-76px)] sm:h-[calc(100dvh-80px)] md:h-[calc(100dvh-84px)]",
+      "bg-black/60 backdrop-blur-sm transition-opacity",
+      isSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+    ].join(" ");
+  }, [isMobile, isSidebarOpen]);
 
-    return `${base} ${responsive} ${openClose}`;
+  const drawerClassName = useMemo(() => {
+    // Closed on mobile: offscreen LEFT. Desktop always visible.
+    const openClose = isSidebarOpen
+      ? "translate-x-0"
+      : "-translate-x-full lg:translate-x-0";
+
+    return [
+      "text-slate-100 flex flex-col",
+      "bg-black/85 backdrop-blur-xl",
+      "border-r border-[#1DA1F2]/15",
+      "shadow-[0_0_40px_rgba(29,161,242,0.14)]",
+      "transform transition-transform duration-300 ease-out",
+      openClose,
+
+      // ✅ Mobile drawer: below navbar
+      "fixed left-0 z-[70]",
+      "top-[76px] sm:top-[80px] md:top-[84px]",
+      "h-[calc(100dvh-76px)] sm:h-[calc(100dvh-80px)] md:h-[calc(100dvh-84px)]",
+      "w-[88vw] max-w-[380px]",
+
+      // ✅ Desktop dock
+      "lg:static lg:z-auto lg:h-full lg:w-full lg:max-w-none",
+    ].join(" ");
   }, [isSidebarOpen]);
 
   return (
-    <div className={sidebarClassName}>
-      <div className="px-4 pb-4 pt-7 space-y-4">
-        <GamesPanel
-          isLoggedIn={isLoggedIn}
-          onGoHome={goHome}
-          onStartMultiplayer={startMultiplayerGame}
-          onStartAI={startAIGame}
-        />
+    <>
+      {/* ✅ Mobile overlay (tap outside closes) */}
+      <button
+        type="button"
+        aria-label="Close sidebar overlay"
+        onClick={closeSidebar}
+        className={overlayClassName}
+      />
 
-        <AddFriendPanel />
-        <InvitePanelContainer />
+      {/* ✅ Drawer / docked sidebar */}
+      <aside
+        className={drawerClassName}
+        role={isMobile ? "dialog" : undefined}
+        aria-modal={isMobile ? "true" : undefined}
+        aria-label="Friends sidebar"
+      >
+        {/* ✅ Sticky drawer header (mobile only) so content never scrolls under it */}
+        <div className="lg:hidden sticky top-0 z-10 bg-black/70 backdrop-blur-xl border-b border-[#1DA1F2]/10">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="text-[11px] tracking-[0.35em] text-[#1DA1F2]/70">
+              MENU
+            </div>
 
-        <FriendsPanel
-          friends={friends}
-          user={user}
-          onFriendClick={handleOpenDM}
-          onChatOpen={handleOpenDM}
-          onInvite={handleInvite}
-          unreadCounts={unreadCounts}
-        />
+            <button
+              type="button"
+              onClick={closeSidebar}
+              className="rounded-xl border border-[#1DA1F2]/20 bg-black/40 px-3 py-2 text-xs text-[#1DA1F2]/80 hover:bg-[#1DA1F2]/10"
+            >
+              Close
+            </button>
+          </div>
+        </div>
 
-        <PendingRequestsPanel
-          requests={pendingReceived}
-          onAccept={handleAccept}
-          onDecline={handleDecline}
-          onChatOpen={handleOpenDM}
-        />
+        {/* ✅ Content area
+            - Mobile: internal scroll enabled
+            - Desktop: no internal scroll (no scrollbar) — page handles scrolling
+        */}
+        <div className="flex-1 px-4 pb-4 pt-5 space-y-4 overflow-y-auto lg:overflow-visible">
+          <GamesPanel
+            isLoggedIn={isLoggedIn}
+            onGoHome={goHome}
+            onStartMultiplayer={startMultiplayerGame}
+            onStartAI={startAIGame}
+          />
 
-        <AccountPanel
-          isLoggedIn={isLoggedIn}
-          user={user}
-          onLogin={handleLogin}
-          onLogout={logout}
-          onProfile={handleProfile}
-          onAbout={handleAbout}
-        />
-      </div>
-    </div>
+          <AddFriendPanel />
+          <InvitePanelContainer />
+
+          <FriendsPanel
+            friends={friends}
+            user={user}
+            onFriendClick={handleOpenDM}
+            onChatOpen={handleOpenDM}
+            onInvite={handleInvite}
+            unreadCounts={unreadCounts}
+          />
+
+          <PendingRequestsPanel
+            requests={pendingReceived}
+            onAccept={handleAccept}
+            onDecline={handleDecline}
+            onChatOpen={handleOpenDM}
+          />
+
+          <AccountPanel
+            isLoggedIn={isLoggedIn}
+            user={user}
+            onLogin={handleLogin}
+            onLogout={logout}
+            onProfile={handleProfile}
+            onAbout={handleAbout}
+          />
+        </div>
+      </aside>
+    </>
   );
 }

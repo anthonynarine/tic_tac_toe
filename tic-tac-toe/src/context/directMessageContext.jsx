@@ -1,10 +1,22 @@
-
 // # Filename: src/components/context/directMessageContext.jsx
 
-import { createContext, useContext, useEffect, useReducer, useRef } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useReducer,
+  useRef,
+} from "react";
 
-// Step 1: Ensure WS always uses a fresh access token (supports recruiter mode storage)
 import { ensureFreshAccessToken } from "../auth/ensureFreshAccessToken";
+import useAuthAxios from "../auth/hooks/useAuthAxios";
+
+import { useUserContext } from "./userContext";
+import { useUI } from "../context/uiContext";
+import { useNotification } from "./notificatonContext";
+
+import chatAPI from "../api/chatAPI";
 
 import {
   directMessageReducer,
@@ -12,47 +24,35 @@ import {
   initialDMState,
 } from "../reducers/directMessaeReducer";
 
-import { useUserContext } from "./userContext";
-import { useUI } from "../context/uiContext";
-import chatAPI from "../api/chatAPI";
-import useAuthAxios from "../auth/hooks/useAuthAxios";
-
 export const DirectMessageContext = createContext(undefined);
 
-/**
- * Hook to access the DirectMessage context
- */
 export const useDirectMessage = () => {
-  const context = useContext(DirectMessageContext);
-
-  if (!context) {
-    throw new Error(
-      "useDirectMessage must be used within a DirectMessageProvider"
-    );
+  const ctx = useContext(DirectMessageContext);
+  if (!ctx) {
+    throw new Error("useDirectMessage must be used within DirectMessageProvider");
   }
-
-  return context;
+  return ctx;
 };
 
-/**
- * DirectMessageProvider
- *
- * Provides WebSocket-based direct messaging context for private 1-on-1 chat.
- *
- * ARCH CONTRACT (non-negotiable):
- * - DM WebSocket handles ONLY { type: "message" }
- * - Game invites do NOT ride on the DM socket anymore.
- * - Invites are created over HTTPS (POST /api/invites/) and delivered via Notification WS.
- * - DM socket should be open ONLY while the DM drawer is open.
- */
 export const DirectMessageProvider = ({ children }) => {
   const [state, dispatch] = useReducer(directMessageReducer, initialDMState);
 
   const { user } = useUserContext();
-  const { isDMOpen } = useUI();
+  const { isDMOpen, setDMOpen } = useUI();
   const { authAxios } = useAuthAxios();
+  const notification = useNotification();
 
-  // Step 1: Keep latest values in refs so socket handlers never go stale
+  // ---------------------------
+  // Step 1: Stable refs (avoid stale closures)
+  // ---------------------------
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   const userRef = useRef(user);
   const isDMOpenRef = useRef(isDMOpen);
   const activeFriendIdRef = useRef(state.activeFriendId);
@@ -69,29 +69,132 @@ export const DirectMessageProvider = ({ children }) => {
     activeFriendIdRef.current = state.activeFriendId;
   }, [state.activeFriendId]);
 
-  // Step 2: One-time auth refresh retry guard (prevents infinite loops)
-  const authRetryAttemptRef = useRef(false);
+  // Cancels stale async work when user switches threads quickly
+  const connectAttemptRef = useRef(0);
 
-  // Step 3: Identify auth-like WS closes
+  // ---------------------------
+  // Step 2: Helpers
+  // ---------------------------
   const isAuthLikeClose = (event) => {
     const code = Number(event?.code);
-
-    if (code === 4401) return true; // Unauthorized (if your server uses it)
-    if (code === 1006) return true; // Abnormal close (often handshake rejection)
-    return false;
+    return code === 4401 || code === 1006;
   };
 
-  // Step 4: Build WS base URL in a consistent way (dev/prod)
   const getWsBase = () => {
     const backendHost = process.env.REACT_APP_BACKEND_WS || "localhost:8000";
     const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
     return `${wsScheme}://${backendHost}`;
   };
 
-  /**
-   * Step 5: Close the active socket safely (drawer-scoped behavior).
-   */
-  const disconnectDM = () => {
+  // Step 2b: Robust friendId resolution (supports User / friendship / row models)
+  const resolveFriendId = useCallback((friendLike) => {
+    if (!friendLike) return null;
+
+    const me = Number(userRef.current?.id);
+
+    const direct =
+      friendLike?.friend_id ?? friendLike?.user_id ?? friendLike?.id ?? null;
+
+    if (direct) return Number(direct);
+
+    const fromId = Number(friendLike?.from_user);
+    const toId = Number(friendLike?.to_user);
+
+    if (fromId && toId && me) {
+      return fromId === me ? toId : fromId;
+    }
+
+    return null;
+  }, []);
+
+  // Step 2c: Normalize REST messages -> WS-like shape
+  // Fixes: "all messages on one side" when REST uses `sender` not `sender_id`
+  const normalizeRestMessage = useCallback((m) => {
+    const senderId = m?.sender ?? m?.sender_id ?? null;
+    const receiverId = m?.receiver ?? m?.receiver_id ?? null;
+
+    return {
+      // identity
+      id: m?.id ?? m?.message_id ?? undefined,
+      message_id: m?.message_id ?? m?.id ?? undefined,
+
+      // unified fields used by UI
+      sender_id: senderId,
+      receiver_id: receiverId,
+      message: m?.message ?? m?.content ?? "",
+      content: m?.content ?? m?.message ?? "",
+
+      // metadata
+      timestamp: m?.timestamp ?? null,
+      is_read: Boolean(m?.is_read),
+
+      // passthrough if present
+      conversation_id: m?.conversation_id ?? null,
+    };
+  }, []);
+
+  // ---------------------------
+  // Step 3: REST helpers
+  // ---------------------------
+  const getConversationIdWithFriend = useCallback(
+    async (friendId) => {
+      const res = await chatAPI.getConversationWith(authAxios, friendId);
+      return res?.data?.conversation_id || null;
+    },
+    [authAxios]
+  );
+
+  const markConversationRead = useCallback(
+    async (conversationId) => {
+      if (!conversationId) return;
+      try {
+        await chatAPI.markConversationRead(authAxios, conversationId);
+      } catch {
+        // no-op
+      }
+    },
+    [authAxios]
+  );
+
+  const deleteConversationById = useCallback(
+    async (conversationId) => {
+      if (!conversationId) return;
+      await chatAPI.deleteConversation(authAxios, conversationId);
+    },
+    [authAxios]
+  );
+
+  // ---------------------------
+  // Step 4: Rehydrate unread counts (persist across refresh)
+  // GET /chat/unread-summary/
+  // ---------------------------
+  useEffect(() => {
+    const run = async () => {
+      if (!user?.id) return;
+
+      try {
+        const res = await chatAPI.getUnreadSummary(authAxios);
+        const unreadCounts = res?.data?.by_friend || {};
+
+        if (!mountedRef.current) return;
+
+        dispatch({
+          type: DmActionTypes.SET_UNREAD_COUNTS,
+          payload: { unreadCounts },
+        });
+      } catch (err) {
+        // no token leakage
+        console.warn("DM unread rehydrate failed:", err?.response?.status);
+      }
+    };
+
+    run();
+  }, [user?.id, authAxios]);
+
+  // ---------------------------
+  // Step 5: Disconnect socket safely (drawer-scoped)
+  // ---------------------------
+  const disconnectDM = useCallback(() => {
     const socket = state.socket;
 
     try {
@@ -113,274 +216,337 @@ export const DirectMessageProvider = ({ children }) => {
     } finally {
       dispatch({ type: DmActionTypes.CLOSE_CHAT });
     }
-  };
+  }, [state.socket]);
 
-  /**
-   * Step 6: Ensure DM socket is CLOSED when DM drawer is closed.
-   */
   useEffect(() => {
-    if (!isDMOpen) {
-      if (state.socket) {
-        disconnectDM();
+    if (!isDMOpen && state.socket) {
+      disconnectDM();
+    }
+  }, [isDMOpen, state.socket, disconnectDM]);
+
+  // ---------------------------
+  // Step 6: Notifications WS -> unread counts (deduped)
+  // ---------------------------
+  const seenDmNotifyIdsRef = useRef(new Set());
+
+  useEffect(() => {
+    const subscribe = notification?.subscribe;
+    if (typeof subscribe !== "function") return;
+
+    const unsubscribe = subscribe(async (evt) => {
+      if (!evt || evt.type !== "dm") return;
+
+      const me = Number(userRef.current?.id);
+      const senderId = Number(evt.sender_id);
+      const receiverId = Number(evt.receiver_id);
+
+      if (!me || receiverId !== me || !senderId) return;
+
+      const msgId =
+        evt.message_id !== undefined && evt.message_id !== null
+          ? String(evt.message_id)
+          : null;
+
+      if (msgId) {
+        if (seenDmNotifyIdsRef.current.has(msgId)) return;
+        seenDmNotifyIdsRef.current.add(msgId);
+        if (seenDmNotifyIdsRef.current.size > 800) {
+          seenDmNotifyIdsRef.current.clear();
+        }
       }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDMOpen]);
 
-  /**
-   * createDMConnection
-   *
-   * Establishes WebSocket connection with a friend.
-   * Optionally preloads message history over REST once connected.
-   *
-   * IMPORTANT:
-   * - Will NOT connect if the DM drawer is closed (drawer-scoped).
-   *
-   * @param {object} options
-   * @param {object} options.friend - Friend object with from_user and to_user
-   * @param {boolean} options.preloadMessages - Whether to load chat history
-   * @param {boolean} options.forceRefresh - Force a refresh (used after auth-like close)
-   * @returns {Promise<WebSocket|null>} Resolves with open WebSocket or null
-   */
-  const createDMConnection = async ({
-    friend,
-    preloadMessages = true,
-    forceRefresh = false,
-    allowWhenClosed = false,
-  }) => {
-    // Step 1: Hard gate — DM socket only while drawer is open
-    if (!isDMOpenRef.current && !allowWhenClosed) {
-      return null;
-    }
+      const drawerOpen = Boolean(isDMOpenRef.current);
+      const activeFriendId = Number(activeFriendIdRef.current);
 
-    // Step 2: Resolve friendId (the other user)
-    const isCurrentUserFrom = friend.from_user === userRef.current?.id;
-    const friendId = isCurrentUserFrom ? friend.to_user : friend.from_user;
+      // If actively viewing sender thread, keep unread at 0
+      if (drawerOpen && activeFriendId && activeFriendId === senderId) {
+        dispatch({
+          type: DmActionTypes.RESET_UNREAD,
+          payload: { friendId: senderId },
+        });
 
-    if (!friendId) {
-      console.error("Friend ID missing. Cannot initialize DM WebSocket.");
-      return null;
-    }
+        if (evt.conversation_id) await markConversationRead(evt.conversation_id);
+        return;
+      }
 
-    // Step 3: Reuse socket only if it matches AND is open
-    if (
-      state.socket &&
-      String(state.activeFriendId) === String(friendId) &&
-      state.socket.readyState === WebSocket.OPEN
-    ) {
-      return state.socket;
-    }
-
-    // Step 4: Ensure we have a fresh access token before WS connect
-    const token = await ensureFreshAccessToken({
-      minTtlSeconds: forceRefresh ? 999999999 : 60,
+      dispatch({
+        type: DmActionTypes.INCREMENT_UNREAD,
+        payload: { friendId: senderId },
+      });
     });
 
-    if (!token) {
-      console.error("No valid token available. Cannot initialize DM WebSocket.");
-      return null;
-    }
+    return unsubscribe;
+  }, [notification, markConversationRead]);
 
-    const wsBase = getWsBase();
-    const wsUrl = `${wsBase}/ws/chat/${friendId}/?token=${token}`;
+  // ---------------------------
+  // Step 7: WS connect only (thread content only)
+  // route: /ws/chat/<friend_id>/
+  // ---------------------------
+  const connectWsOnly = useCallback(
+    async ({ friend, friendId, forceRefresh = false }) => {
+      const attemptId = ++connectAttemptRef.current;
 
-    // Step 5: Open socket and resolve only when connected (or resolve null on failure)
-    return await new Promise((resolve) => {
-      const socket = new WebSocket(wsUrl);
+      // Must still be open by the time we connect
+      if (!isDMOpenRef.current) return null;
 
-      let didResolve = false;
-      let didOpen = false;
+      // Close existing socket before switching threads
+      if (state.socket) disconnectDM();
 
-      const safeResolve = (value) => {
-        if (!didResolve) {
-          didResolve = true;
+      const token = await ensureFreshAccessToken({
+        minTtlSeconds: forceRefresh ? 999999999 : 60,
+      });
+
+      if (!token) return null;
+      if (attemptId !== connectAttemptRef.current) return null;
+
+      const wsUrl = `${getWsBase()}/ws/chat/${friendId}/?token=${token}`;
+
+      return await new Promise((resolve) => {
+        const socket = new WebSocket(wsUrl);
+
+        let didOpen = false;
+        let resolved = false;
+
+        const safeResolve = (value) => {
+          if (resolved) return;
+          resolved = true;
           resolve(value);
-        }
-      };
+        };
 
-      socket.onopen = async () => {
-        didOpen = true;
+        socket.onopen = () => {
+          didOpen = true;
 
-        // Step 5a: Reset auth retry guard on successful open
-        authRetryAttemptRef.current = false;
+          // Step 1: Upgrade active chat with live socket
+          dispatch({
+            type: DmActionTypes.OPEN_CHAT,
+            payload: { friend, socket, friendId },
+          });
 
-        dispatch({
-          type: DmActionTypes.OPEN_CHAT,
-          payload: { friend, socket, friendId },
-        });
+          safeResolve(socket);
+        };
 
-        dispatch({ type: DmActionTypes.SET_LOADING, payload: true });
-
-        // Step 5b: Preload messages after socket opens (REST)
-        if (preloadMessages) {
+        socket.onmessage = (event) => {
+          let data;
           try {
-            const { data } = await authAxios.get(
-              `/chat/conversation-with/${friendId}`
-            );
-
-            const res = await chatAPI.fetchConversationMessages(
-              authAxios,
-              data.conversation_id
-            );
-
-            dispatch({
-              type: DmActionTypes.SET_MESSAGES,
-              payload: { friendId, messages: res.data },
-            });
-          } catch (err) {
-            console.error("❌ Failed to preload messages:", err);
+            data = JSON.parse(event.data);
+          } catch {
+            return;
           }
-        }
 
-        safeResolve(socket);
-      };
+          if (data?.type !== "message" && data?.type !== "game_invite") return;
 
-      socket.onmessage = (event) => {
-        let data;
+          if (data?.type === "message") {
+            dispatch({
+              type: DmActionTypes.RECEIVE_MESSAGE,
+              payload: {
+                ...data,
+                currentUserId: userRef.current?.id,
+                message: data?.message ?? data?.content ?? "",
+                content: data?.content ?? data?.message ?? "",
+              },
+            });
 
-        try {
-          data = JSON.parse(event.data);
-        } catch (err) {
-          console.error("⚠️ DM socket JSON parse error:", err);
-          return;
-        }
+            // keep unread at 0 if active thread
+            const activeFriendId = Number(activeFriendIdRef.current);
+            const senderId = Number(data?.sender_id ?? data?.sender);
 
-        // ✅ Step 5c: HARD CONTRACT — DM socket processes ONLY messages
-        if (data?.type !== "message") {
-          return;
-        }
+            if (
+              Boolean(isDMOpenRef.current) &&
+              activeFriendId &&
+              senderId &&
+              activeFriendId === senderId
+            ) {
+              dispatch({
+                type: DmActionTypes.RESET_UNREAD,
+                payload: { friendId: senderId },
+              });
+            }
+          }
 
-        const liveUserId = userRef.current?.id;
+          if (data?.type === "game_invite") {
+            dispatch({
+              type: DmActionTypes.RECEIVE_GAME_INVITE,
+              payload: data,
+            });
+          }
+        };
 
-        dispatch({
-          type: DmActionTypes.RECEIVE_MESSAGE,
-          payload: {
-            ...data,
-            currentUserId: liveUserId,
-            message: data?.message ?? null,
-          },
-        });
-      };
-
-      socket.onerror = (err) => {
-        console.error("⚠️ DM WebSocket error:", err);
-      };
-
-      socket.onclose = async (event) => {
-        // Step 5d: If the socket closed BEFORE opening, resolve/retry appropriately
-        if (!didOpen) {
-          if (isAuthLikeClose(event) && !authRetryAttemptRef.current) {
-            authRetryAttemptRef.current = true;
-
-            createDMConnection({
+        socket.onclose = async (event) => {
+          // Retry once if it never opened and looks auth-like
+          if (!didOpen && isAuthLikeClose(event)) {
+            const retry = await connectWsOnly({
               friend,
-              preloadMessages,
+              friendId,
               forceRefresh: true,
-            }).then((retrySocket) => safeResolve(retrySocket));
-
+            });
+            safeResolve(retry);
             return;
           }
 
           safeResolve(null);
-          return;
-        }
+        };
 
-        // Step 5e: If we were open and got closed, let reducer state reset on UI action
-        // (Drawer closing already disconnects via effect)
-      };
+        // Fail-safe
+        setTimeout(() => {
+          if (!resolved && !didOpen) safeResolve(null);
+        }, 8000);
+      });
+    },
+    [state.socket, disconnectDM]
+  );
 
-      // Step 5f: Safety timeout so callers never hang forever
-      setTimeout(() => {
-        if (!didResolve && !didOpen) {
-          safeResolve(null);
-        }
-      }, 8000);
-    });
-  };
+  // ---------------------------
+  // Step 8: Public API
+  // IMPORTANT: openChat sets activeChat immediately (prevents "Connecting..." forever)
+  // ---------------------------
+  const openChat = useCallback(
+    async (friend) => {
+      const friendId = resolveFriendId(friend);
+      if (!friendId) return false;
 
-  /**
-   * sendMessage
-   *
-   * Sends a regular message to the current chat
-   *
-   * @param {string} content - Message body
-   */
-  const sendMessage = (content) => {
-    if (state.socket?.readyState === WebSocket.OPEN) {
-      state.socket.send(JSON.stringify({ type: "message", message: content }));
-    }
-  };
+      // Step 1: open drawer immediately
+      if (typeof setDMOpen === "function") setDMOpen(true);
 
-  /**
-   * sendGameInvite (HTTPS)
-   *
-   * Invites are created over HTTPS and delivered via Notification WS.
-   *
-   * Backend expects:
-   *   POST /api/invites/
-   *   { to_user_id: <int>, game_type: "tic_tac_toe" }
-   *
-   * @param {object|number} friendOrId - Friend object or friend id
-   * @returns {Promise<{invite: object, lobbyId: string}|null>}
-   */
-  const sendGameInvite = async (friendOrId = state.activeFriendId) => {
-    try {
-      const isObj = typeof friendOrId === "object";
-
-      const friendId = isObj
-        ? friendOrId.from_user === userRef.current?.id
-          ? friendOrId.to_user
-          : friendOrId.from_user
-        : friendOrId;
-
-      if (!friendId) return null;
-
-      const res = await authAxios.post("/invites/", {
-        to_user_id: Number(friendId),
-        game_type: "tic_tac_toe",
+      // Step 2: set active chat immediately (socket null for now)
+      dispatch({
+        type: DmActionTypes.OPEN_CHAT,
+        payload: { friend, socket: null, friendId },
       });
 
-      // Response shape from your InviteCreateView:
-      // { invite: {...}, lobbyId: "<game.id>" }
-      return res?.data || null;
-    } catch (err) {
-      console.error("❌ sendGameInvite (HTTPS) failed:", err);
-      return null;
+      // Step 3: set loading + clear unread immediately
+      dispatch({ type: DmActionTypes.SET_LOADING, payload: true });
+      dispatch({ type: DmActionTypes.RESET_UNREAD, payload: { friendId } });
+
+      const attemptId = ++connectAttemptRef.current;
+
+      // Step 4: REST preload regardless of WS
+      try {
+        const conversationId = await getConversationIdWithFriend(friendId);
+        if (!mountedRef.current) return true;
+        if (attemptId !== connectAttemptRef.current) return true;
+
+        if (conversationId) {
+          const res = await chatAPI.fetchConversationMessages(
+            authAxios,
+            conversationId
+          );
+
+          if (attemptId !== connectAttemptRef.current) return true;
+
+          const normalized = Array.isArray(res.data)
+            ? res.data.map(normalizeRestMessage)
+            : [];
+
+          dispatch({
+            type: DmActionTypes.SET_MESSAGES,
+            payload: { friendId, messages: normalized },
+          });
+
+          await markConversationRead(conversationId);
+        }
+      } catch (err) {
+        console.error("❌ DM preload failed:", err?.response?.status || err);
+      } finally {
+        dispatch({ type: DmActionTypes.SET_LOADING, payload: false });
+      }
+
+      // Step 5: Connect WS after preload (realtime upgrade)
+      try {
+        await connectWsOnly({ friend, friendId, forceRefresh: false });
+      } catch {
+        // No-op: thread still works from REST preload
+      }
+
+      return true;
+    },
+    [
+      authAxios,
+      connectWsOnly,
+      getConversationIdWithFriend,
+      markConversationRead,
+      normalizeRestMessage,
+      resolveFriendId,
+      setDMOpen,
+    ]
+  );
+
+  const closeChat = useCallback(() => {
+    try {
+      disconnectDM();
+    } finally {
+      if (typeof setDMOpen === "function") setDMOpen(false);
     }
-  };
+  }, [disconnectDM, setDMOpen]);
 
-  /**
-   * closeChat
-   *
-   * Closes the DM socket and resets state
-   */
-  const closeChat = () => {
-    disconnectDM();
-  };
+  const sendMessage = useCallback(
+    async (content) => {
+      const msg = String(content || "").trim();
+      if (!msg) return;
 
-  const clearThread = (friendId) => {
-    // Step 1: Clear only the client thread for that friend
-    dispatch({
-      type: DmActionTypes.CLEAR_THREAD,
-      payload: { friendId },
-    });
-  };
+      if (state.socket?.readyState === WebSocket.OPEN) {
+        state.socket.send(JSON.stringify({ type: "message", message: msg }));
+      }
+    },
+    [state.socket]
+  );
+
+  const clearThread = useCallback((friendId) => {
+    dispatch({ type: DmActionTypes.CLEAR_THREAD, payload: { friendId } });
+  }, []);
+
+  // Step 9: Delete conversation end-to-end (REST + local state)
+  const deleteConversation = useCallback(
+    async (friendOrId) => {
+      const friendId =
+        typeof friendOrId === "object" ? resolveFriendId(friendOrId) : friendOrId;
+
+      if (!friendId) return false;
+
+      // Step 1: resolve conversation id
+      let conversationId = null;
+      try {
+        conversationId = await getConversationIdWithFriend(friendId);
+      } catch {
+        conversationId = null;
+      }
+
+      if (!conversationId) return false;
+
+      // Step 2: delete on server
+      try {
+        await deleteConversationById(conversationId);
+      } catch (err) {
+        console.error("❌ Delete conversation failed:", err?.response?.status || err);
+        return false;
+      }
+
+      // Step 3: clear local thread + unread; close drawer if active
+      dispatch({ type: DmActionTypes.CLEAR_THREAD, payload: { friendId } });
+      dispatch({ type: DmActionTypes.RESET_UNREAD, payload: { friendId } });
+
+      if (String(activeFriendIdRef.current) === String(friendId)) {
+        closeChat();
+      }
+
+      return true;
+    },
+    [
+      closeChat,
+      deleteConversationById,
+      getConversationIdWithFriend,
+      resolveFriendId,
+    ]
+  );
 
   return (
     <DirectMessageContext.Provider
       value={{
         ...state,
-        openChat: async (friend) =>
-          await createDMConnection({
-            friend,
-            preloadMessages: true,
-            forceRefresh: false,
-            allowWhenClosed: false,
-          }),
+        openChat,
         closeChat,
         sendMessage,
-        sendGameInvite,
         clearThread,
+        deleteConversation,
         dispatch,
       }}
     >

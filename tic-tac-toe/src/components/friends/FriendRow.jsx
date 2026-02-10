@@ -1,20 +1,24 @@
 // # Filename: src/components/friends/FriendRow.jsx
-// ✅ New Code
 
 import React, { useMemo } from "react";
 import { PiGameController } from "react-icons/pi";
 import { CiChat1 } from "react-icons/ci";
 
-export default function FriendRow({
-  friend,
-  user,
-  onClick,
-  onInvite,
-  unreadCount = 0,
-}) {
+/**
+ * FriendRow
+ * ---------
+ * Step 1: Keeps current functionality:
+ * - Chat bubble calls onClick(friend) (your handler should open drawer + openChat(friend))
+ * - Game icon calls onInvite(friend)
+ *
+ * Step 2: Optional per-friend unread indicator:
+ * - Shows a tiny dot when unreadCount >= 1 (does not display a number here unless you want it)
+ * - The panel already has the aggregate "New N" pill.
+ */
+export default function FriendRow({ friend, user, onClick, onInvite, unreadCount = 0 }) {
   const isOnline = friend?.friend_status === "online";
 
-  // Step 1: Resolve friend user id (kept for correctness / future use)
+  // Step 1: resolve friend user id (useful for debugging/future)
   const friendUserId = useMemo(() => {
     const isCurrentUserSender = Number(friend?.from_user) === Number(user?.id);
     return isCurrentUserSender ? friend?.to_user : friend?.from_user;
@@ -27,23 +31,11 @@ export default function FriendRow({
           "w-full flex items-center gap-3 p-3.5 rounded-xl border",
           "border-slate-700/40 bg-slate-900/30",
           "transition-colors duration-200",
-          isOnline
-            ? "hover:bg-slate-900/45 hover:border-slate-600/50"
-            : "opacity-50",
+          isOnline ? "hover:bg-slate-900/45 hover:border-slate-600/50" : "opacity-50",
         ].join(" ")}
       >
-        {/* Step 2: Clickable main area (opens chat) */}
-        <button
-          type="button"
-          onClick={() => onClick(friend)}
-          className={[
-            "flex items-center gap-3 flex-1 min-w-0 text-left",
-            isOnline ? "cursor-pointer" : "cursor-not-allowed",
-          ].join(" ")}
-          disabled={!isOnline}
-          title={isOnline ? "Open chat" : "Offline"}
-        >
-          {/* Status dot */}
+        {/* Step 2: Main clickable area (optional: also opens chat) */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <span
             className={[
               "h-2.5 w-2.5 rounded-full shrink-0",
@@ -54,44 +46,27 @@ export default function FriendRow({
             aria-hidden="true"
           />
 
-          {/* Name + status */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-slate-100 truncate">
               {friend?.friend_name || "Friend"}
             </p>
-            <p
-              className={[
-                "text-xs",
-                isOnline ? "text-emerald-300/90" : "text-slate-500",
-              ].join(" ")}
-            >
+            <p className={["text-xs", isOnline ? "text-emerald-300/90" : "text-slate-500"].join(" ")}>
               {isOnline ? "Online" : "Offline"}
             </p>
           </div>
-        </button>
 
-        {/* Step 3: Right-side HUD actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Unread badge */}
-          {unreadCount > 0 && (
+          {/* Step 3: Per-friend unread indicator (dot only) */}
+          {unreadCount >= 1 ? (
             <span
-              className="
-                min-w-[22px] h-[18px] px-1
-                inline-flex items-center justify-center
-                rounded-full
-                text-[11px] font-bold
-                bg-[#1DA1F2]/15 text-[#1DA1F2]
-                border border-[#1DA1F2]/35
-                shadow-[0_0_10px_rgba(29,161,242,0.14)]
-              "
-              aria-label={`${unreadCount} unread messages`}
-              title={`${unreadCount} unread messages`}
-            >
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
-          )}
+              className="h-2 w-2 rounded-full bg-[#1DA1F2] shadow-[0_0_10px_rgba(29,161,242,0.18)]"
+              aria-label="New message"
+              title="New message"
+            />
+          ) : null}
+        </div>
 
-          {/* ✅ Chat icon (explicit affordance) */}
+        {/* Step 4: Action icons (keeps your current behavior) */}
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={(e) => {
@@ -113,7 +88,6 @@ export default function FriendRow({
             <CiChat1 size={20} />
           </button>
 
-          {/* Invite-to-game icon (online only) */}
           <button
             type="button"
             onClick={(e) => {
@@ -135,7 +109,7 @@ export default function FriendRow({
             <PiGameController size={18} />
           </button>
 
-          {/* Step 4: keep friendUserId around for future debugging/hooks */}
+          {/* keep for future debugging/hooks */}
           <span className="sr-only">{friendUserId}</span>
         </div>
       </div>
