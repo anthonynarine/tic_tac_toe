@@ -83,3 +83,7 @@ ttt_venv
 # AI agent vector index artifacts
 ai_agent_index/*.faiss
 ai_agent_index/*.pkl
+
+# Local git backups (do not commit)
+.git-backups/
+
