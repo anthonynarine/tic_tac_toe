@@ -1,45 +1,64 @@
-// # Filename: src/layout/ResponsiveLayout.jsx
-// ✅ Updated: remove md:pl-[var(--sidebar-w)] (double-offset bug)
-// ✅ Updated: fix eslint "no-useless-computed-key" for CSS var
-// ✅ Keeps: guest sidebar vs authed sidebar
-// ✅ Keeps: DMDrawer mounted inside frame
+// # Filename: tic-tac-toe/src/layout/ResponsiveLayout.jsx
 
-import React, { useMemo } from "react";
+import React from "react";
 import { Outlet } from "react-router-dom";
 
 import Navbar from "../components/navbar/Navbar";
 import FriendsSidebar from "../components/friends/FriendsSidebar";
-import GuestSidebar from "../components/friends/GuestSidebar";
 import DMDrawer from "../components/messaging/DMDrawer/DMDrawer";
+
 import LayoutFrame from "./LayoutFrame";
+import PublicAuthLayout from "./PublicAuthLayout";
 
 import { useUserContext } from "../context/userContext";
 
 export default function ResponsiveLayout() {
   const { authLoaded, isLoggedIn } = useUserContext();
 
-  // Step 1: Keep the CSS var if other components rely on it (drawers, transitions, etc.)
-  // This value should match the sidebar width in LayoutFrame (w-[320px] lg:w-[340px]).
-  // If you want it exact, set it to "320px" and adjust on lg via a different pattern.
+  // Step 1: loading state (stable layout, no flicker)
+  // - Keeps navbar mounted for consistent HUD
+  // - Avoids sidebar/drawer mounting until auth is known (prevents WS/drawer races)
+  if (!authLoaded) {
+    return (
+      <div className="min-h-screen bg-black">
+        <Navbar />
+        <main className="mx-auto w-full max-w-[1100px] px-4 py-8">
+          <div className="rounded-2xl border border-cyan-500/20 bg-black/40 p-6">
+            <div className="text-sm tracking-widest text-cyan-300/70">
+              AUTH
+            </div>
+            <div className="mt-2 text-cyan-200/90">
+              Initializing session…
+            </div>
+            <div className="mt-4 h-2 w-full overflow-hidden rounded bg-cyan-500/10">
+              <div className="h-full w-1/3 animate-pulse bg-cyan-400/30" />
+            </div>
+            <div className="mt-4 text-xs text-cyan-300/50">
+              If this takes more than a few seconds, refresh the page.
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Step 2: Guests get the public layout ONLY
+  // Prevents GuestSidebar being squeezed by LayoutFrame's mobile "w-0" aside.
+  if (!isLoggedIn) {
+    return <PublicAuthLayout />;
+  }
+
+  // Step 3: Authed users get the full app shell (sidebar + drawers)
   const SIDEBAR_WIDTH = "360px";
 
-  const sidebarNode = useMemo(() => {
-    if (!authLoaded) return null;
-    return isLoggedIn ? <FriendsSidebar /> : <GuestSidebar />;
-  }, [authLoaded, isLoggedIn]);
-
   return (
-    // Step 2: Provide CSS var without computed key (eslint fix)
     <div style={{ "--sidebar-w": SIDEBAR_WIDTH }}>
-      <LayoutFrame header={<Navbar />} sidebar={sidebarNode}>
-        {/* Step 3: DO NOT offset route content with padding-left.
-            Sidebar is in-flow in LayoutFrame; padding-left causes double spacing + broken centering. */}
-        <div className="w-full">
+      <LayoutFrame header={<Navbar />} sidebar={<FriendsSidebar />}>
+        <div className="w-full min-w-0">
           <Outlet />
         </div>
 
-        {/* Step 4: DM drawer stays mounted within the frame */}
-        {authLoaded && isLoggedIn ? <DMDrawer /> : null}
+        <DMDrawer />
       </LayoutFrame>
     </div>
   );
