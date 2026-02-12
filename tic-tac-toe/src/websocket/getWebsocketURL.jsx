@@ -1,13 +1,42 @@
-// # Filename: src/websockets/getWebsocketURL.jsx
+// # Filename: tic-tac-toe/src/websocket/getWebsocketURL.jsx
 
-// Step 1: Shared base builder (scheme + host)
-function getWsBase() {
-  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-  const host = window.location.host.includes("localhost")
-    ? "localhost:8000"
-    : window.location.host;
+/**
+ * Production WebSocket URL Builder (Netlify + Heroku)
+ *
+ * Why this exists:
+ * - In production, the frontend is served from Netlify (e.g. https://onevone.net)
+ * - The backend (Django Channels) is served from Heroku (e.g. https://tic-tac-toe-server-...herokuapp.com)
+ * - WebSockets MUST connect to the backend host, NOT the frontend host.
+ *
+ * Core rule:
+ * - Never derive the WS host from `window.location.host` in production.
+ *   That will point to the Netlify domain and cause lobby/chat/game sockets to silently fail.
+ *
+ * Expected backend routing (current architecture):
+ * - Base WS root:      {wsBase}/ws
+ * - Lobby socket:      {wsBase}/ws/lobby/:lobbyId/?token=...
+ * - Lobby chat socket: {wsBase}/ws/chat/lobby/:lobbyName/?token=...
+ * - Game socket:       {wsBase}/ws/game/:gameId/?token=...&lobby=...&sessionKey=...
+ *
+ * Auth:
+ * - Sockets pass `token` as a query param. Ensure you NEVER log the token.
+ *
+ * Environments:
+ * - Production: uses config.websocketBaseUrl (typically wss://<heroku-host>/ws)
+ * - Dev:        uses config.websocketBaseUrl (typically ws://localhost:8000/ws)
+ *
+ * Debug checklist if WS fails in prod:
+ * 1) DevTools → Network → WS: confirm Request URL host is the Heroku backend, not Netlify.
+ * 2) Confirm WS path includes correct prefix: /ws/lobby/, /ws/chat/lobby/, /ws/game/
+ * 3) Heroku logs: check for GET /ws/... and 101 upgrades.
+ */
 
-  return { scheme, host };
+import config from "../config";
+
+// Step 1: Shared base builder (scheme + backend host)
+// config.websocketBaseUrl should already be like: wss://<heroku-host>/ws
+function getWsBaseUrl() {
+  return (config.websocketBaseUrl || "").replace(/\/$/, "");
 }
 
 /**
@@ -15,7 +44,7 @@ function getWsBase() {
  * Route: /ws/lobby/<lobbyId>/?token=...&invite=... OR &sessionKey=...
  */
 export function getLobbyWSUrl({ lobbyId, token, inviteId = null, sessionKey = null }) {
-  const { scheme, host } = getWsBase();
+  const wsBase = getWsBaseUrl();
   const safeLobbyId = encodeURIComponent(String(lobbyId));
   const params = new URLSearchParams();
 
@@ -23,28 +52,27 @@ export function getLobbyWSUrl({ lobbyId, token, inviteId = null, sessionKey = nu
   if (inviteId) params.set("invite", String(inviteId));
   if (!inviteId && sessionKey) params.set("sessionKey", String(sessionKey));
 
-  return `${scheme}://${host}/ws/lobby/${safeLobbyId}/?${params.toString()}`;
+  return `${wsBase}/lobby/${safeLobbyId}/?${params.toString()}`;
 }
 
 /**
- * Step 3: Chat WS URL
+ * Step 3: Lobby Chat WS URL
  * Route: /ws/chat/lobby/<lobby_name>/?token=...
- * (Your backend uses lobby_name — you are passing lobbyId as that name.)
+ * Note: backend currently uses `lobby_name` in the URL pattern; we pass lobbyId as that name.
  */
 export function getChatWSUrl({ lobbyId, token }) {
-  const { scheme, host } = getWsBase();
+  const wsBase = getWsBaseUrl();
   const safeLobbyName = encodeURIComponent(String(lobbyId));
   const params = new URLSearchParams();
 
   params.set("token", token);
 
-  return `${scheme}://${host}/ws/chat/lobby/${safeLobbyName}/?${params.toString()}`;
+  return `${wsBase}/chat/lobby/${safeLobbyName}/?${params.toString()}`;
 }
 
 /**
  * Step 4: Game WS URL
  * Route: /ws/game/<gameId>/?token=...&sessionKey=...&lobby=...
- * (Invite is kept optional for backward compatibility until FE fully migrates.)
  */
 export function getGameWSUrl({
   gameId,
@@ -53,26 +81,26 @@ export function getGameWSUrl({
   lobbyId = null,
   inviteId = null,
 }) {
-  const { scheme, host } = getWsBase();
+  const wsBase = getWsBaseUrl();
   const safeGameId = encodeURIComponent(String(gameId));
   const params = new URLSearchParams();
 
   params.set("token", token);
 
-  // Prefer sessionKey. Keep invite optional until you fully deprecate it.
   if (inviteId) params.set("invite", String(inviteId));
   if (!inviteId && sessionKey) params.set("sessionKey", String(sessionKey));
 
-  // GameConsumer currently expects lobby=<lobbyId> for continuity
   const stableLobbyId = lobbyId ? String(lobbyId) : String(gameId);
   params.set("lobby", stableLobbyId);
 
-  return `${scheme}://${host}/ws/game/${safeGameId}/?${params.toString()}`;
+  return `${wsBase}/game/${safeGameId}/?${params.toString()}`;
 }
 
 /**
- * Step 5: Backward-compatible default export.
- * Existing callers pass { id, token, isLobby, inviteId, sessionKey, lobbyId }.
+ * getWebSocketURL (legacy compatibility)
+ * - Keeps existing call sites working:
+ *   - isLobby=true  -> lobby socket
+ *   - isLobby=false -> game socket
  */
 export default function getWebSocketURL({
   id,
@@ -85,6 +113,5 @@ export default function getWebSocketURL({
   if (isLobby) {
     return getLobbyWSUrl({ lobbyId: id, token, inviteId, sessionKey });
   }
-
   return getGameWSUrl({ gameId: id, token, sessionKey, lobbyId, inviteId });
 }
