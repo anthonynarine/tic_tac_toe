@@ -47,15 +47,14 @@ const RegistrationPage = () => {
 
   return (
     <div
-      className={[
-        // ✅ Better visual balance than dead-center:
-        // - Mobile: naturally centered with padding
-        // - Desktop: slightly higher (HUD vibe)
-        "min-h-[calc(100vh-2rem)] md:min-h-[calc(100vh-6rem)]",
-        "flex items-start justify-center",
-        "px-4 pt-10 pb-12",
-        "md:pt-14",
-      ].join(" ")}
+    className={[
+      "min-h-[100svh] md:min-h-[calc(100vh-6rem)]",
+      "flex items-center md:items-start justify-center",
+      "px-4",
+      "pt-[max(1.25rem,env(safe-area-inset-top))]",
+      "pb-[max(2rem,env(safe-area-inset-bottom))]",
+      "overflow-y-auto",
+    ].join(" ")}
     >
       <div className="w-full max-w-[560px]">
         <form

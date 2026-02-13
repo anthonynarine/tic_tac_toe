@@ -1,18 +1,10 @@
-// File: components/board/ResponsiveBoard.jsx
+// # Filename: components/board/ResponsiveBoard.jsx
 
 import React from "react";
 import classNames from "classnames";
 import "./ResponsiveBoard.css";
 import { XIcon, OIcon } from "./TronXO";
 
-/**
- * ResponsiveBoard Component
- * -------------------------------------
- * All-in-one game UI:
- * - Glowing container
- * - Title + turn indicator
- * - 3×3 board grid with dynamic cell content
- */
 const ResponsiveBoard = ({
   cellValues,
   winningCombination = [],
@@ -57,23 +49,19 @@ const ResponsiveBoard = ({
           });
 
           return (
-          <button
-            key={index}
-            className={cellClass}
-            onClick={() => handleCellClick(index)}
-            disabled={!!value || isDisabled}
-            aria-label={`Cell ${index + 1}`}
-          >
-            <span className="cell-content" aria-hidden="true">
-              {value === "X" && <XIcon />}
-              {value === "O" && <OIcon />}
-            </span>
-            {/* <span
-              className="cell-content"
-              data-value={value || ""}
-              aria-hidden="true"
-            /> */}
-          </button>
+            <button
+              key={index}
+              type="button"
+              className={cellClass}
+              onClick={() => handleCellClick(index)}
+              disabled={!!value || isDisabled}
+              aria-label={`Cell ${index + 1}`}
+            >
+              <span className="cell-content" aria-hidden="true">
+                {value === "X" && <XIcon />}
+                {value === "O" && <OIcon />}
+              </span>
+            </button>
           );
         })}
       </div>

@@ -6,7 +6,6 @@ import {
   CiChat1,
   CiPen,
   CiStreamOn,
-  CiCircleInfo,
   CiUser,
   CiWifiOn,
   CiHome,
@@ -25,7 +24,7 @@ export default function HomePage() {
   const { isLoggedIn, user } = useUserContext();
   const { createNewGame } = useGameCreation();
 
-  // Step 0: Display name (mobile header uses this)
+  // Step 0: Display name (used when logged in)
   const displayName = useMemo(() => {
     const first = user?.first_name?.trim();
     if (first) return first;
@@ -53,6 +52,7 @@ export default function HomePage() {
   }, []);
 
   const handleCreateMultiplayer = useCallback(async () => {
+    // Step 1: Gate multiplayer for guests
     if (!isLoggedIn) {
       navigate("/login");
       return;
@@ -74,6 +74,7 @@ export default function HomePage() {
   }, [isLoggedIn, navigate, createNewGame, safeNavigate]);
 
   const handleCreateAI = useCallback(async () => {
+    // Step 1: Keep current behavior (if you want AI to be allowed for guests, remove this gate)
     if (!isLoggedIn) {
       navigate("/login");
       return;
@@ -133,7 +134,7 @@ export default function HomePage() {
   return (
     <div className="w-full px-4 pt-6 pb-24">
       <div className="mx-auto max-w-5xl">
-        {/* UPDATED HEADER (mobile-friendly + welcome back) */}
+        {/* HEADER */}
         <div
           className="
             relative overflow-hidden
@@ -156,14 +157,30 @@ export default function HomePage() {
               </div>
 
               <h1 className="mt-2 text-3xl sm:text-4xl font-semibold text-slate-100/90 tracking-wide">
-                Welcome back,{" "}
-                <span className="text-[#1DA1F2]/90">{displayName}</span>
+                {isLoggedIn ? (
+                  <>
+                    Welcome back,{" "}
+                    <span className="text-[#1DA1F2]/90">{displayName}</span>
+                  </>
+                ) : (
+                  <>
+                    Welcome, <span className="text-[#1DA1F2]/90">Guest</span>
+                  </>
+                )}
               </h1>
 
               <p className="mt-2 text-sm sm:text-[15px] text-slate-400/75 max-w-2xl">
                 Real-time multiplayer hub with invites, presence, and fast state sync.
                 <span className="text-slate-200/70"> Tic-Tac-Toe</span> is live now —
                 more games and modules are on the way.
+                {!isLoggedIn ? (
+                  <>
+                    {" "}
+                    <span className="text-slate-200/70">
+                      Sign in to play multiplayer and use invites.
+                    </span>
+                  </>
+                ) : null}
               </p>
             </div>
 
@@ -185,9 +202,10 @@ export default function HomePage() {
                 </span>
               </div>
 
+              {/* Step 2: Replace Home button with Login when logged out */}
               <button
                 type="button"
-                onClick={async () => navigate("/")}
+                onClick={async () => navigate(isLoggedIn ? "/" : "/login")}
                 className="
                   inline-flex items-center gap-2
                   rounded-2xl border border-slate-800/70 bg-black/40
@@ -196,14 +214,9 @@ export default function HomePage() {
                   transition
                 "
               >
-                <CiHome size={16} />
-                Home
+                {isLoggedIn ? <CiHome size={16} /> : <CiUser size={16} />}
+                {isLoggedIn ? "Home" : "Login"}
               </button>
-
-              {/* <div className="hidden sm:inline-flex items-center gap-2 text-xs text-slate-300/60 border border-slate-800/70 bg-black/40 rounded-2xl px-3 py-2">
-                <CiCircleInfo size={16} />
-                <span>Roadmap cards are disabled</span>
-              </div> */}
             </div>
           </div>
         </div>

@@ -28,6 +28,7 @@ import AIGamePage from "../components/game/AIGamePage";
 import RecruiterDemoPage from "../components/recruiter/RecruiterDemoPage";
 import TechnicalPaper from "../components/technical-paper/TechnicalPaper";
 
+
 import { GameWebSocketProvider } from "../websocket/GameWebSocketProvider";
 
 import { InviteProvider } from "../context/inviteContext";
@@ -93,6 +94,7 @@ export default function AppRoutes() {
           <Routes>
             <Route element={<ResponsiveLayout />}>
               <Route path="/" element={<HomePage />} />
+                {/* <Route path="/games/sudoku" element={<SudokuPage />} /> */}
 
               <Route element={<ProtectedLayout />}>
                 {/* Lobby needs GameProvider */}

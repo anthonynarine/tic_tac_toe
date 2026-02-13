@@ -1,16 +1,23 @@
+/* # Filename: components/board/ResponsiveBoard.css */
+
 /* === 🎮 Responsive Game Container === */
 .responsive-game-container {
+  /* Step 1: Layout */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
 
+  /* Step 2: Sizing - avoid hard min-width that can overflow small devices */
   width: 100%;
-  min-width: 320px;
   max-width: 590px;
-  margin: 2rem auto 5rem;
-  padding: 2rem;
+  margin: clamp(1rem, 3vh, 2rem) auto clamp(2rem, 6vh, 5rem);
+  padding: clamp(1rem, 3vw, 2rem);
   box-sizing: border-box;
+
+  /* Step 3: Safe-area padding for iOS notches */
+  padding-left: max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-left));
+  padding-right: max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-right));
 
   background: #000;
   border-radius: 1rem;
@@ -22,24 +29,26 @@
     0 12px 24px rgba(0, 0, 0, 0.5);
 
   animation: fadeSlideIn 0.6s ease-out;
+
+  /* Step 4: Prevent accidental overflow jank on mobile */
+  overflow: hidden;
 }
 
 /* === 🏷 Title === */
 .game-title {
-  font-size: 2rem;
+  font-size: clamp(1.4rem, 3.5vw, 2rem);
   margin-bottom: 0.75rem;
-  font-weight: bold;
+  font-weight: 700;
   color: #ff073a;
   text-shadow:
     0 0 8px rgba(255, 7, 58, 0.6),
-    0 0 16px rgba(255, 7, 58, 0.4),
-
+    0 0 16px rgba(255, 7, 58, 0.4);
 }
 
 /* === 🌀 Turn Indicator === */
 .turn-indicator {
-  font-size: 1.25rem;
-  margin-bottom: 2rem;
+  font-size: clamp(1rem, 2.8vw, 1.25rem);
+  margin-bottom: clamp(1rem, 3vh, 2rem);
   text-align: center;
   font-weight: 500;
   padding: 0.25rem 0.75rem;
@@ -48,7 +57,7 @@
 }
 
 .turn-indicator.your-turn {
-  color: #1DA1F2;
+  color: #1da1f2;
   text-shadow:
     0 0 6px rgba(29, 161, 242, 0.6),
     0 0 12px rgba(29, 161, 242, 0.3);
@@ -56,12 +65,12 @@
 
 .turn-indicator.opponent-turn {
   color: #ccc;
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
 .turn-indicator.game-over {
   color: #ff073a;
-  font-weight: bold;
+  font-weight: 700;
   text-shadow:
     0 0 8px rgba(255, 7, 58, 0.6),
     0 0 16px rgba(255, 7, 58, 0.4);
@@ -69,59 +78,97 @@
 
 /* === 🎯 Board Layout === */
 .board-wrapper {
+  /* Step 1: Use grid */
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: clamp(0.5rem, 1vmin, 1.5rem);
+  gap: clamp(0.4rem, 1.2vmin, 0.9rem);
+
+  /* Step 2: Hard clamp width so it never exceeds container or viewport */
   width: 100%;
+  max-width: min(92vmin, 420px);
+
+  /* Step 3: Keep square */
   aspect-ratio: 1 / 1;
-  max-width: 90vmin;
 }
 
 /* === 🧩 Tron Cell === */
 .cell {
+  /* Step 1: Button reset + consistent sizing */
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid #eae7e7;
+  border-radius: clamp(0.75rem, 2.5vmin, 1rem);
+  padding: 0;
+  margin: 0;
+
   width: 100%;
   aspect-ratio: 1 / 1;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   background: radial-gradient(circle at 30% 30%, #0a0a0a, #000);
-  border: 2px solid #eae7e7;
-  border-radius: 1rem;
+  box-shadow:
+    inset 0 0 10px rgba(255, 255, 255, 0.05),
+    0 2px 10px rgba(0, 0, 0, 0.5);
 
-  font-family: 'Orbitron', sans-serif;
+  /* Step 2: Prevent iOS tap highlight / double-tap zoom quirks */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+
+  /* Step 3: Typography (still useful for aria/empty state) */
+  font-family: "Orbitron", sans-serif;
   font-weight: 900;
-  font-size: clamp(2.5rem, 7vmin, 6.5rem);
+  font-size: clamp(2.25rem, 7vmin, 6.5rem);
   line-height: 1;
-  padding: 0;
 
-  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.05),
-              0 2px 10px rgba(0, 0, 0, 0.5);
-  transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
   cursor: pointer;
+
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
 
-/* Hover & Active */
-.cell:hover:not(:disabled),
+.cell:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+/* Step 4: Hover only on devices that actually hover (prevents mobile “stuck hover” jitter) */
+@media (hover: hover) and (pointer: fine) {
+  .cell:hover:not(:disabled) {
+    background: #0d192a;
+    transform: scale(0.98);
+    box-shadow:
+      0 0 12px rgba(0, 255, 255, 0.2),
+      0 0 18px rgba(0, 255, 255, 0.3);
+  }
+}
+
+/* Step 5: Active press feedback for touch without layout-y scaling */
 .cell:active:not(:disabled) {
   background: #0d192a;
-  transform: scale(0.975);
-  box-shadow: 0 0 12px rgba(0, 255, 255, 0.2),
-              0 0 18px rgba(0, 255, 255, 0.3);
+  box-shadow:
+    0 0 10px rgba(0, 255, 255, 0.18),
+    0 0 14px rgba(0, 255, 255, 0.22);
 }
 
-/* Focus/Pressed Cleanup */
-.cell:focus,
-.cell:active {
+/* Step 6: Focus visible for keyboard users (don’t nuke winner glow) */
+.cell:focus {
   outline: none;
-  box-shadow: none;
+}
+
+.cell:focus-visible {
+  outline: 2px solid rgba(0, 240, 255, 0.8);
+  outline-offset: 3px;
 }
 
 /* Winner State */
 .cell.winner {
   background: #111a2c;
   border-color: var(--accent-color, #00f0ff);
-  box-shadow: 0 0 15px var(--accent-color, #00f0ff),
-              0 0 25px var(--accent-color, #00f0ff);
+  box-shadow:
+    0 0 15px var(--accent-color, #00f0ff),
+    0 0 25px var(--accent-color, #00f0ff);
 }
 
 /* Inner Content */
@@ -131,69 +178,39 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: inherit;
-  position: relative;
   line-height: 1;
-  margin: 0;
-  padding: 15%;
+
+  /* Step 1: Use clamp so icons never clip on very small screens */
+  padding: clamp(10%, 2.2vmin, 16%);
   box-sizing: border-box;
 }
 
-/* Neon Glowing Letters */
-.cell-content::after {
-  content: attr(data-value);
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 900;
-  font-size: inherit;
-  color: transparent;
-  background-clip: text;
-  -webkit-background-clip: text;
-  text-align: center;
-  letter-spacing: 1px;
-  line-height: 1;
-  max-width: 90%;
-  max-height: 90%;
-}
-
-/* X Glow */
-.cell-content[data-value="X"]::after {
-  background-image: linear-gradient(45deg, #ff4d4d, #ff1a10);
-  text-shadow:
-    0 0 8px rgba(255, 7, 58, 0.6),
-    0 0 16px rgba(255, 7, 58, 0.4);
-}
-
-/* O Glow */
-.cell-content[data-value="O"]::after {
-  background-image: linear-gradient(45deg, #00e0ff, #00bfff);
-  text-shadow: 0 0 8px #00e0ff,
-               0 0 16px #00bfff,
-  
-}
-
 .cell-content svg {
-  width: 80%;
-  height: 80%;
+  width: 100%;
+  height: 100%;
+  max-width: 80%;
+  max-height: 80%;
   filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.1));
-  transition: transform 0.3s ease;
+  transition: transform 0.25s ease;
 }
 
-
-/* Winner Pulse */
-.cell.winner .cell-content::after {
-  animation: pulseWinner 1.2s ease-in-out infinite;
+/* Winner Pulse (safe with SVG too) */
+.cell.winner .cell-content svg {
+  animation: pulseWinnerSvg 1.2s ease-in-out infinite;
 }
 
-@keyframes pulseWinner {
+@keyframes pulseWinnerSvg {
   0%, 100% {
-    text-shadow: 0 0 12px var(--accent-color, white),
-                 0 0 24px var(--accent-color, white);
     transform: scale(1);
+    filter:
+      drop-shadow(0 0 6px rgba(255, 255, 255, 0.15))
+      drop-shadow(0 0 12px var(--accent-color, rgba(255,255,255,0.4)));
   }
   50% {
-    text-shadow: 0 0 20px var(--accent-color, white),
-                 0 0 36px var(--accent-color, white);
-    transform: scale(1.08);
+    transform: scale(1.06);
+    filter:
+      drop-shadow(0 0 10px rgba(255, 255, 255, 0.18))
+      drop-shadow(0 0 18px var(--accent-color, rgba(255,255,255,0.55)));
   }
 }
 
@@ -201,7 +218,7 @@
 @keyframes fadeSlideIn {
   0% {
     opacity: 0;
-    transform: translateY(20px) scale(0.95);
+    transform: translateY(20px) scale(0.98);
   }
   100% {
     opacity: 1;
@@ -209,69 +226,24 @@
   }
 }
 
-
-/* === Responsive Scaling === */
+/* === Responsive Tweaks === */
 @media (max-width: 480px) {
   .responsive-game-container {
-    padding: 1rem;
-  }
-
-  .game-title {
-    font-size: 1.5rem;
-  }
-
-  .turn-indicator {
-    font-size: 1rem;
-  }
-
-  .cell {
-    font-size: clamp(2.5rem, 6.5vmin, 4.5rem);
-    border-radius: 0.75rem;
-  }
-}
-
-@media (min-width: 481px) and (max-width: 767px) {
-  .cell {
-    font-size: clamp(3.25rem, 7.5vmin, 6rem);
-  }
-}
-
-@media (min-width: 768px) and (max-width: 1023px) {
-  .responsive-game-container {
-    padding: 2rem;
-    margin-bottom: 4rem;
-  }
-
-  .game-title {
-    font-size: 2.25rem;
-  }
-
-  .turn-indicator {
-    font-size: 1.35rem;
-  }
-
-  .cell {
-    font-size: clamp(4rem, 10vmin, 7rem);
+    border-radius: 0.9rem;
   }
 }
 
 @media (min-width: 1024px) {
   .responsive-game-container {
     max-width: 460px;
-    padding: 2.5rem;
-    margin: 3rem auto 5rem;
     min-height: 520px;
   }
 
   .board-wrapper {
     max-width: 420px;
-    gap: 0.65rem;
-  }
-
-  .cell {
-    font-size: clamp(2.25rem, 6.5vmin, 5rem);
   }
 }
+
 /* 📏 Medium+ Screens with Short Height */
 @media (min-width: 768px) and (max-height: 800px) {
   .responsive-game-container {
@@ -279,22 +251,9 @@
     padding: 1rem;
   }
 
-  .game-title {
-    font-size: clamp(1.75rem, 2.5vmin, 2rem); /* ⬅️ Never smaller than 1.75rem */
-  }
-
-  .turn-indicator {
-    font-size: clamp(1rem, 2vmin, 1.15rem);
-    margin-bottom: 1rem;
-  }
-
   .board-wrapper {
     gap: 0.5rem;
     max-width: 360px;
-  }
-
-  .cell {
-    font-size: clamp(2.5rem, 5vmin, 4rem); /* ⬅️ New minimum: 2.5rem */
   }
 }
 
@@ -303,17 +262,5 @@
   .responsive-game-container {
     padding: 0.75rem;
     margin: 1rem auto 2rem;
-  }
-
-  .game-title {
-    font-size: clamp(1.5rem, 2.25vmin, 1.75rem);
-  }
-
-  .turn-indicator {
-    font-size: clamp(0.9rem, 2vmin, 1rem);
-  }
-
-  .cell {
-    font-size: clamp(2.25rem, 4.5vmin, 3.5rem);
   }
 }

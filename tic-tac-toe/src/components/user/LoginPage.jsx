@@ -37,11 +37,14 @@ const LoginPage = () => {
   return (
     <div
       className={[
-        // ✅ Match Register page: slightly higher than dead-center
-        "min-h-[calc(100vh-2rem)] md:min-h-[calc(100vh-6rem)]",
-        "flex items-start justify-center",
-        "px-4 pt-10 pb-12",
-        "md:pt-14",
+        // Step 1: Mobile should be centered + stable with modern viewport units (svh)
+        "min-h-[100svh] md:min-h-[calc(100vh-6rem)]",
+        // Step 2: Center on mobile, keep slightly higher on desktop
+        "flex items-center md:items-start justify-center",
+        // Step 3: Padding that won’t push content too high on phones + iOS safe area
+        "px-4 py-10 md:pt-14 md:pb-12",
+        "pt-[max(1.25rem,env(safe-area-inset-top))]",
+        "pb-[max(2rem,env(safe-area-inset-bottom))]",
       ].join(" ")}
     >
       <div className="w-full max-w-[520px]">
