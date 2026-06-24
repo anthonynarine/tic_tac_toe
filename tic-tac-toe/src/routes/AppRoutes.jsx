@@ -27,6 +27,7 @@ import GamePage from "../components/game/Gamepage";
 import AIGamePage from "../components/game/AIGamePage";
 import RecruiterDemoPage from "../components/recruiter/RecruiterDemoPage";
 import TechnicalPaper from "../components/technical-paper/TechnicalPaper";
+import SudokuPage from "../components/sudoku/SudokuPage";
 
 
 import { GameWebSocketProvider } from "../websocket/GameWebSocketProvider";
@@ -94,7 +95,6 @@ export default function AppRoutes() {
           <Routes>
             <Route element={<ResponsiveLayout />}>
               <Route path="/" element={<HomePage />} />
-                {/* <Route path="/games/sudoku" element={<SudokuPage />} /> */}
 
               <Route element={<ProtectedLayout />}>
                 {/* Lobby needs GameProvider */}
@@ -113,6 +113,7 @@ export default function AppRoutes() {
                 {/* ✅ Multiplayer WS route (keyed) */}
                 <Route path="/games/:id" element={<GameRoute />} />
 
+                <Route path="/games/sudoku" element={<SudokuPage />} />
                 <Route path="/recruiter-demo" element={<RecruiterDemoPage />} />
                 <Route path="/technical-paper" element={<TechnicalPaper />} />
               </Route>

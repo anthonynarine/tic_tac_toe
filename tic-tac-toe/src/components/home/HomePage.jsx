@@ -10,6 +10,7 @@ import {
   CiWifiOn,
   CiHome,
 } from "react-icons/ci";
+import { CiBoxes } from "react-icons/ci";
 
 import HomeFeatureCard from "./HomeFeatureCard";
 import HomeGameCard from "./HomeGameCard";
@@ -94,7 +95,7 @@ export default function HomePage() {
     () => ({
       id: "ttt",
       title: "Tic-Tac-Toe",
-      statusText: "Live • More games coming",
+      statusText: "Live",
       icon: CiGrid42,
       actions: [
         { id: "mp", label: "Multiplayer", onClick: handleCreateMultiplayer },
@@ -102,6 +103,29 @@ export default function HomePage() {
       ],
     }),
     [handleCreateAI, handleCreateMultiplayer]
+  );
+
+  const sudokuGame = useMemo(
+    () => ({
+      id: "sudoku",
+      title: "Sudoku",
+      statusText: "Live",
+      icon: CiBoxes,
+      actions: [
+        {
+          id: "play",
+          label: "Play",
+          onClick: () => {
+            if (!isLoggedIn) {
+              navigate("/login");
+              return;
+            }
+            navigate("/games/sudoku");
+          },
+        },
+      ],
+    }),
+    [isLoggedIn, navigate]
   );
 
   const features = useMemo(
@@ -223,9 +247,8 @@ export default function HomePage() {
 
         {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
-            <HomeGameCard game={liveGame} onComingSoon={handleComingSoon} />
-          </div>
+          <HomeGameCard game={liveGame} onComingSoon={handleComingSoon} />
+          <HomeGameCard game={sudokuGame} onComingSoon={handleComingSoon} />
 
           {features.map((f) => (
             <HomeFeatureCard
