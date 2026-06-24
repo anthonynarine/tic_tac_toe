@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     "lobby",
     "users.apps.UsersConfig",  # Signals
     "sudoku",
+    "connect_four",
 ]
 
 MIDDLEWARE = [

@@ -43,6 +43,12 @@ body {
   --border-color: #0e1a2b;
 }
 
+/* === Connect Four drop animation === */
+@keyframes dropIn {
+  from { transform: translateY(-320px); opacity: 0.3; }
+  to   { transform: translateY(0);      opacity: 1; }
+}
+
 /* === Reusable Glow Border === */
 .glow-border {
   border: 1px solid var(--border-color);

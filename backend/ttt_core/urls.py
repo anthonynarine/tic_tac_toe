@@ -35,6 +35,9 @@ urlpatterns = [
     # Sudoku
     path("api/sudoku/", include("sudoku.urls")),
 
+    # Connect Four
+    path("api/connect-four/", include("connect_four.urls")),
+
     # JWT
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),

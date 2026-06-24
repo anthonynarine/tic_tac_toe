@@ -25,7 +25,8 @@ import game.routing
 import chat.routing
 import friends.routing
 import notifications.routing
-import lobby.routing 
+import lobby.routing
+import connect_four.routing
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
@@ -33,10 +34,11 @@ application = ProtocolTypeRouter({
         JWTWebSocketMiddleware(
             URLRouter(
                 notifications.routing.websocket_urlpatterns
-                + lobby.routing.websocket_urlpatterns   
+                + lobby.routing.websocket_urlpatterns
                 + game.routing.websocket_urlpatterns
                 + chat.routing.websocket_urlpatterns
                 + friends.routing.websocket_urlpatterns
+                + connect_four.routing.websocket_urlpatterns
             )
         )
     ),

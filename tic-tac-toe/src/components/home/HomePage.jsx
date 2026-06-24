@@ -15,10 +15,10 @@ import { CiBoxes } from "react-icons/ci";
 import HomeFeatureCard from "./HomeFeatureCard";
 import HomeGameCard from "./HomeGameCard";
 
-// NOTE: Keep your existing import paths if they differ.
 import { useUserContext } from "../../context/userContext";
 import useGameCreation from "../game/hooks/useGameCreation";
 import { showToast } from "../../utils/toast/Toast";
+import { connectFourApi } from "../../api/connectFourApi";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -121,6 +121,39 @@ export default function HomePage() {
               return;
             }
             navigate("/games/sudoku");
+          },
+        },
+      ],
+    }),
+    [isLoggedIn, navigate]
+  );
+
+  const connectFourGame = useMemo(
+    () => ({
+      id: "connect-four",
+      title: "Connect Four",
+      statusText: "Live",
+      icon: CiBoxes,
+      actions: [
+        {
+          id: "ai",
+          label: "Play vs AI",
+          onClick: () => {
+            if (!isLoggedIn) { navigate("/login"); return; }
+            navigate("/games/connect-four/ai");
+          },
+        },
+        {
+          id: "mp",
+          label: "Play vs Friend",
+          onClick: async () => {
+            if (!isLoggedIn) { navigate("/login"); return; }
+            try {
+              const game = await connectFourApi.createGame(false);
+              navigate(`/games/connect-four/${game.id}`);
+            } catch {
+              showToast("error", "Could not create game.");
+            }
           },
         },
       ],
@@ -249,6 +282,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <HomeGameCard game={liveGame} onComingSoon={handleComingSoon} />
           <HomeGameCard game={sudokuGame} onComingSoon={handleComingSoon} />
+          <HomeGameCard game={connectFourGame} onComingSoon={handleComingSoon} />
 
           {features.map((f) => (
             <HomeFeatureCard
