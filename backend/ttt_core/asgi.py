@@ -28,6 +28,7 @@ import notifications.routing
 import lobby.routing
 import connect_four.routing
 import checkers.routing
+import poker.routing
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
@@ -41,6 +42,7 @@ application = ProtocolTypeRouter({
                 + friends.routing.websocket_urlpatterns
                 + connect_four.routing.websocket_urlpatterns
                 + checkers.routing.websocket_urlpatterns
+                + poker.routing.websocket_urlpatterns
             )
         )
     ),

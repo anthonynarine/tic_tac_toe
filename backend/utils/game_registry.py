@@ -14,6 +14,7 @@ from django.apps import apps
 from game.services.game_factory import create_tictactoe_game
 from connect_four.services.game_factory import create_connect_four_game
 from checkers.services.game_factory import create_checkers_game
+from poker.services.game_factory import create_poker_game
 
 GAME_TYPE_REGISTRY = {
     "tic_tac_toe": {
@@ -36,6 +37,13 @@ GAME_TYPE_REGISTRY = {
         "app_label": "checkers",
         "model_name": "CheckersGame",
         "create_fn": create_checkers_game,
+        "seat_fk_names": {"X": "player_one", "O": "player_two"},
+        "turn_values": {"X": 1, "O": 2},
+    },
+    "poker": {
+        "app_label": "poker",
+        "model_name": "PokerGame",
+        "create_fn": create_poker_game,
         "seat_fk_names": {"X": "player_one", "O": "player_two"},
         "turn_values": {"X": 1, "O": 2},
     },

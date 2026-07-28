@@ -41,6 +41,9 @@ urlpatterns = [
     # Checkers
     path("api/checkers/", include("checkers.urls")),
 
+    # Poker
+    path("api/poker/", include("poker.urls")),
+
     # Stats / Leaderboards
     path("api/stats/", include("stats.urls")),
 

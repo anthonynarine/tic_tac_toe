@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "sudoku",
     "connect_four",
     "checkers",
+    "poker",
     "stats",
 ]
 

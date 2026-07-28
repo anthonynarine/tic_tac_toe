@@ -64,3 +64,11 @@ class CheckersApiTests(APITestCase):
         self.assertEqual(response.data["my_piece"], 1)
         self.assertTrue(response.data["lobbyId"])
         self.assertTrue(response.data["sessionKey"])
+
+    def test_create_ai_game_returns_human_turn(self):
+        self.client.force_authenticate(user=self.user)
+        response = self.client.post("/api/checkers/", {"is_ai_game": True}, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["my_piece"], 1)
+        self.assertEqual(response.data["current_turn"], 1)
