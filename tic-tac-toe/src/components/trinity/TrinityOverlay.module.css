@@ -22,66 +22,66 @@
 }
 
 .avatarContainer:focus-visible {
-  box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.35);
+  box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.35);
   border-radius: 14px;
 }
 
 .glowRing {
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(255, 255, 255, 0.03);
   padding: 0.55rem;
   border-radius: 999px;
 
-  /* calmer border + glow (matches #1DA1F2 system) */
-  border: 1px solid rgba(29, 161, 242, 0.18);
+  /* calmer border + glow (matches brand-violet AI accent) */
+  border: 1px solid rgba(167, 139, 250, 0.18);
   box-shadow:
-    0 0 10px rgba(29, 161, 242, 0.20),
-    0 0 18px rgba(29, 161, 242, 0.10);
+    0 0 10px rgba(167, 139, 250, 0.20),
+    0 0 18px rgba(167, 139, 250, 0.10);
 
   animation: pulseRing 3.2s ease-in-out infinite, floatBot 5.5s ease-in-out infinite;
 }
 
 .icon {
   font-size: 1.55rem;
-  color: rgba(29, 161, 242, 0.85);
+  color: rgba(167, 139, 250, 0.85);
   text-shadow:
-    0 0 10px rgba(29, 161, 242, 0.22);
+    0 0 10px rgba(167, 139, 250, 0.22);
 }
 .caption {
   font-size: 0.9rem;
-  color: var(--primary-color, #00ffff);
+  color: var(--primary-color, #A78BFA);
   margin-top: 0.5rem;
   opacity: 0.85;
-  font-family: "Share Tech Mono", monospace;
+  font-family: "Geist Mono", monospace;
   letter-spacing: 1px;
 }
 
 @keyframes pulseRing {
   0%, 100% {
     box-shadow:
-      0 0 6px rgba(29, 161, 242, 0.6),
-      0 0 16px rgba(29, 161, 242, 0.4),
-      0 0 28px rgba(29, 161, 242, 0.2);
+      0 0 6px rgba(167, 139, 250, 0.6),
+      0 0 16px rgba(167, 139, 250, 0.4),
+      0 0 28px rgba(167, 139, 250, 0.2);
   }
   50% {
     box-shadow:
-      0 0 8px rgba(29, 161, 242, 0.8),
-      0 0 20px rgba(29, 161, 242, 0.6),
-      0 0 36px rgba(29, 161, 242, 0.4);
+      0 0 8px rgba(167, 139, 250, 0.8),
+      0 0 20px rgba(167, 139, 250, 0.6),
+      0 0 36px rgba(167, 139, 250, 0.4);
   }
 }
 
 @keyframes glowPulse {
   0%, 100% {
     text-shadow:
-      0 0 6px rgba(29, 161, 242, 0.7),
-      0 0 14px rgba(29, 161, 242, 0.5),
-      0 0 24px rgba(29, 161, 242, 0.3);
+      0 0 6px rgba(167, 139, 250, 0.7),
+      0 0 14px rgba(167, 139, 250, 0.5),
+      0 0 24px rgba(167, 139, 250, 0.3);
   }
   50% {
     text-shadow:
-      0 0 14px rgba(29, 161, 242, 1),
-      0 0 28px rgba(29, 161, 242, 0.8),
-      0 0 40px rgba(29, 161, 242, 0.5);
+      0 0 14px rgba(167, 139, 250, 1),
+      0 0 28px rgba(167, 139, 250, 0.8),
+      0 0 40px rgba(167, 139, 250, 0.5);
   }
 }
 
@@ -90,7 +90,7 @@
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-6px); /* was -10px ❌ */
+    transform: translateY(-6px);
   }
 }
 
@@ -98,12 +98,11 @@
   animation: pulseRing 3s ease-in-out infinite, floatBot 5s ease-in-out infinite;
 }
 
-/* ✅ Update this */
 /* File: TrinityOverlay.module.css */
 
 .svgWrapper {
   position: relative;
-  width: 100px;       /* 🎯 Smaller ring */
+  width: 100px;
   height: 100px;
 }
 

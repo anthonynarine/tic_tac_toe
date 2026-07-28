@@ -6,7 +6,7 @@ const TronNeuralRing = ({ className }) => (
     <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" className={className}>
         <defs>
         <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#00ffff" stopOpacity="1" />
+            <stop offset="0%" stopColor="#A78BFA" stopOpacity="1" />
             <stop offset="100%" stopColor="#000" stopOpacity="0" />
         </radialGradient>
         </defs>
@@ -15,7 +15,7 @@ const TronNeuralRing = ({ className }) => (
         <g>
             <circle
             r="120"
-            stroke="#1da1f2"
+            stroke="#A78BFA"
             strokeWidth="2"
             fill="none"
             strokeDasharray="15 5"
@@ -31,7 +31,7 @@ const TronNeuralRing = ({ className }) => (
             </circle>
             <circle
             r="90"
-            stroke="#00f7ff"
+            stroke="#C4B5FD"
             strokeWidth="1"
             fill="none"
             strokeDasharray="5 3"
@@ -46,7 +46,7 @@ const TronNeuralRing = ({ className }) => (
             />
             </circle>
         </g>
-        <circle r="5" fill="#00ffff">
+        <circle r="5" fill="#A78BFA">
             <animate
             attributeName="r"
             values="5;8;5"

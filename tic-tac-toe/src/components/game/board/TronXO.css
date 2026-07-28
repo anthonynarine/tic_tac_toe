@@ -1,11 +1,11 @@
 /* File: TronXO.css */
 
-/* 🌀 Animated Tron Ring - "O" */
+/* Animated ring - "O" (cyan) */
 .tron-o {
   width: 100%;
   height: 100%;
   fill: none;
-  stroke: #00e0ff;
+  stroke: #22D3EE;
   stroke-width: 8;
   stroke-linecap: round;
   stroke-dasharray: 280;
@@ -14,16 +14,16 @@
   animation: rotateRing 3s linear infinite;
   transform-origin: center;
 
-  filter: drop-shadow(0 0 2px #00e0ff)
-          drop-shadow(0 0 4px #00bfff);
+  filter: drop-shadow(0 0 2px #22D3EE)
+          drop-shadow(0 0 4px #22D3EE);
   box-sizing: border-box;
 }
 
-/* ⚡ Animated Electric Strike "X" */
+/* Animated strike "X" (red/rose) */
 .tron-x {
   width: 100%;
   height: 100%;
-  stroke: #FF073A;
+  stroke: #FB7185;
   stroke-width: 10;
   stroke-linecap: round;
   box-sizing: border-box;
@@ -36,8 +36,8 @@
     flickerX 1s ease-in-out 0.4s 1,
     pulseX 3.2s ease-in-out 1.4s infinite;
 
-  filter: drop-shadow(0 0 2px #FF073A)
-          drop-shadow(0 0 4px #FF073A);
+  filter: drop-shadow(0 0 2px #FB7185)
+          drop-shadow(0 0 4px #FB7185);
 }
 
 
@@ -74,7 +74,7 @@
   }
 }
 
-/* X electric flicker after draw */
+/* X flicker after draw */
 @keyframes flickerX {
   0%, 100% {
     opacity: 1;
@@ -96,11 +96,11 @@
 /* X pulsing glow effect */
 @keyframes pulseX {
   0%, 100% {
-    filter: drop-shadow(0 0 1px #ff4d4d)
-            drop-shadow(0 0 1px #e7e4e4);
+    filter: drop-shadow(0 0 1px #FB7185)
+            drop-shadow(0 0 1px #FDA4AF);
   }
   50% {
-    filter: drop-shadow(0 0 0px #ff4d4d)
-            drop-shadow(0 0 0px #ff1a10);
+    filter: drop-shadow(0 0 0px #FB7185)
+            drop-shadow(0 0 0px #FB7185);
   }
 }

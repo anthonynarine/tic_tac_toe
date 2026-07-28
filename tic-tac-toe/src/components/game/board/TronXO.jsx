@@ -16,7 +16,7 @@ export const OIcon = () => (
       cx="50"
       cy="50"
       r="40"
-      stroke="#00e0ff"
+      stroke="#22D3EE"
       strokeWidth="8"
       fill="none"
       strokeDasharray="6 1"

@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import InvitePanel from "./InvitePanel";
 import { useInviteContext } from "../../context/inviteContext";
 import { acceptInvite, declineInvite, fetchInvites } from "../../api/inviteApi";
+import { buildInviteLobbyUrl } from "../../invites/InviteNavigation";
 
 export default function InvitePanelContainer() {
   const navigate = useNavigate();
@@ -45,9 +46,10 @@ export default function InvitePanelContainer() {
       try {
         const result = await acceptInvite(inviteId);
         const nextLobbyId = result?.lobbyId || invite?.lobbyId;
+        const gameType = result?.invite?.gameType || invite?.gameType || "tic_tac_toe";
 
         if (nextLobbyId) {
-          navigate(`/lobby/${nextLobbyId}?invite=${encodeURIComponent(inviteId)}`);
+          navigate(buildInviteLobbyUrl({ gameType, lobbyId: nextLobbyId, inviteId }));
         }
       } catch (error) {
         console.error("Invite accept failed:", error);

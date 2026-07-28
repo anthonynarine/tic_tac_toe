@@ -5,12 +5,12 @@ from urllib.parse import parse_qs
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import JsonWebsocketConsumer
-from django.apps import apps
 from django.db import transaction
 
 from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
 from utils.shared.shared_utils_game_chat import SharedUtils
-from utils.websockets.ws_groups import lobby_group
+from utils.websockets.ws_groups import lobby_group, scoped_lobby_id
+from utils.game_registry import get_game_type_config, get_model_for
 
 from invites.guards import validate_invite_for_lobby_join
 
@@ -30,6 +30,8 @@ class LobbyConsumer(JsonWebsocketConsumer):
     """
     Lobby WebSocket (pre-game control plane)
 
+    Route: ws/lobby/<game_type>/<lobby_id>/
+
     Client -> Server:
       - { "type": "join_lobby" }
       - { "type": "leave_lobby" }
@@ -40,17 +42,32 @@ class LobbyConsumer(JsonWebsocketConsumer):
       - { "type": "update_player_list", "players": [...] }
       - { "type": "game_start_acknowledgment", ... }
       - { "type": "error", "message": "..." }
+
+    Note on ids:
+      - self.lobby_id: the raw id from the URL, used for DB lookups
+        against the game_type's own model (TicTacToeGame/ConnectFourGame
+        each have independent auto-increment PKs).
+      - self.redis_scope_id: "<game_type>-<lobby_id>", used for every
+        Redis key and the Channels group name, so two different game
+        types never collide on the same numeric lobby_id.
     """
 
     def connect(self):
         # Step 1: Basic scope setup
         self.user = self.scope.get("user")
+        self.game_type = str(self.scope["url_route"]["kwargs"]["game_type"])
         self.lobby_id = str(self.scope["url_route"]["kwargs"]["lobby_id"])
+
+        if not get_game_type_config(self.game_type):
+            self.accept()
+            self.close(code=4400)  # unknown game_type
+            return
+
+        self.redis_scope_id = scoped_lobby_id(self.game_type, self.lobby_id)
 
         # ✅ Root fix: lobby socket must join a *lobby-only* namespace (no game updates here)
         # This prevents crashes like: "No handler for message type game_update"
-        # Requires: from utils.ws_groups import lobby_group
-        self.lobby_group_name = lobby_group(self.lobby_id)
+        self.lobby_group_name = lobby_group(self.redis_scope_id)
 
         self.game_lobby_manager = RedisGameLobbyManager()
 
@@ -75,10 +92,12 @@ class LobbyConsumer(JsonWebsocketConsumer):
                     user=self.user,
                     lobby_id=str(self.lobby_id),
                     invite_id=str(invite),
+                    expected_game_type=self.game_type,
                 )
             except Exception as exc:
                 logger.error(
-                    "[INVITE_GUARD] reject lobby join. lobby_id=%s invite_id=%s user_id=%s err=%s",
+                    "[INVITE_GUARD] reject lobby join. game_type=%s lobby_id=%s invite_id=%s user_id=%s err=%s",
+                    self.game_type,
                     self.lobby_id,
                     invite,
                     getattr(self.user, "id", None),
@@ -90,10 +109,10 @@ class LobbyConsumer(JsonWebsocketConsumer):
 
             # Step 3b: Invite path: mint/reuse sessionKey and allow-list this user
             try:
-                minted_or_valid_session_key = self.game_lobby_manager.ensure_session_key(self.lobby_id)
-                self.game_lobby_manager.add_user_to_session(self.lobby_id, int(self.user.id))
+                minted_or_valid_session_key = self.game_lobby_manager.ensure_session_key(self.redis_scope_id)
+                self.game_lobby_manager.add_user_to_session(self.redis_scope_id, int(self.user.id))
             except Exception as exc:
-                logger.error("[LOBBY] invite session init failed lobby_id=%s err=%s", self.lobby_id, exc)
+                logger.error("[LOBBY] invite session init failed lobby_id=%s err=%s", self.redis_scope_id, exc)
                 self.accept()
                 self.close(code=4500)
                 return
@@ -102,12 +121,12 @@ class LobbyConsumer(JsonWebsocketConsumer):
             # SessionKey path: validate and refresh allow-list (best effort)
             try:
                 is_valid = self.game_lobby_manager.validate_session_key(
-                    lobby_id=self.lobby_id,
+                    lobby_id=self.redis_scope_id,
                     session_key=str(session_key),
                     user_id=int(self.user.id),
                 )
             except Exception as exc:
-                logger.error("[LOBBY] session validation error lobby_id=%s err=%s", self.lobby_id, exc)
+                logger.error("[LOBBY] session validation error lobby_id=%s err=%s", self.redis_scope_id, exc)
                 self.accept()
                 self.close(code=4500)
                 return
@@ -119,7 +138,7 @@ class LobbyConsumer(JsonWebsocketConsumer):
 
             minted_or_valid_session_key = str(session_key)
             try:
-                self.game_lobby_manager.add_user_to_session(self.lobby_id, int(self.user.id))
+                self.game_lobby_manager.add_user_to_session(self.redis_scope_id, int(self.user.id))
             except Exception:
                 pass
 
@@ -135,41 +154,43 @@ class LobbyConsumer(JsonWebsocketConsumer):
 
         try:
             # Presence + channel tracking
-            self.game_lobby_manager.add_player(self.lobby_id, self.user)
-            self.game_lobby_manager.add_channel(self.lobby_id, self.channel_name)
+            self.game_lobby_manager.add_player(self.redis_scope_id, self.user)
+            self.game_lobby_manager.add_channel(self.redis_scope_id, self.channel_name)
 
-            # Assign role via Redis manager (X/O/Spectator)
-            role = self.game_lobby_manager.assign_player_role(self.lobby_id, self.user)
-            self.game_lobby_manager.set_player_role(self.lobby_id, int(self.user.id), role)
+            # Assign role via Redis manager (X/O/Spectator) — these are internal
+            # lobby SEAT labels shared by every game type, not gameplay markers.
+            role = self.game_lobby_manager.assign_player_role(self.redis_scope_id, self.user)
+            self.game_lobby_manager.set_player_role(self.redis_scope_id, int(self.user.id), role)
 
             # Tell client the stable session key
             self.send_json(
                 {
                     "type": "session_established",
+                    "gameType": self.game_type,
                     "lobbyId": str(self.lobby_id),
                     "sessionKey": minted_or_valid_session_key,
                 }
             )
 
-            # Broadcast roster (must broadcast to lobby_<id> group internally)
-            self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.lobby_id)
+            # Broadcast roster (must broadcast to lobby_<scope> group internally)
+            self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.redis_scope_id)
 
         except Exception as exc:
-            logger.error("[LOBBY] post-connect init failed lobby_id=%s err=%s", self.lobby_id, exc)
+            logger.error("[LOBBY] post-connect init failed lobby_id=%s err=%s", self.redis_scope_id, exc)
             self.send_json({"type": "error", "message": "Failed to initialize lobby."})
             self.close(code=4500)
 
     def disconnect(self, code):
         # Step 1: Guard for early disconnects
-        if not hasattr(self, "lobby_id"):
+        if not hasattr(self, "redis_scope_id"):
             return
 
         # Step 2: Remove from Redis
         try:
-            self.game_lobby_manager.remove_player(self.lobby_id, self.user)
-            self.game_lobby_manager.remove_channel(self.lobby_id, self.channel_name)
+            self.game_lobby_manager.remove_player(self.redis_scope_id, self.user)
+            self.game_lobby_manager.remove_channel(self.redis_scope_id, self.channel_name)
         except Exception as exc:
-            logger.warning("[LOBBY] disconnect cleanup failed lobby_id=%s err=%s", self.lobby_id, exc)
+            logger.warning("[LOBBY] disconnect cleanup failed lobby_id=%s err=%s", self.redis_scope_id, exc)
 
         # Step 3: Leave Channels group
         try:
@@ -179,7 +200,7 @@ class LobbyConsumer(JsonWebsocketConsumer):
 
         # Step 4: Broadcast roster update
         try:
-            self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.lobby_id)
+            self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.redis_scope_id)
         except Exception:
             pass
 
@@ -220,20 +241,20 @@ class LobbyConsumer(JsonWebsocketConsumer):
 
     def handle_join_lobby(self):
         # Step 1: Idempotent resync (connect already joined)
-        self.game_lobby_manager.add_player(self.lobby_id, self.user)
-        self.game_lobby_manager.add_channel(self.lobby_id, self.channel_name)
-        self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.lobby_id)
+        self.game_lobby_manager.add_player(self.redis_scope_id, self.user)
+        self.game_lobby_manager.add_channel(self.redis_scope_id, self.channel_name)
+        self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.redis_scope_id)
 
     def handle_leave_lobby(self):
         # Step 1: Client-initiated leave
         try:
-            self.game_lobby_manager.remove_player(self.lobby_id, self.user)
-            self.game_lobby_manager.remove_channel(self.lobby_id, self.channel_name)
+            self.game_lobby_manager.remove_player(self.redis_scope_id, self.user)
+            self.game_lobby_manager.remove_channel(self.redis_scope_id, self.channel_name)
         except Exception:
             pass
 
         try:
-            self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.lobby_id)
+            self.game_lobby_manager.broadcast_player_list(self.channel_layer, self.redis_scope_id)
         except Exception:
             pass
 
@@ -245,12 +266,14 @@ class LobbyConsumer(JsonWebsocketConsumer):
         - requires X and O present in Redis
         - only X can start (prevents double-start races)
         - persist player assignments + current_turn to DB (transaction + row lock)
+          using field names/values appropriate for this lobby's game_type
         - ensure sessionKey exists for this lobby
-        - broadcast game_start_acknowledgment with game_id + sessionKey
+        - broadcast game_start_acknowledgment with game_id + gameType + sessionKey
         """
+        cfg = get_game_type_config(self.game_type)
 
         # Step 1: Require X and O (roles are Redis-authoritative)
-        players = self.game_lobby_manager.get_players_with_roles(self.lobby_id) or []
+        players = self.game_lobby_manager.get_players_with_roles(self.redis_scope_id) or []
         player_x = next((p for p in players if p.get("role") == "X"), None)
         player_o = next((p for p in players if p.get("role") == "O"), None)
 
@@ -270,69 +293,70 @@ class LobbyConsumer(JsonWebsocketConsumer):
             return
 
         # Step 3: Ensure there is a stable lobby sessionKey for BOTH clients
-        # (used by FE to navigate into /games/:id?sessionKey=... and by server-side guards)
+        # (used by FE to navigate into the game route with ?sessionKey=...)
         session_key = None
         try:
-            session_key = self.game_lobby_manager.ensure_session_key(self.lobby_id)
+            session_key = self.game_lobby_manager.ensure_session_key(self.redis_scope_id)
         except Exception as exc:
-            logger.error("[LOBBY] ensure_session_key failed lobby_id=%s err=%s", self.lobby_id, exc)
+            logger.error("[LOBBY] ensure_session_key failed lobby_id=%s err=%s", self.redis_scope_id, exc)
 
         # Step 4: Persist into DB safely (transaction + row lock)
+        seat_x_field = cfg["seat_fk_names"]["X"]
+        seat_o_field = cfg["seat_fk_names"]["O"]
+        starting_turn = None
+
         try:
-            TicTacToeGame = apps.get_model("game", "TicTacToeGame")
+            GameModel = get_model_for(self.game_type)
 
             with transaction.atomic():
-                game = TicTacToeGame.objects.select_for_update().get(id=self.lobby_id)
+                game = GameModel.objects.select_for_update().get(id=self.lobby_id)
 
                 # Step 4.1: Idempotency: if already started, do NOT re-randomize
-                already_started = bool(game.player_x_id and game.player_o_id)
+                already_started = bool(
+                    getattr(game, f"{seat_x_field}_id", None) and getattr(game, f"{seat_o_field}_id", None)
+                )
 
                 if not already_started:
-                    starting_turn = random.choice(["X", "O"])
+                    starting_seat = random.choice(["X", "O"])
+                    starting_turn = cfg["turn_values"][starting_seat]
 
-                    game.player_x_id = int(player_x["id"])
-                    game.player_o_id = int(player_o["id"])
+                    setattr(game, f"{seat_x_field}_id", int(player_x["id"]))
+                    setattr(game, f"{seat_o_field}_id", int(player_o["id"]))
                     game.current_turn = starting_turn
 
-                    if hasattr(game, "status"):
-                        game.status = "in_progress"
-
-                    update_fields = ["player_x", "player_o", "current_turn"]
-                    if hasattr(game, "status"):
-                        update_fields.append("status")
-
-                    game.save(update_fields=update_fields)
+                    game.save(update_fields=[seat_x_field, seat_o_field, "current_turn"])
                 else:
                     # If already started, use the canonical DB turn
-                    starting_turn = game.current_turn or "X"
+                    starting_turn = game.current_turn
 
             # Step 4.2: If session_key couldn't be ensured earlier, try a second time
             # (non-fatal, but improves navigation reliability)
             if not session_key:
                 try:
-                    session_key = self.game_lobby_manager.ensure_session_key(self.lobby_id)
+                    session_key = self.game_lobby_manager.ensure_session_key(self.redis_scope_id)
                 except Exception:
                     session_key = None
 
-        except TicTacToeGame.DoesNotExist:
+        except GameModel.DoesNotExist:
             self.send_json({"type": "error", "message": "Lobby game not found."})
             return
         except Exception as exc:
-            logger.error("[LOBBY] start_game persist failed lobby_id=%s err=%s", self.lobby_id, exc)
+            logger.error("[LOBBY] start_game persist failed lobby_id=%s err=%s", self.redis_scope_id, exc)
             self.send_json(
                 {"type": "error", "message": "Failed to start the game due to a server error."}
             )
             return
 
-        # Step 5: Broadcast ack (include sessionKey + canonical state)
+        # Step 5: Broadcast ack (include gameType + sessionKey + canonical state)
         async_to_sync(self.channel_layer.group_send)(
             self.lobby_group_name,
             {
                 "type": "game_start_acknowledgment",
                 "message": "Game has started successfully!",
+                "game_type": self.game_type,
                 "game_id": str(self.lobby_id),
-                "sessionKey": session_key,         
-                "current_turn": starting_turn,     
+                "sessionKey": session_key,
+                "current_turn": starting_turn,
                 "player_x": player_x,
                 "player_o": player_o,
             },
@@ -348,6 +372,7 @@ class LobbyConsumer(JsonWebsocketConsumer):
             {
                 "type": "game_start_acknowledgment",
                 "message": event.get("message"),
+                "game_type": event.get("game_type"),
                 "game_id": event.get("game_id"),
                 "current_turn": event.get("current_turn"),
             }

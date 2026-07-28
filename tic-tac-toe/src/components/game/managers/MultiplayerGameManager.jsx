@@ -76,6 +76,7 @@ const MultiplayerGameManager = ({ gameId, children }) => {
     if (!isGameOver && !isCompleted) {
       finalizeCalledRef.current = false;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally narrowed to the 3 fields that should retrigger finalize
   }, [state.isGameOver, state.winner, state.isCompleted, gameId, finalizeGame, dispatch]);
 
   // Step 3: Handle moves (HTTP call, but synchronized via WS state)

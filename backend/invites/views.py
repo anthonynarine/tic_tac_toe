@@ -4,7 +4,6 @@ import logging
 # Step 1: Django imports
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
-from django.apps import apps
 from django.db import connection
 
 # Step 2: DRF imports
@@ -18,8 +17,8 @@ from .models import GameInvite
 from .serializers import CreateInviteSerializer, GameInviteSerializer, InviteActionSerializer
 from .services import create_invite, accept_invite, decline_invite
 
-# Step 4: Game creation service (your new factory)
-from game.services.game_factory import create_tictactoe_game
+# Step 4: Per-game-type dispatch registry
+from utils.game_registry import get_game_type_config, get_model_for
 
 logger = logging.getLogger("invites.views")
 User = get_user_model()
@@ -64,7 +63,8 @@ class InviteCreateView(APIView):
 
         to_user = get_object_or_404(User, id=to_user_id)
 
-        if game_type != "tic_tac_toe":
+        cfg = get_game_type_config(game_type)
+        if not cfg:
             return Response(
                 {"detail": f"Unsupported game_type: {game_type}"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -72,11 +72,13 @@ class InviteCreateView(APIView):
 
         # Step 2: Resolve lobby
         if lobby_id:
-            TicTacToeGame = apps.get_model("game", "TicTacToeGame")
-            game = get_object_or_404(TicTacToeGame, id=str(lobby_id))
+            GameModel = get_model_for(game_type)
+            game = get_object_or_404(GameModel, id=str(lobby_id))
 
-            # Guard: full lobby
-            if getattr(game, "player_x_id", None) and getattr(game, "player_o_id", None):
+            # Guard: full lobby (generic across game types via seat_fk_names)
+            seat_x_field = cfg["seat_fk_names"]["X"]
+            seat_o_field = cfg["seat_fk_names"]["O"]
+            if getattr(game, f"{seat_x_field}_id", None) and getattr(game, f"{seat_o_field}_id", None):
                 return Response(
                     {"detail": "Cannot invite: lobby is already full."},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -86,7 +88,7 @@ class InviteCreateView(APIView):
 
         else:
             # Existing behavior: create new lobby/game
-            result = create_tictactoe_game(
+            result = cfg["create_fn"](
                 creator_user=request.user,
                 is_ai_game=False,
                 opponent_user=to_user,

@@ -17,7 +17,13 @@ from invites.guards import validate_invite_for_lobby_join
 from utils.game.game_utils import GameUtils
 from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
 from utils.shared.shared_utils_game_chat import SharedUtils
-from utils.websockets.ws_groups import game_group
+from utils.websockets.ws_groups import game_group, scoped_lobby_id
+
+# GameConsumer is permanently and exclusively Tic-Tac-Toe (route ws/game/<id>/,
+# never touched by Connect Four's separate ws/c4/<id>/ consumer). Redis keys
+# here must be scoped the same way lobby_consumer.py scopes them, or session
+# handoff from the lobby breaks.
+GAME_TYPE = "tic_tac_toe"
 
 logger = logging.getLogger("game")
 
@@ -147,9 +153,10 @@ class GameConsumer(JsonWebsocketConsumer):
         self.game_lobby_manager = RedisGameLobbyManager()
 
         # Step 5: Validate sessionKey + allow-list membership
+        self.redis_scope_id = scoped_lobby_id(GAME_TYPE, self.lobby_id)
         try:
             is_valid = self.game_lobby_manager.validate_session_key(
-                lobby_id=self.lobby_id,
+                lobby_id=self.redis_scope_id,
                 session_key=str(session_key),
                 user_id=self.user.id,
             )
@@ -171,7 +178,7 @@ class GameConsumer(JsonWebsocketConsumer):
 
         # Optional: refresh allow-list TTL (best effort)
         try:
-            self.game_lobby_manager.add_user_to_session(self.lobby_id, self.user.id)
+            self.game_lobby_manager.add_user_to_session(self.redis_scope_id, self.user.id)
         except Exception:
             pass
 
@@ -825,14 +832,15 @@ class GameConsumer(JsonWebsocketConsumer):
         # This satisfies GameConsumer.connect() requirements (lobby_id == game_id).
         session_key = None
         try:
-            session_key = self.game_lobby_manager.ensure_session_key(new_game_id)
+            new_redis_scope_id = scoped_lobby_id(GAME_TYPE, new_game_id)
+            session_key = self.game_lobby_manager.ensure_session_key(new_redis_scope_id)
             # add both users to allow-list for the new session (best effort)
             try:
-                self.game_lobby_manager.add_user_to_session(new_game_id, int(old_x.id))
+                self.game_lobby_manager.add_user_to_session(new_redis_scope_id, int(old_x.id))
             except Exception:
                 pass
             try:
-                self.game_lobby_manager.add_user_to_session(new_game_id, int(old_o.id))
+                self.game_lobby_manager.add_user_to_session(new_redis_scope_id, int(old_o.id))
             except Exception:
                 pass
         except Exception as exc:
@@ -1137,8 +1145,8 @@ class GameConsumer(JsonWebsocketConsumer):
             or getattr(self, "lobby_group_name", None)
         )
 
-        #  ALWAYS use game_id for Redis keys in GameConsumer
-        redis_key = str(game_id) if game_id else None
+        #  ALWAYS use game_id for Redis keys in GameConsumer (scoped to match lobby_consumer.py)
+        redis_key = scoped_lobby_id(GAME_TYPE, game_id) if game_id else None
 
         logger.debug(
             "[DISCONNECT] user=%s user_id=%s group=%s close_code=%s redis_key=%s channel=%s",

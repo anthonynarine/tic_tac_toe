@@ -3,11 +3,11 @@
 
 import logging
 
-from django.apps import apps
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from .models import GameInvite
+from utils.game_registry import get_game_type_config, get_model_for
 
 logger = logging.getLogger("invites.serializers")
 
@@ -92,12 +92,19 @@ class CreateInviteSerializer(serializers.Serializer):
         if not request or not request.user or not request.user.is_authenticated:
             raise serializers.ValidationError("Authentication required.")
 
-        # Step 3: Resolve lobby/game model (no hard import)
-        TicTacToeGame = apps.get_model("game", "TicTacToeGame")
+        # Step 3: Resolve lobby/game model for this invite's game_type
+        game_type = attrs.get("game_type", "tic_tac_toe")
+        cfg = get_game_type_config(game_type)
+        if not cfg:
+            raise serializers.ValidationError({"game_type": f"Unsupported game_type: {game_type}"})
+
+        GameModel = get_model_for(game_type)
+        seat_x_field = cfg["seat_fk_names"]["X"]
+        seat_o_field = cfg["seat_fk_names"]["O"]
 
         try:
-            game = TicTacToeGame.objects.get(id=str(lobby_id))
-        except TicTacToeGame.DoesNotExist:
+            game = GameModel.objects.get(id=str(lobby_id))
+        except GameModel.DoesNotExist:
             raise serializers.ValidationError({"lobby_id": "Lobby does not exist."})
 
         # Step 4: Block AI games
@@ -105,8 +112,8 @@ class CreateInviteSerializer(serializers.Serializer):
             raise serializers.ValidationError({"lobby_id": "Cannot invite into an AI game."})
 
         # Step 5: Block full lobbies (both players assigned)
-        player_x_id = getattr(game, "player_x_id", None)
-        player_o_id = getattr(game, "player_o_id", None)
+        player_x_id = getattr(game, f"{seat_x_field}_id", None)
+        player_o_id = getattr(game, f"{seat_o_field}_id", None)
         if player_x_id and player_o_id:
             raise serializers.ValidationError({"lobby_id": "Lobby is already full."})
 

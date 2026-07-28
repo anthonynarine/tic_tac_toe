@@ -111,8 +111,9 @@ UserProvider
 | `game` | TicTacToeGame model, move logic, AI opponent |
 | `friends` | Friendship, friend requests, presence WS |
 | `chat` | Conversations, messages, DM WebSocket consumer |
-| `invites` | Game invites (v2 redesign) |
-| `lobby` | Game lobby, chat in lobbies |
+| `invites` | Game invites (v2 redesign), generic across game types via `game_type` |
+| `lobby` | Pre-game lobby WS (roster, chat, start-game handshake) — generic across game types via `utils/game_registry.py` |
+| `connect_four` | ConnectFourGame model, REST create/join/move, in-game WS (`ws/c4/<id>/`) |
 | `notifications` | Global notification socket, unread logic |
 | `ai_agent` | LangChain RAG agent, Trinity endpoint |
 
@@ -134,12 +135,26 @@ UserProvider
 
 **WebSocket Routes** (all under `/ws/`, require token in query or Authorization header):
 ```
-/ws/notifications/           Global socket - DM + invite + presence notifications
-/ws/friends/status/          Presence updates (online/offline)
-/ws/chat/<friend_id>/        Direct messages with specific friend
-/ws/chat/lobby/<lobby_name>/ Game lobby chat
-/ws/game/<game_id>/          Gameplay updates, move validation, rematch signals
+/ws/notifications/                     Global socket - DM + invite + presence notifications
+/ws/friends/status/                    Presence updates (online/offline)
+/ws/chat/<friend_id>/                  Direct messages with specific friend
+/ws/lobby/<game_type>/<lobby_id>/      Pre-game lobby: roster, start-game handshake (generic per game_type)
+/ws/chat/lobby/<lobby_name>/           Game lobby chat (frontend namespaces lobby_name as "<gameType>_<lobbyId>")
+/ws/game/<game_id>/                    Tic-Tac-Toe gameplay updates, move validation, rematch signals
+/ws/c4/<game_id>/                      Connect Four gameplay updates (no lobby/session gating - DB participant check only)
 ```
+
+**Multi-game-type dispatch** (`utils/game_registry.py`):
+- `GAME_TYPE_REGISTRY` maps each `game_type` string (`"tic_tac_toe"`, `"connect_four"`) to
+  its model, create-function, and seat("X"/"O")→field-name mapping. Consumed by
+  `invites/views.py`, `invites/serializers.py`, and `lobby/lobby_consumer.py` so neither
+  hardcodes TicTacToe field names. Adding a new invite-capable game = one registry entry
+  + a `create_<game>_game` factory function with the same signature/return shape as
+  `game/services/game_factory.py::create_tictactoe_game`.
+- `utils/websockets/ws_groups.py::scoped_lobby_id(game_type, lobby_id)` → `"{game_type}-
+  {lobby_id}"` — feed this into every Redis key / Channels group name during the lobby
+  phase, since `TicTacToeGame` and `ConnectFourGame` are separate tables with
+  independently auto-incrementing PKs (a bare numeric id would collide between them).
 
 **WebSocket Authentication** (`ttt_core/middleware.py`):
 - `JWTWebSocketMiddleware` extracts token from query string or Authorization header
@@ -182,6 +197,24 @@ UserProvider
 3. Backend validates, updates DB
 4. Game consumer broadcasts move to both players via `/ws/game/<game_id>/`
 5. Rematch: player sends `{type: "rematch_request"}` → consumer broadcasts → accept → new game created
+
+### Friend Invite → Lobby → Start (generic across game types)
+1. Trigger: a friend row's invite icon (pick a game from the small popover) or a game's
+   "vs Friend" home button (creates its own lobby first, no recipient chosen yet).
+2. `POST /api/invites/` with `{to_user_id, game_type, lobby_id?}` — creates the
+   underlying game row up front (via the `game_registry` dispatch) and a `GameInvite` row;
+   recipient is notified over `/ws/notifications/` (`invite_created` event). This step is
+   already 100% game-type-agnostic on the frontend (`api/inviteApi.jsx`, `InviteCard.jsx`,
+   `InvitePanel*.jsx` never branch on game_type).
+3. Recipient accepts (`POST /api/invites/<id>/accept/`) → navigates to
+   `/lobby/<gameType>/<lobbyId>?invite=<id>` (`invites/InviteNavigation.js`).
+4. Both clients connect to `/ws/lobby/<gameType>/<lobbyId>/` — roster fills in real time
+   (`update_player_list`), lobby chat works via `/ws/chat/lobby/<gameType>_<lobbyId>/`.
+5. First joiner (seat "X") sends `{type: "start_game"}` → `lobby_consumer.py` persists the
+   right FK fields for that game_type (via the registry) → broadcasts
+   `game_start_acknowledgment` with `game_type` + `game_id` + `sessionKey`.
+6. Both clients navigate to the game_type's own route (`/games/<id>` for Tic-Tac-Toe,
+   `/games/connect-four/<id>` for Connect Four) and connect to that game's own WS.
 
 ### Trinity AI Agent (RAG)
 1. Frontend sends `POST /api/trinity/` with `{question}`
@@ -306,6 +339,10 @@ npm test -- --testNamePattern="should render login form"
 - `*/routing.py` - WebSocket URL patterns per app
 - `*/consumers.py` - WebSocket message handlers
 - `game/models.py` - TicTacToeGame model, move validation
+- `connect_four/models.py` - ConnectFourGame model, move/win validation
+- `utils/game_registry.py` - per-game-type dispatch (model, factory fn, seat→field mapping)
+- `utils/websockets/ws_groups.py` - `scoped_lobby_id()` + Channels group name builders
+- `utils/redis/redis_game_lobby_manager.py` - lobby roster/session/rematch Redis ops (keys are opaque strings — caller supplies scoping)
 - `ai_agent/agent_manager.py` - LangChain singleton
 - `ai_agent/langchain_agent.py` - FAISS + OpenAI setup
 

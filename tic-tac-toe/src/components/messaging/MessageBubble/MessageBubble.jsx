@@ -9,7 +9,7 @@ import { Link } from "react-router-dom";
  * - Correct left/right alignment:
  *   sender_id (WS/normalized REST) OR sender (raw REST) vs currentUserId
  */
-export default function MessageBubble({ msg, currentUserId }) {
+export default function MessageBubble({ msg, currentUserId, showSender = false }) {
   const senderId = msg?.sender_id ?? msg?.sender ?? null;
   const isMine = Number(senderId) === Number(currentUserId);
 
@@ -42,22 +42,22 @@ export default function MessageBubble({ msg, currentUserId }) {
 
   // Accent glow ring (mine stronger)
   const glowMine =
-    "shadow-[0_0_0_1px_rgba(29,161,242,0.25),0_0_22px_rgba(29,161,242,0.18)]";
+    "shadow-[0_0_0_1px_rgba(34,211,238,0.25),0_0_22px_rgba(34,211,238,0.18)]";
   const glowTheirs =
-    "shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_18px_rgba(29,161,242,0.08)]";
+    "shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_0_18px_rgba(34,211,238,0.08)]";
 
   const mine =
-    "bg-[#071018]/70 border-[#1DA1F2]/25 text-slate-100 " + glowMine;
+    "bg-background-app-panel/80 border-brand-cyan/25 text-text-primary " + glowMine;
 
   const theirs =
-    "bg-black/35 border-white/10 text-slate-100 " + glowTheirs;
+    "bg-surface border-border-soft text-text-primary " + glowTheirs;
 
   // A thin neon edge strip
-  const edgeMine = "bg-[#1DA1F2]/35";
+  const edgeMine = "bg-brand-cyan/35";
   const edgeTheirs = "bg-white/10";
 
   const linkClass =
-    "inline-flex items-center gap-2 text-[#1DA1F2] hover:text-[#66c8ff] " +
+    "inline-flex items-center gap-2 text-brand-cyan hover:text-brand-cyan-300 " +
     "underline underline-offset-4";
 
   return (
@@ -75,21 +75,27 @@ export default function MessageBubble({ msg, currentUserId }) {
         <div className={overlayBase}>
           <div className="absolute inset-x-0 top-0 h-[1px] bg-white/10" />
           <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-white/8 to-transparent" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(29,161,242,0.10),transparent_45%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(34,211,238,0.10),transparent_45%)]" />
         </div>
 
         {/* Step 3: Content */}
         <div className="relative">
+          {showSender && !isMine && msg?.sender_name ? (
+            <div className="mb-1 text-[11px] font-semibold text-brand-cyan/80 truncate">
+              {msg.sender_name}
+            </div>
+          ) : null}
+
           {msg?.type === "game_invite" && msg?.lobby_id ? (
             <Link to={`/lobby/${msg.lobby_id}`} className={linkClass}>
-              <span className="inline-block rounded-full px-2 py-[2px] border border-[#1DA1F2]/25 bg-[#1DA1F2]/10 text-[12px]">
+              <span className="inline-block rounded-full px-2 py-[2px] border border-brand-cyan/25 bg-brand-cyan/10 text-[12px]">
                 Invite
               </span>
               Join Lobby →
             </Link>
           ) : extractedLink ? (
             <Link to={extractedLink} className={linkClass}>
-              <span className="inline-block rounded-full px-2 py-[2px] border border-[#1DA1F2]/25 bg-[#1DA1F2]/10 text-[12px]">
+              <span className="inline-block rounded-full px-2 py-[2px] border border-brand-cyan/25 bg-brand-cyan/10 text-[12px]">
                 Link
               </span>
               {extractedLink.includes("/lobby/") ? "Join Lobby →" : "Accept Challenge →"}
@@ -105,8 +111,8 @@ export default function MessageBubble({ msg, currentUserId }) {
                 className={[
                   "text-[11px] px-2 py-[2px] rounded-full border",
                   isMine
-                    ? "border-[#1DA1F2]/20 bg-[#1DA1F2]/10 text-slate-200/70"
-                    : "border-white/10 bg-white/5 text-slate-200/55",
+                    ? "border-brand-cyan/20 bg-brand-cyan/10 text-text-secondary"
+                    : "border-white/10 bg-white/5 text-text-secondary",
                 ].join(" ")}
               >
                 {timeText}

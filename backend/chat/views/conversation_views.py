@@ -25,6 +25,7 @@ from rest_framework.response import Response
 
 from chat.models import Conversation, DirectMessage
 from chat.serializer import DirectMessageSerializer
+from chat.views.group_views import get_group_unread_summary_for_user
 
 
 User = get_user_model()
@@ -184,11 +185,15 @@ def get_unread_summary(request):
 
     by_friend = {str(row["sender_id"]): row["count"] for row in qs}
     total = sum(by_friend.values())
+    group_unread = get_group_unread_summary_for_user(user)
+    group_total = sum(group_unread.values())
 
     return Response(
         {
             "dm_unread_total": total,
             "by_friend": by_friend,
+            "group_unread_total": group_total,
+            "groups": group_unread,
         },
         status=status.HTTP_200_OK,
     )

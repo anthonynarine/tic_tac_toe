@@ -2,8 +2,8 @@ import React from "react";
 import { PIECE } from "./utils/c4Logic";
 
 const DOT = {
-  [PIECE.ONE]: "bg-[#1DA1F2] shadow-[0_0_6px_rgba(29,161,242,0.8)]",
-  [PIECE.TWO]: "bg-[#EF4444] shadow-[0_0_6px_rgba(239,68,68,0.8)]",
+  [PIECE.ONE]: "bg-blue-500 shadow-[0_0_16px_rgba(59,130,246,0.35)]",
+  [PIECE.TWO]: "bg-red-500 shadow-[0_0_16px_rgba(239,68,68,0.38)]",
 };
 
 export default function ConnectFourStatusBar({
@@ -41,16 +41,16 @@ export default function ConnectFourStatusBar({
       {/* Player labels */}
       <div className="flex items-center gap-2">
         <div className={`w-3 h-3 rounded-full ${DOT[PIECE.ONE]}`} />
-        <span className="text-xs text-slate-300/80">{p1Label}</span>
+        <span className="text-xs text-text-secondary">{p1Label}</span>
       </div>
 
       {/* Status */}
-      <span className="text-xs font-semibold text-slate-200/80 text-center">
+      <span className="text-xs font-semibold text-text-primary text-center">
         {statusText()}
       </span>
 
       <div className="flex items-center gap-2">
-        <span className="text-xs text-slate-300/80">{p2Label}</span>
+        <span className="text-xs text-text-secondary">{p2Label}</span>
         <div className={`w-3 h-3 rounded-full ${DOT[PIECE.TWO]}`} />
       </div>
     </div>

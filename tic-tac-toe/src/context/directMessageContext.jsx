@@ -56,6 +56,8 @@ export const DirectMessageProvider = ({ children }) => {
   const userRef = useRef(user);
   const isDMOpenRef = useRef(isDMOpen);
   const activeFriendIdRef = useRef(state.activeFriendId);
+  const activeGroupIdRef = useRef(state.activeGroupId);
+  const activeModeRef = useRef(state.activeMode);
 
   useEffect(() => {
     userRef.current = user;
@@ -68,6 +70,14 @@ export const DirectMessageProvider = ({ children }) => {
   useEffect(() => {
     activeFriendIdRef.current = state.activeFriendId;
   }, [state.activeFriendId]);
+
+  useEffect(() => {
+    activeGroupIdRef.current = state.activeGroupId;
+  }, [state.activeGroupId]);
+
+  useEffect(() => {
+    activeModeRef.current = state.activeMode;
+  }, [state.activeMode]);
 
   // Cancels stale async work when user switches threads quickly
   const connectAttemptRef = useRef(0);
@@ -133,6 +143,22 @@ export const DirectMessageProvider = ({ children }) => {
     };
   }, []);
 
+  const normalizeGroupMessage = useCallback((m) => {
+    const senderId = m?.sender_id ?? m?.sender ?? null;
+
+    return {
+      id: m?.id ?? m?.message_id ?? undefined,
+      message_id: m?.message_id ?? m?.id ?? undefined,
+      room: m?.room ?? m?.room_id ?? null,
+      room_id: m?.room_id ?? m?.room ?? null,
+      sender_id: senderId,
+      sender_name: m?.sender_name ?? "",
+      message: m?.message ?? m?.content ?? "",
+      content: m?.content ?? m?.message ?? "",
+      timestamp: m?.timestamp ?? null,
+    };
+  }, []);
+
   // ---------------------------
   // Step 3: REST helpers
   // ---------------------------
@@ -175,12 +201,17 @@ export const DirectMessageProvider = ({ children }) => {
       try {
         const res = await chatAPI.getUnreadSummary(authAxios);
         const unreadCounts = res?.data?.by_friend || {};
+        const groupUnreadCounts = res?.data?.groups || {};
 
         if (!mountedRef.current) return;
 
         dispatch({
           type: DmActionTypes.SET_UNREAD_COUNTS,
           payload: { unreadCounts },
+        });
+        dispatch({
+          type: DmActionTypes.SET_GROUP_UNREAD_COUNTS,
+          payload: { unreadCounts: groupUnreadCounts },
         });
       } catch (err) {
         // no token leakage
@@ -233,8 +264,88 @@ export const DirectMessageProvider = ({ children }) => {
     const subscribe = notification?.subscribe;
     if (typeof subscribe !== "function") return;
 
-    const unsubscribe = subscribe(async (evt) => {
-      if (!evt || evt.type !== "dm") return;
+      const unsubscribe = subscribe(async (evt) => {
+      if (!evt) return;
+
+      if (evt.type === "group_deleted") {
+        const groupId = Number(evt.room_id);
+        if (groupId) {
+          if (
+            activeModeRef.current === "group" &&
+            Number(activeGroupIdRef.current) === groupId &&
+            state.socket?.readyState === WebSocket.OPEN
+          ) {
+            try {
+              state.socket.close();
+            } catch {
+              // no-op
+            }
+          }
+          dispatch({
+            type: DmActionTypes.REMOVE_GROUP,
+            payload: { groupId },
+          });
+        } else {
+          try {
+            const res = await chatAPI.fetchGroups(authAxios);
+            const groups = Array.isArray(res?.data) ? res.data : [];
+            dispatch({ type: DmActionTypes.SET_GROUPS, payload: { groups } });
+          } catch {
+            // no-op
+          }
+        }
+        return;
+      }
+
+      if (evt.type === "group_created" || evt.type === "group_member_added") {
+        const groupId = Number(evt.room_id);
+        try {
+          const res = await chatAPI.fetchGroups(authAxios);
+          const groups = Array.isArray(res?.data) ? res.data : [];
+          dispatch({ type: DmActionTypes.SET_GROUPS, payload: { groups } });
+        } catch (err) {
+          console.warn("Group chat notification refresh failed:", err?.response?.status);
+        }
+
+        if (groupId) {
+          dispatch({
+            type: DmActionTypes.INCREMENT_GROUP_UNREAD,
+            payload: { groupId },
+          });
+        }
+        return;
+      }
+
+      if (evt.type === "group_chat") {
+        const groupId = Number(evt.room_id);
+        const senderId = Number(evt.sender_id);
+        const me = Number(userRef.current?.id);
+        if (!groupId || !me || senderId === me) return;
+
+        const drawerOpen = Boolean(isDMOpenRef.current);
+        const activeGroupId = Number(activeGroupIdRef.current);
+
+        if (drawerOpen && activeModeRef.current === "group" && activeGroupId === groupId) {
+          dispatch({
+            type: DmActionTypes.RESET_GROUP_UNREAD,
+            payload: { groupId },
+          });
+          try {
+            await chatAPI.markGroupRead(authAxios, groupId);
+          } catch {
+            // no-op
+          }
+          return;
+        }
+
+        dispatch({
+          type: DmActionTypes.INCREMENT_GROUP_UNREAD,
+          payload: { groupId },
+        });
+        return;
+      }
+
+      if (evt.type !== "dm") return;
 
       const me = Number(userRef.current?.id);
       const senderId = Number(evt.sender_id);
@@ -276,7 +387,7 @@ export const DirectMessageProvider = ({ children }) => {
     });
 
     return unsubscribe;
-  }, [notification, markConversationRead]);
+  }, [notification, markConversationRead, authAxios, state.socket]);
 
   // ---------------------------
   // Step 7: WS connect only (thread content only)
@@ -395,6 +506,115 @@ export const DirectMessageProvider = ({ children }) => {
     [state.socket, disconnectDM]
   );
 
+  const refreshGroups = useCallback(async () => {
+    if (!userRef.current?.id) return [];
+    const res = await chatAPI.fetchGroups(authAxios);
+    const groups = Array.isArray(res?.data) ? res.data : [];
+    dispatch({ type: DmActionTypes.SET_GROUPS, payload: { groups } });
+    return groups;
+  }, [authAxios]);
+
+  useEffect(() => {
+    const run = async () => {
+      if (!user?.id) return;
+      try {
+        await refreshGroups();
+      } catch (err) {
+        console.warn("Group chat list failed:", err?.response?.status);
+      }
+    };
+    run();
+  }, [user?.id, refreshGroups]);
+
+  const connectGroupWsOnly = useCallback(
+    async ({ group, groupId, forceRefresh = false }) => {
+      const attemptId = ++connectAttemptRef.current;
+
+      if (!isDMOpenRef.current) return null;
+      if (state.socket) disconnectDM();
+
+      const token = await ensureFreshAccessToken({
+        minTtlSeconds: forceRefresh ? 999999999 : 60,
+      });
+
+      if (!token) return null;
+      if (attemptId !== connectAttemptRef.current) return null;
+
+      const wsUrl = `${getWsBase()}/ws/chat/group/${groupId}/?token=${token}`;
+
+      return await new Promise((resolve) => {
+        const socket = new WebSocket(wsUrl);
+
+        let didOpen = false;
+        let resolved = false;
+
+        const safeResolve = (value) => {
+          if (resolved) return;
+          resolved = true;
+          resolve(value);
+        };
+
+        socket.onopen = () => {
+          didOpen = true;
+
+          dispatch({
+            type: DmActionTypes.OPEN_GROUP_CHAT,
+            payload: { group, socket, groupId },
+          });
+
+          safeResolve(socket);
+        };
+
+        socket.onmessage = (event) => {
+          let data;
+          try {
+            data = JSON.parse(event.data);
+          } catch {
+            return;
+          }
+
+          if (data?.type !== "group_message") return;
+
+          dispatch({
+            type: DmActionTypes.RECEIVE_GROUP_MESSAGE,
+            payload: data,
+          });
+
+          const incomingGroupId = Number(data?.room_id);
+          if (
+            Boolean(isDMOpenRef.current) &&
+            activeModeRef.current === "group" &&
+            Number(activeGroupIdRef.current) === incomingGroupId
+          ) {
+            dispatch({
+              type: DmActionTypes.RESET_GROUP_UNREAD,
+              payload: { groupId: incomingGroupId },
+            });
+          }
+        };
+
+        socket.onclose = async (event) => {
+          if (!didOpen && isAuthLikeClose(event)) {
+            const retry = await connectGroupWsOnly({
+              group,
+              groupId,
+              forceRefresh: true,
+            });
+            safeResolve(retry);
+            return;
+          }
+
+          safeResolve(null);
+        };
+
+        setTimeout(() => {
+          if (!resolved && !didOpen) safeResolve(null);
+        }, 8000);
+      });
+    },
+    [state.socket, disconnectDM]
+  );
+
   // ---------------------------
   // Step 8: Public API
   // IMPORTANT: openChat sets activeChat immediately (prevents "Connecting..." forever)
@@ -470,6 +690,54 @@ export const DirectMessageProvider = ({ children }) => {
     ]
   );
 
+  const openGroup = useCallback(
+    async (group) => {
+      const groupId = Number(group?.id);
+      if (!groupId) return false;
+
+      if (typeof setDMOpen === "function") setDMOpen(true);
+
+      dispatch({
+        type: DmActionTypes.OPEN_GROUP_CHAT,
+        payload: { group, socket: null, groupId },
+      });
+      dispatch({ type: DmActionTypes.SET_LOADING, payload: true });
+      dispatch({ type: DmActionTypes.RESET_GROUP_UNREAD, payload: { groupId } });
+
+      const attemptId = ++connectAttemptRef.current;
+
+      try {
+        const res = await chatAPI.fetchGroupMessages(authAxios, groupId);
+        if (!mountedRef.current) return true;
+        if (attemptId !== connectAttemptRef.current) return true;
+
+        const normalized = Array.isArray(res.data)
+          ? res.data.map(normalizeGroupMessage)
+          : [];
+
+        dispatch({
+          type: DmActionTypes.SET_GROUP_MESSAGES,
+          payload: { groupId, messages: normalized },
+        });
+
+        await chatAPI.markGroupRead(authAxios, groupId);
+      } catch (err) {
+        console.error("❌ Group chat preload failed:", err?.response?.status || err);
+      } finally {
+        dispatch({ type: DmActionTypes.SET_LOADING, payload: false });
+      }
+
+      try {
+        await connectGroupWsOnly({ group, groupId, forceRefresh: false });
+      } catch {
+        // No-op: history still loaded.
+      }
+
+      return true;
+    },
+    [authAxios, connectGroupWsOnly, normalizeGroupMessage, setDMOpen]
+  );
+
   const closeChat = useCallback(() => {
     try {
       disconnectDM();
@@ -488,6 +756,66 @@ export const DirectMessageProvider = ({ children }) => {
       }
     },
     [state.socket]
+  );
+
+  const createGroup = useCallback(
+    async ({ name, memberIds }) => {
+      const res = await chatAPI.createGroup(authAxios, { name, memberIds });
+      const group = res?.data;
+      if (group?.id) {
+        dispatch({ type: DmActionTypes.UPSERT_GROUP, payload: { group } });
+        await openGroup(group);
+      }
+      return group;
+    },
+    [authAxios, openGroup]
+  );
+
+  const addGroupMembers = useCallback(
+    async (groupId, memberIds) => {
+      const res = await chatAPI.addGroupMembers(authAxios, groupId, memberIds);
+      const group = res?.data;
+      if (group?.id) {
+        dispatch({ type: DmActionTypes.UPSERT_GROUP, payload: { group } });
+      }
+      return group;
+    },
+    [authAxios]
+  );
+
+  const removeGroupMember = useCallback(
+    async (groupId, userId) => {
+      await chatAPI.removeGroupMember(authAxios, groupId, userId);
+      await refreshGroups();
+    },
+    [authAxios, refreshGroups]
+  );
+
+  const clearGroupThread = useCallback(
+    async (groupId) => {
+      await chatAPI.clearGroupHistory(authAxios, groupId);
+      dispatch({ type: DmActionTypes.CLEAR_GROUP_THREAD, payload: { groupId } });
+    },
+    [authAxios]
+  );
+
+  const deleteGroup = useCallback(
+    async (groupId) => {
+      await chatAPI.deleteGroup(authAxios, groupId);
+      dispatch({ type: DmActionTypes.REMOVE_GROUP, payload: { groupId } });
+      if (
+        activeModeRef.current === "group" &&
+        Number(activeGroupIdRef.current) === Number(groupId) &&
+        state.socket?.readyState === WebSocket.OPEN
+      ) {
+        try {
+          state.socket.close();
+        } catch {
+          // no-op
+        }
+      }
+    },
+    [authAxios, state.socket]
   );
 
   const clearThread = useCallback((friendId) => {
@@ -543,9 +871,17 @@ export const DirectMessageProvider = ({ children }) => {
       value={{
         ...state,
         openChat,
+        openGroup,
         closeChat,
+        backToInbox: disconnectDM,
         sendMessage,
         clearThread,
+        clearGroupThread,
+        deleteGroup,
+        createGroup,
+        addGroupMembers,
+        removeGroupMember,
+        refreshGroups,
         deleteConversation,
         dispatch,
       }}

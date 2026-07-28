@@ -60,7 +60,16 @@
 import { toast } from "react-toastify";
 
 
+const ACCENT_COLORS = {
+    success: "#34D399",
+    error: "#FB7185",
+    info: "#22D3EE",
+    warning: "#FBBF24",
+};
+
 export const showToast = (type, message) => {
+    const accent = ACCENT_COLORS[type] ?? ACCENT_COLORS.info;
+
     const options = {
         position: "top-center",  // Display the toast at the top center of the screen
         autoClose: 2000,        // Auto-close the toast after 2000 milliseconds (2 seconds)
@@ -72,15 +81,18 @@ export const showToast = (type, message) => {
         theme: "colored",       // Use the colored theme for the toast
         closeButton: false,     // Disable the close button for simplicity
         style: {
-            background: type === "success" ? "#000000" : "#000000", // Same dark background for all toasts
-            color: type === "success" ? "white" : "#DC3545",      // Teal for success, red for error
+            background: "#090D0F",
+            color: accent,
+            border: `1px solid ${accent}40`,
         },
     };
 
     // Trigger the appropriate toast based on the type
     if (type === "success") {
         toast.success(message, options);
-    } else {
+    } else if (type === "error") {
         toast.error(message, options);
+    } else {
+        toast(message, options);
     }
 };

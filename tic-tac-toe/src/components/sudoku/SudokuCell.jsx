@@ -15,26 +15,26 @@ export default function SudokuCell({
     const row = Math.floor(idx / 9);
     const col = idx % 9;
     const parts = [];
-    if (col % 3 === 0 && col !== 0) parts.push("border-l-2 border-l-[#1DA1F2]/40");
-    if (row % 3 === 0 && row !== 0) parts.push("border-t-2 border-t-[#1DA1F2]/40");
+    if (col % 3 === 0 && col !== 0) parts.push("border-l-2 border-l-brand-cyan/40");
+    if (row % 3 === 0 && row !== 0) parts.push("border-t-2 border-t-brand-cyan/40");
     return parts.join(" ");
   })();
 
   const bgClass = isSelected
-    ? "bg-[#1DA1F2]/20"
+    ? "bg-brand-cyan/20"
     : isConflict
-    ? "bg-red-500/20"
+    ? "bg-brand-rose/20"
     : isSameValue && value !== 0
-    ? "bg-[#1DA1F2]/10"
+    ? "bg-brand-cyan/10"
     : isPeer
-    ? "bg-slate-800/40"
+    ? "bg-surface-elevated"
     : "bg-transparent";
 
   const textClass = isGiven
-    ? "text-slate-100/90 font-semibold"
+    ? "text-text-secondary font-semibold"
     : isConflict
-    ? "text-red-400"
-    : "text-[#1DA1F2]/90";
+    ? "text-brand-rose"
+    : "text-brand-cyan";
 
   return (
     <button
@@ -43,7 +43,7 @@ export default function SudokuCell({
       className={[
         "relative flex items-center justify-center",
         "w-full aspect-square",
-        "border border-slate-700/40",
+        "border border-border-soft",
         "transition-colors duration-100 cursor-pointer select-none",
         "focus:outline-none",
         bgClass,
@@ -61,7 +61,7 @@ export default function SudokuCell({
               key={n}
               className={[
                 "flex items-center justify-center text-[7px] sm:text-[8px] leading-none",
-                notes.has(n) ? "text-slate-400/80" : "text-transparent",
+                notes.has(n) ? "text-text-faint" : "text-transparent",
               ].join(" ")}
             >
               {n}

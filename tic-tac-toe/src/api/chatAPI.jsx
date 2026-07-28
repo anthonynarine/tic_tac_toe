@@ -46,6 +46,42 @@ const getUnreadSummary = async (authAxios) => {
   return await authAxios.get(`/chat/unread-summary/`);
 };
 
+const fetchGroups = async (authAxios) => {
+  return await authAxios.get(`/chat/groups/`);
+};
+
+const createGroup = async (authAxios, { name, memberIds }) => {
+  return await authAxios.post(`/chat/groups/`, {
+    name,
+    member_ids: memberIds,
+  });
+};
+
+const fetchGroupMessages = async (authAxios, roomId) => {
+  return await authAxios.get(`/chat/groups/${roomId}/messages/`);
+};
+
+const markGroupRead = async (authAxios, roomId) => {
+  return await authAxios.post(`/chat/groups/${roomId}/mark-read/`);
+};
+
+const clearGroupHistory = async (authAxios, roomId) => {
+  return await authAxios.delete(`/chat/groups/${roomId}/clear/`);
+};
+
+const deleteGroup = async (authAxios, roomId) => {
+  return await authAxios.delete(`/chat/groups/${roomId}/delete/`);
+};
+
+const addGroupMembers = async (authAxios, roomId, memberIds) => {
+  return await authAxios.post(`/chat/groups/${roomId}/members/`, {
+    member_ids: memberIds,
+  });
+};
+
+const removeGroupMember = async (authAxios, roomId, userId) => {
+  return await authAxios.delete(`/chat/groups/${roomId}/members/${userId}/`);
+};
 
 const chatAPI = {
   getConversationWith,
@@ -53,6 +89,14 @@ const chatAPI = {
   markConversationRead,
   deleteConversation,
   getUnreadSummary,
+  fetchGroups,
+  createGroup,
+  fetchGroupMessages,
+  markGroupRead,
+  clearGroupHistory,
+  deleteGroup,
+  addGroupMembers,
+  removeGroupMember,
 };
 
 export default chatAPI;

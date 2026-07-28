@@ -12,14 +12,14 @@ export default function ConnectFourAIPage() {
   const isGameOver = status === "won" || status === "draw";
 
   return (
-    <div className="w-full px-4 pt-6 pb-24">
-      <div className="mx-auto max-w-lg flex flex-col items-center gap-5">
+    <div className="w-full px-4 pt-8 md:pt-12 xl:pt-14 pb-24">
+      <div className="mx-auto max-w-lg min-h-[620px] flex flex-col items-center gap-5">
         {/* Header */}
         <div className="w-full">
-          <div className="text-[11px] tracking-[0.28em] text-slate-400/70 uppercase">
+          <div className="text-[11px] tracking-[0.28em] text-text-muted uppercase">
             vs AI
           </div>
-          <h1 className="text-2xl font-semibold text-slate-100/90 tracking-wide">
+          <h1 className="text-2xl font-semibold text-text-primary tracking-wide">
             Connect Four
           </h1>
         </div>
@@ -49,22 +49,24 @@ export default function ConnectFourAIPage() {
           <button
             type="button"
             onClick={reset}
-            className="text-xs text-slate-500/70 hover:text-slate-300/80 underline underline-offset-2 transition"
+            className="text-xs text-text-faint hover:text-text-secondary underline underline-offset-2 transition"
           >
             New game
           </button>
         )}
-      </div>
 
-      <ConnectFourResultModal
-        status={status}
-        winner={winner}
-        myPiece={PIECE.ONE}
-        p1Name="You"
-        p2Name="AI"
-        isAI
-        onPlayAgain={reset}
-      />
+        <div className="w-full min-h-[96px] flex items-start justify-center">
+          <ConnectFourResultModal
+            status={status}
+            winner={winner}
+            myPiece={PIECE.ONE}
+            p1Name="You"
+            p2Name="AI"
+            isAI
+            onPlayAgain={reset}
+          />
+        </div>
+      </div>
     </div>
   );
 }

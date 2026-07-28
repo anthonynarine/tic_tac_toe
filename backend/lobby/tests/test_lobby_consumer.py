@@ -18,6 +18,25 @@ def make_user(user_id=1, is_anonymous=False):
 
 
 @pytest.mark.asyncio
+async def test_lobby_ws_rejects_unknown_game_type(monkeypatch):
+    """
+    Expectation:
+      - game_type not in GAME_TYPE_REGISTRY => closes with 4400, before any
+        auth/anonymous check runs.
+    """
+    application = URLRouter(websocket_urlpatterns)
+
+    communicator = WebsocketCommunicator(application, "/ws/lobby/checkers/664/?sessionKey=abc")
+    communicator.scope["user"] = make_user(is_anonymous=False)
+
+    connected, _ = await communicator.connect()
+    assert connected is True
+
+    await communicator.wait_closed()
+    assert communicator.close_code == 4400
+
+
+@pytest.mark.asyncio
 async def test_lobby_ws_rejects_anonymous_user(monkeypatch):
     """
     Expectation:
@@ -25,7 +44,7 @@ async def test_lobby_ws_rejects_anonymous_user(monkeypatch):
     """
     application = URLRouter(websocket_urlpatterns)
 
-    communicator = WebsocketCommunicator(application, "/ws/lobby/664/?sessionKey=abc")
+    communicator = WebsocketCommunicator(application, "/ws/lobby/tic_tac_toe/664/?sessionKey=abc")
     communicator.scope["user"] = make_user(is_anonymous=True)
 
     connected, _ = await communicator.connect()
@@ -43,7 +62,7 @@ async def test_lobby_ws_rejects_without_invite_or_sessionkey(monkeypatch):
     """
     application = URLRouter(websocket_urlpatterns)
 
-    communicator = WebsocketCommunicator(application, "/ws/lobby/664/")
+    communicator = WebsocketCommunicator(application, "/ws/lobby/tic_tac_toe/664/")
     communicator.scope["user"] = make_user(is_anonymous=False)
 
     connected, _ = await communicator.connect()
@@ -69,7 +88,7 @@ async def test_lobby_ws_rejects_when_invite_guard_fails(monkeypatch):
 
     application = URLRouter(websocket_urlpatterns)
 
-    communicator = WebsocketCommunicator(application, "/ws/lobby/664/?invite=deadbeef")
+    communicator = WebsocketCommunicator(application, "/ws/lobby/tic_tac_toe/664/?invite=deadbeef")
     communicator.scope["user"] = make_user(is_anonymous=False)
 
     connected, _ = await communicator.connect()
@@ -97,7 +116,7 @@ async def test_lobby_ws_rejects_invalid_sessionkey(monkeypatch):
 
     application = URLRouter(websocket_urlpatterns)
 
-    communicator = WebsocketCommunicator(application, "/ws/lobby/664/?sessionKey=bad")
+    communicator = WebsocketCommunicator(application, "/ws/lobby/tic_tac_toe/664/?sessionKey=bad")
     communicator.scope["user"] = make_user(is_anonymous=False)
 
     connected, _ = await communicator.connect()
@@ -147,7 +166,7 @@ async def test_lobby_ws_invite_happy_path_sends_session_established(monkeypatch)
 
     application = URLRouter(websocket_urlpatterns)
 
-    communicator = WebsocketCommunicator(application, "/ws/lobby/664/?invite=deadbeef")
+    communicator = WebsocketCommunicator(application, "/ws/lobby/tic_tac_toe/664/?invite=deadbeef")
     communicator.scope["user"] = make_user(user_id=10, is_anonymous=False)
 
     connected, _ = await communicator.connect()
@@ -206,7 +225,7 @@ async def test_lobby_receive_json_invalid_type_returns_error_not_close(monkeypat
 
     application = URLRouter(websocket_urlpatterns)
 
-    communicator = WebsocketCommunicator(application, "/ws/lobby/664/?invite=deadbeef")
+    communicator = WebsocketCommunicator(application, "/ws/lobby/tic_tac_toe/664/?invite=deadbeef")
     communicator.scope["user"] = make_user(user_id=10, is_anonymous=False)
 
     connected, _ = await communicator.connect()

@@ -21,26 +21,15 @@ const FooterTicker = ({ items = [] }) => {
   const current = safeItems[index] || "";
 
   return (
-    <div
-      className="
-        fixed bottom-0 left-0 right-0 z-40
-        border-t border-[#1DA1F2]/15
-        bg-black/70 backdrop-blur
-        shadow-[0_-10px_30px_rgba(29,161,242,0.08)]
-      "
-    >
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-brand-cyan/15 bg-background-app/80 backdrop-blur-xl shadow-[0_-10px_30px_rgba(34,211,238,0.08)]">
       <div className="mx-auto max-w-5xl px-4 py-3">
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-[#1DA1F2] font-semibold shrink-0">Next up:</span>
+          <span className="text-brand-cyan font-semibold shrink-0">Next up:</span>
 
           {/* Step 2: Smooth fade between items */}
           <span
             key={current}
-            className="
-              text-slate-200/80
-              animate-[fadeIn_300ms_ease-in]
-              truncate
-            "
+            className="text-text-secondary animate-[fadeIn_300ms_ease-in] truncate"
             title={current}
           >
             {current}

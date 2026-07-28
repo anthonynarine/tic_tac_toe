@@ -1,21 +1,16 @@
 // # Filename: src/home/HomePage.jsx
 import React, { useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  CiGrid42,
-  CiChat1,
-  CiPen,
-  CiStreamOn,
-  CiUser,
-  CiWifiOn,
-  CiHome,
-} from "react-icons/ci";
-import { CiBoxes } from "react-icons/ci";
+import { CiPen, CiStreamOn } from "react-icons/ci";
+import { LuUserRound, LuTrophy } from "react-icons/lu";
 
 import HomeFeatureCard from "./HomeFeatureCard";
 import HomeGameCard from "./HomeGameCard";
-
+import { TicTacToeIcon, ConnectFourIcon, SudokuIcon } from "./GameIcons";
+import Button from "../ui/Button";
 import { useUserContext } from "../../context/userContext";
+import { useAuth } from "../../auth/hooks/useAuth";
+import authAxios from "../../auth/authAxios";
 import useGameCreation from "../game/hooks/useGameCreation";
 import { showToast } from "../../utils/toast/Toast";
 import { connectFourApi } from "../../api/connectFourApi";
@@ -23,285 +18,223 @@ import { connectFourApi } from "../../api/connectFourApi";
 export default function HomePage() {
   const navigate = useNavigate();
   const { isLoggedIn, user } = useUserContext();
+  const { loginWithTokens } = useAuth();
   const { createNewGame } = useGameCreation();
 
-  // Step 0: Display name (used when logged in)
   const displayName = useMemo(() => {
     const first = user?.first_name?.trim();
     if (first) return first;
     const email = user?.email || "";
     if (email.includes("@")) return email.split("@")[0];
-    return "Player";
+    return "Summoner";
   }, [user]);
 
-  // Step 1: Harden navigation (SPA first, hard redirect fallback)
-  const safeNavigate = useCallback(
-    async (targetUrl) => {
-      const before = `${window.location.pathname}${window.location.search}`;
-      navigate(targetUrl);
+  const safeNavigate = useCallback(async (url) => {
+    const before = `${window.location.pathname}${window.location.search}`;
+    navigate(url);
+    setTimeout(() => {
+      if (`${window.location.pathname}${window.location.search}` === before)
+        window.location.assign(url);
+    }, 0);
+  }, [navigate]);
 
-      setTimeout(() => {
-        const after = `${window.location.pathname}${window.location.search}`;
-        if (after === before) window.location.assign(targetUrl);
-      }, 0);
-    },
-    [navigate]
-  );
-
-  const handleComingSoon = useCallback(async (label) => {
+  const handleComingSoon = useCallback((label) => {
     showToast("info", `${label} is coming soon.`);
   }, []);
 
-  const handleCreateMultiplayer = useCallback(async () => {
-    // Step 1: Gate multiplayer for guests
-    if (!isLoggedIn) {
-      navigate("/login");
-      return;
-    }
-
+  const handleGuestSignIn = useCallback(async () => {
     try {
-      const newGame = await createNewGame(false);
-      if (!newGame?.id) throw new Error("Create multiplayer game: missing id");
-
-      const qs = new URLSearchParams();
-      if (newGame?.sessionKey) qs.set("sessionKey", String(newGame.sessionKey));
-
-      const suffix = qs.toString() ? `?${qs.toString()}` : "";
-      await safeNavigate(`/lobby/${newGame.id}${suffix}`);
+      const { data } = await authAxios.post("demo/login/guest/");
+      const { access, refresh } = data || {};
+      if (!access || !refresh) throw new Error("missing demo tokens");
+      await loginWithTokens({ access, refresh });
+      showToast("success", "Signed in as guest.");
+      navigate("/");
     } catch (err) {
-      console.error("[HomePage] Create multiplayer failed:", err);
+      console.error("[HomePage] guest sign-in failed:", err);
+      showToast(
+        "error",
+        err?.response?.data?.detail || "Guest sign-in is unavailable."
+      );
+    }
+  }, [loginWithTokens, navigate]);
+
+  const handleCreateMultiplayer = useCallback(async () => {
+    if (!isLoggedIn) { navigate("/login"); return; }
+    try {
+      const g = await createNewGame(false);
+      if (!g?.id) throw new Error("missing id");
+      const qs = new URLSearchParams();
+      if (g.sessionKey) qs.set("sessionKey", String(g.sessionKey));
+      await safeNavigate(`/lobby/tic_tac_toe/${g.id}${qs.toString() ? `?${qs}` : ""}`);
+    } catch {
       showToast("error", "Failed to create a multiplayer game.");
     }
   }, [isLoggedIn, navigate, createNewGame, safeNavigate]);
 
   const handleCreateAI = useCallback(async () => {
-    // Step 1: Keep current behavior (if you want AI to be allowed for guests, remove this gate)
-    if (!isLoggedIn) {
-      navigate("/login");
-      return;
-    }
-
+    if (!isLoggedIn) { navigate("/login"); return; }
     try {
-      const newGame = await createNewGame(true);
-      if (!newGame?.id) throw new Error("Create AI game: missing id");
-      await safeNavigate(`/games/ai/${newGame.id}`);
-    } catch (err) {
-      console.error("[HomePage] Create AI failed:", err);
+      const g = await createNewGame(true);
+      if (!g?.id) throw new Error("missing id");
+      await safeNavigate(`/games/ai/${g.id}`);
+    } catch {
       showToast("error", "Failed to create an AI game.");
     }
   }, [isLoggedIn, navigate, createNewGame, safeNavigate]);
 
-  const liveGame = useMemo(
-    () => ({
+  const games = useMemo(() => [
+    {
       id: "ttt",
       title: "Tic-Tac-Toe",
       statusText: "Live",
-      icon: CiGrid42,
+      icon: TicTacToeIcon,
+      featured: true,
       actions: [
         { id: "mp", label: "Multiplayer", onClick: handleCreateMultiplayer },
-        { id: "ai", label: "Play vs AI", onClick: handleCreateAI },
+        { id: "ai", label: "vs AI",       onClick: handleCreateAI },
       ],
-    }),
-    [handleCreateAI, handleCreateMultiplayer]
-  );
-
-  const sudokuGame = useMemo(
-    () => ({
-      id: "sudoku",
-      title: "Sudoku",
-      statusText: "Live",
-      icon: CiBoxes,
-      actions: [
-        {
-          id: "play",
-          label: "Play",
-          onClick: () => {
-            if (!isLoggedIn) {
-              navigate("/login");
-              return;
-            }
-            navigate("/games/sudoku");
-          },
-        },
-      ],
-    }),
-    [isLoggedIn, navigate]
-  );
-
-  const connectFourGame = useMemo(
-    () => ({
+    },
+    {
       id: "connect-four",
       title: "Connect Four",
       statusText: "Live",
-      icon: CiBoxes,
+      icon: ConnectFourIcon,
       actions: [
+        { id: "ai", label: "vs AI", onClick: () => { if (!isLoggedIn) { navigate("/login"); return; } navigate("/games/connect-four/ai"); } },
         {
-          id: "ai",
-          label: "Play vs AI",
-          onClick: () => {
-            if (!isLoggedIn) { navigate("/login"); return; }
-            navigate("/games/connect-four/ai");
-          },
-        },
-        {
-          id: "mp",
-          label: "Play vs Friend",
+          id: "mp", label: "vs Friend",
           onClick: async () => {
             if (!isLoggedIn) { navigate("/login"); return; }
             try {
-              const game = await connectFourApi.createGame(false);
-              navigate(`/games/connect-four/${game.id}`);
-            } catch {
-              showToast("error", "Could not create game.");
+              const g = await connectFourApi.createGame(false);
+              const qs = new URLSearchParams();
+              if (g.sessionKey) qs.set("sessionKey", String(g.sessionKey));
+              await safeNavigate(`/lobby/connect_four/${g.id}${qs.toString() ? `?${qs}` : ""}`);
             }
+            catch { showToast("error", "Could not create game."); }
           },
         },
       ],
-    }),
-    [isLoggedIn, navigate]
-  );
+    },
+    {
+      id: "sudoku",
+      title: "Sudoku",
+      statusText: "Live",
+      icon: SudokuIcon,
+      actions: [
+        { id: "play", label: "Play", onClick: () => { if (!isLoggedIn) { navigate("/login"); return; } navigate("/games/sudoku"); } },
+      ],
+    },
+  ], [handleCreateAI, handleCreateMultiplayer, isLoggedIn, navigate, safeNavigate]);
 
-  const features = useMemo(
-    () => [
-      {
-        key: "tweets",
-        title: "Feed / Tweets",
-        description: "Short posts + reactions in a clean timeline.",
-        icon: <CiStreamOn size={26} />,
-        badge: "SOON",
-      },
-      {
-        key: "groups",
-        title: "Group Chats",
-        description: "Rooms, presence, and real-time chat.",
-        icon: <CiChat1 size={26} />,
-        badge: "SOON",
-      },
-      {
-        key: "blog",
-        title: "Blog / Writing",
-        description: "Long-form posts, drafts, and profiles.",
-        icon: <CiPen size={26} />,
-        badge: "SOON",
-      },
-    ],
-    []
-  );
+  const features = useMemo(() => [
+    { key: "tweets", title: "Feed", description: "Short posts and reactions.",      icon: <CiStreamOn size={14} />, badge: "SOON" },
+    { key: "blog",   title: "Blog", description: "Long-form writing and profiles.", icon: <CiPen size={14} />,     badge: "SOON" },
+  ], []);
+
+  const [featuredGame, ...secondaryGames] = games;
 
   return (
-    <div className="w-full px-4 pt-6 pb-24">
-      <div className="mx-auto max-w-5xl">
-        {/* HEADER */}
-        <div
-          className="
-            relative overflow-hidden
-            rounded-3xl
-            border border-slate-800/70
-            bg-black/55
-            backdrop-blur
-            p-5 sm:p-6
-            shadow-[0_0_26px_rgba(29,161,242,0.06)]
-            mb-5
-          "
-        >
-          {/* subtle top glow */}
-          <div className="pointer-events-none absolute -top-24 left-1/2 h-48 w-[520px] -translate-x-1/2 rounded-full bg-[#1DA1F2]/10 blur-3xl" />
+    <div className="w-full px-2 sm:px-4 pt-2 pb-28">
+      <div className="mx-auto max-w-3xl">
 
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <div className="text-[11px] tracking-[0.28em] text-slate-400/70">
-                HUB
-              </div>
+        {/* ── HERO ─────────────────────────────── */}
+        <div className="relative mb-10">
+          <div className="absolute -top-10 -left-10 -z-10 h-64 w-64 bg-radial-cyan-glow opacity-60" />
+          <p className="text-[10px] tracking-[0.4em] uppercase font-semibold mb-4 text-text-muted">
+            Game Hub
+          </p>
+          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight leading-tight mb-3 text-text-primary">
+            {isLoggedIn ? (
+              <>Welcome back, <span className="text-brand-cyan">{displayName}</span></>
+            ) : (
+              <>Enter the <span className="text-brand-cyan">Arena</span></>
+            )}
+          </h1>
+          <p className="text-sm max-w-sm leading-relaxed text-text-secondary">
+            Multiplayer games, AI opponents, and live chat with friends.
+          </p>
 
-              <h1 className="mt-2 text-3xl sm:text-4xl font-semibold text-slate-100/90 tracking-wide">
-                {isLoggedIn ? (
-                  <>
-                    Welcome back,{" "}
-                    <span className="text-[#1DA1F2]/90">{displayName}</span>
-                  </>
-                ) : (
-                  <>
-                    Welcome, <span className="text-[#1DA1F2]/90">Guest</span>
-                  </>
-                )}
-              </h1>
-
-              <p className="mt-2 text-sm sm:text-[15px] text-slate-400/75 max-w-2xl">
-                Real-time multiplayer hub with invites, presence, and fast state sync.
-                <span className="text-slate-200/70"> Tic-Tac-Toe</span> is live now —
-                more games and modules are on the way.
-                {!isLoggedIn ? (
-                  <>
-                    {" "}
-                    <span className="text-slate-200/70">
-                      Sign in to play multiplayer and use invites.
-                    </span>
-                  </>
-                ) : null}
-              </p>
-            </div>
-
-            {/* HUD chips (stack on mobile, row on desktop) */}
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-              <div
-                className="
-                  inline-flex items-center gap-2
-                  rounded-2xl border border-slate-800/70 bg-black/40
-                  px-3 py-2 text-xs text-slate-300/70
-                "
-              >
-                <CiUser size={16} />
-                <span>Status</span>
-                <span className="mx-1 text-slate-500/60">•</span>
-                <CiWifiOn size={16} />
-                <span className="text-emerald-300/80">
-                  {isLoggedIn ? "Online" : "Guest"}
-                </span>
-              </div>
-
-              {/* Step 2: Replace Home button with Login when logged out */}
-              <button
+          {!isLoggedIn && (
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button
                 type="button"
-                onClick={async () => navigate(isLoggedIn ? "/" : "/login")}
-                className="
-                  inline-flex items-center gap-2
-                  rounded-2xl border border-slate-800/70 bg-black/40
-                  px-3 py-2 text-xs text-slate-300/70
-                  hover:border-[#1DA1F2]/25 hover:bg-[#1DA1F2]/08 hover:text-[#1DA1F2]/85
-                  transition
-                "
+                variant="primary"
+                onClick={handleGuestSignIn}
               >
-                {isLoggedIn ? <CiHome size={16} /> : <CiUser size={16} />}
-                {isLoggedIn ? "Home" : "Login"}
-              </button>
+                <LuUserRound size={16} />
+                Sign in as Guest
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/login")}
+              >
+                Sign in
+              </Button>
             </div>
+          )}
+        </div>
+
+        {/* ── GAMES ────────────────────────────── */}
+        <div className="mb-10">
+          <SectionDivider label="Games" />
+          <div className="mt-5 space-y-3">
+            <HomeGameCard game={featuredGame} featured onComingSoon={handleComingSoon} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {secondaryGames.map((game) => (
+                <HomeGameCard key={game.id} game={game} onComingSoon={handleComingSoon} />
+              ))}
+            </div>
+          </div>
+
+          {isLoggedIn && (
+            <button
+              type="button"
+              onClick={() => navigate("/leaderboard")}
+              className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-text-secondary hover:text-brand-cyan transition-colors"
+            >
+              <LuTrophy size={14} />
+              View friends leaderboard
+            </button>
+          )}
+        </div>
+
+        {/* ── COMING SOON ──────────────────────── */}
+        <div>
+          <SectionDivider label="Coming Soon" muted />
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {features.map((f) => (
+              <HomeFeatureCard
+                key={f.key}
+                title={f.title}
+                description={f.description}
+                icon={f.icon}
+                badge={f.badge}
+                disabled
+                onClick={() => handleComingSoon(f.title)}
+              />
+            ))}
           </div>
         </div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <HomeGameCard game={liveGame} onComingSoon={handleComingSoon} />
-          <HomeGameCard game={sudokuGame} onComingSoon={handleComingSoon} />
-          <HomeGameCard game={connectFourGame} onComingSoon={handleComingSoon} />
-
-          {features.map((f) => (
-            <HomeFeatureCard
-              key={f.key}
-              title={f.title}
-              description={f.description}
-              icon={f.icon}
-              badge={f.badge}
-              disabled
-              onClick={async () => await handleComingSoon(f.title)}
-            />
-          ))}
-        </div>
-
-        <div className="sm:hidden mt-4 text-xs text-slate-400/65">
-          Roadmap modules are marked <span className="text-slate-200/70">SOON</span>{" "}
-          and aren’t clickable yet.
-        </div>
       </div>
+    </div>
+  );
+}
+
+function SectionDivider({ label, muted = false }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className={`text-[10px] tracking-[0.35em] uppercase font-semibold shrink-0 ${
+          muted ? "text-text-faint" : "text-text-muted"
+        }`}
+      >
+        {label}
+      </span>
+      <div className={`flex-1 h-px bg-gradient-to-r ${muted ? "from-border-soft/40" : "from-border-soft"} to-transparent`} />
     </div>
   );
 }

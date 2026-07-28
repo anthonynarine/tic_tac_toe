@@ -13,6 +13,7 @@ from .serializers import TicTacToeGameSerializer
 from .ai_logic.ai_logic import get_best_move
 from .services.game_factory import create_tictactoe_game
 from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
+from utils.websockets.ws_groups import scoped_lobby_id
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -51,12 +52,13 @@ class TicTacToeGameViewSet(viewsets.ModelViewSet):
         if not is_ai_game:
             lobby_id = str(game.id)
             manager = RedisGameLobbyManager()
+            scoped_id = scoped_lobby_id("tic_tac_toe", lobby_id)
 
             # Step 5a: Create/ensure sessionKey
-            session_key = manager.ensure_session_key(lobby_id)
+            session_key = manager.ensure_session_key(scoped_id)
 
             # Step 5b: Allow-list creator in this lobby session
-            manager.add_user_to_session(lobby_id, request.user.id)
+            manager.add_user_to_session(scoped_id, request.user.id)
 
             # Step 5c: Include join hints for frontend routing
             data["lobbyId"] = lobby_id

@@ -1,7 +1,7 @@
 // # Filename: src/components/notifications/InvitePanel.jsx
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CiCircleChevDown, CiCircleChevUp } from "react-icons/ci";
+import { CiCircleChevDown, CiCircleChevUp, CiMail } from "react-icons/ci";
 import InviteCard from "./InviteCard";
 
 export default function InvitePanel({ invites = [], onAccept, onDecline }) {
@@ -58,7 +58,8 @@ export default function InvitePanel({ invites = [], onAccept, onDecline }) {
         aria-controls="invites-panel-body"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="text-sm font-medium tracking-wide text-[#1DA1F2] truncate">
+          <CiMail size={16} className="text-brand-cyan shrink-0" />
+          <h3 className="text-sm font-medium tracking-wide text-brand-cyan truncate">
             Invites
           </h3>
 
@@ -67,8 +68,8 @@ export default function InvitePanel({ invites = [], onAccept, onDecline }) {
               className="
                 inline-flex items-center justify-center
                 px-2.5 py-[1px] text-xs font-semibold rounded-full
-                bg-[#1DA1F2]/12 text-[#1DA1F2]
-                border border-[#1DA1F2]/30
+                bg-brand-cyan/12 text-brand-cyan
+                border border-brand-cyan/30
               "
               aria-label={`${inviteCount} pending invites`}
               title={`${inviteCount} pending invites`}
@@ -78,16 +79,8 @@ export default function InvitePanel({ invites = [], onAccept, onDecline }) {
           )}
         </div>
 
-        <span
-          className="
-            h-9 w-9 grid place-items-center rounded-lg
-            text-[#1DA1F2]/90 hover:text-[#1DA1F2]
-            hover:bg-[#1DA1F2]/10
-            focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/40
-          "
-          aria-hidden="true"
-        >
-          {isOpen ? <CiCircleChevUp size={26} /> : <CiCircleChevDown size={26} />}
+        <span className="text-brand-cyan/90" aria-hidden="true">
+          {isOpen ? <CiCircleChevUp size={18} /> : <CiCircleChevDown size={18} />}
         </span>
       </button>
 
@@ -96,7 +89,7 @@ export default function InvitePanel({ invites = [], onAccept, onDecline }) {
         <div className={innerClassName}>
           <div className="max-h-[260px] overflow-y-auto pr-2 tron-scrollbar-dark">
             {isOpen && !hasInvites ? (
-              <div className="py-3 text-sm text-slate-400">
+              <div className="py-3 text-sm text-text-faint">
                 No pending invites.
               </div>
             ) : (

@@ -3,7 +3,7 @@ import DrawerSection from "../../components/technical-paper/DrawerSection";
 import "./TechnicalPaper.css";
 
 const TechnicalPaper = () => {
-  const [activeSection, setActiveSection] = useState(null);
+  const [, setActiveSection] = useState(null);
   const observer = useRef(null);
 
   useEffect(() => {

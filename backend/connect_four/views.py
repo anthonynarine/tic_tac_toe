@@ -7,6 +7,8 @@ from django.core.exceptions import ValidationError
 
 from .models import ConnectFourGame
 from .serializers import ConnectFourGameSerializer
+from utils.redis.redis_game_lobby_manager import RedisGameLobbyManager
+from utils.websockets.ws_groups import scoped_lobby_id
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,23 @@ def create_game(request):
         player_one=request.user,
         is_ai_game=is_ai,
     )
-    return Response(_serialize(game, request.user), status=status.HTTP_201_CREATED)
+    data = _serialize(game, request.user)
+
+    # Step: Mint a sessionKey for non-AI games so the creator can make their
+    # first /lobby/connect_four/:id WS connection before any invite exists
+    # (mirrors TicTacToeGameViewSet.create()).
+    if not is_ai:
+        lobby_id = str(game.id)
+        manager = RedisGameLobbyManager()
+        scoped_id = scoped_lobby_id("connect_four", lobby_id)
+
+        session_key = manager.ensure_session_key(scoped_id)
+        manager.add_user_to_session(scoped_id, request.user.id)
+
+        data["lobbyId"] = lobby_id
+        data["sessionKey"] = session_key
+
+    return Response(data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["GET"])

@@ -2,11 +2,25 @@
 // Filename: src/components/game/AIResultModal.jsx
 
 import classNames from "classnames";
+import { useEffect, useState } from "react";
 import { AiFillHome } from "react-icons/ai";
 import { useNavigate } from "react-router-dom";
 
 export const AIResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
   const navigate = useNavigate();
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (!isGameOver) {
+      setIsVisible(false);
+      return undefined;
+    }
+
+    const id = window.setTimeout(() => setIsVisible(true), 1100);
+    return () => window.clearTimeout(id);
+  }, [isGameOver]);
+
+  if (!isGameOver || !isVisible) return null;
 
   const resultMessage = winner === "D" ? "It's a Draw!" : `${winner} Wins`;
 
@@ -29,41 +43,26 @@ export const AIResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
     navigate(`/games/ai/${newId}`);
   };
 
-  const modalClass = classNames(
-    "fixed inset-0 z-[1000] flex items-center justify-center px-4",
-    "bg-black/75 backdrop-blur-md transition-opacity duration-300",
-    {
-      "opacity-100 pointer-events-auto": isGameOver,
-      "opacity-0 pointer-events-none": !isGameOver,
-    }
-  );
-
   return (
-    <div className={modalClass} aria-hidden={!isGameOver}>
+    <div className="w-full max-w-[min(92vw,480px)] mx-auto mt-4">
       <div
         className={classNames(
-          "w-[400px] max-w-[90%] rounded-[20px] p-8 text-center",
-          "bg-[#0e1117] text-[#63c6ff]",
-          "glow-border tron-frame",
-          "animate-[fadeInScale_0.45s_ease-in]"
+          "w-full rounded-card p-4 text-center",
+          "bg-background-app-panel border border-brand-cyan/25 shadow-glow-cyan"
         )}
-        role="dialog"
-        aria-modal="true"
       >
-        <div className="mb-6 text-[1.6rem] font-bold text-[#1da1f2]">{resultMessage}</div>
+        <div className="mb-3 text-lg font-bold text-brand-cyan">{resultMessage}</div>
 
         <div className="flex flex-wrap justify-center gap-3">
           <button
             type="button"
             onClick={handlePlayAgain}
             className={classNames(
-              "px-6 py-3 text-base font-bold rounded-[10px]",
-              "bg-black text-[var(--primary-color)]",
-              "border-2 border-[var(--border-color)]",
+              "px-5 py-2.5 text-sm font-semibold rounded-button",
+              "bg-brand-cyan/10 text-brand-cyan",
+              "border border-brand-cyan/30",
               "transition-all duration-300",
-              "shadow-[0_0_8px_var(--glow-color-soft),0_0_14px_var(--glow-color)]",
-              "hover:bg-[#0d0d0d] hover:-translate-y-[2px] hover:scale-[1.04]",
-              "hover:shadow-[0_0_16px_var(--glow-color),0_0_30px_var(--glow-color-soft)]"
+              "hover:bg-brand-cyan/15 hover:-translate-y-[2px] hover:shadow-glow-cyan"
             )}
           >
             Play Again
@@ -73,13 +72,11 @@ export const AIResultModal = ({ isGameOver, winner, onNewGameClicked }) => {
             type="button"
             onClick={() => navigate("/")}
             className={classNames(
-              "px-6 py-3 text-base font-bold rounded-[10px]",
-              "bg-black text-[var(--primary-color)]",
-              "border-2 border-[var(--border-color)]",
+              "px-5 py-2.5 text-sm font-semibold rounded-button",
+              "bg-surface text-text-primary",
+              "border border-border-soft",
               "transition-all duration-300 flex items-center justify-center",
-              "shadow-[0_0_8px_var(--glow-color-soft),0_0_14px_var(--glow-color)]",
-              "hover:bg-[#0d0d0d] hover:-translate-y-[2px] hover:scale-[1.04]",
-              "hover:shadow-[0_0_16px_var(--glow-color),0_0_30px_var(--glow-color-soft)]"
+              "hover:bg-surface-elevated hover:-translate-y-[2px] hover:border-border-strong"
             )}
           >
             <AiFillHome className="mr-2 text-lg" />

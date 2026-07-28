@@ -19,6 +19,11 @@ import { resolveRecipientUserId } from "../../../invites/resolveRecipientUserId"
 
 import InviteFriendModal from "./InviteFriendModal";
 
+const GAME_TYPE_LABELS = {
+  tic_tac_toe: "Tic-Tac-Toe",
+  connect_four: "Connect Four",
+};
+
 // -------------------------------------
 // Theme primitives (DMDrawer style)
 // -------------------------------------
@@ -28,8 +33,8 @@ function HudShell({ children }) {
       <div className="mx-auto max-w-[1120px]">
         <div className="relative">
           <div className="pointer-events-none absolute inset-0 -z-10 opacity-[0.30]">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(29,161,242,0.18),transparent_45%),radial-gradient(circle_at_85%_10%,rgba(29,161,242,0.12),transparent_45%),radial-gradient(circle_at_50%_92%,rgba(29,161,242,0.10),transparent_52%)]" />
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(29,161,242,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(29,161,242,0.05)_1px,transparent_1px)] bg-[size:36px_36px]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(34,211,238,0.18),transparent_45%),radial-gradient(circle_at_85%_10%,rgba(34,211,238,0.12),transparent_45%),radial-gradient(circle_at_50%_92%,rgba(34,211,238,0.10),transparent_52%)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(34,211,238,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(34,211,238,0.05)_1px,transparent_1px)] bg-[size:36px_36px]" />
           </div>
           {children}
         </div>
@@ -43,8 +48,8 @@ function Panel({ title, right, children, className = "" }) {
     <section
       className={[
         "relative overflow-hidden rounded-2xl",
-        "border border-[#1DA1F2]/15 bg-black/35",
-        "shadow-[0_0_0_1px_rgba(29,161,242,0.06),0_0_32px_rgba(29,161,242,0.06)]",
+        "border border-brand-cyan/15 bg-background-app-panel/70",
+        "shadow-[0_0_0_1px_rgba(34,211,238,0.06),0_0_32px_rgba(34,211,238,0.06)]",
         "backdrop-blur-[2px]",
         "p-4 sm:p-5",
         className,
@@ -52,10 +57,10 @@ function Panel({ title, right, children, className = "" }) {
     >
       <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-white/5 to-transparent" />
       <header className="relative mb-3 flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold tracking-wide text-white/85">
+        <div className="text-sm font-semibold tracking-wide text-text-primary">
           {title}
         </div>
-        {right ? <div className="text-xs text-slate-200/50">{right}</div> : null}
+        {right ? <div className="text-xs text-text-secondary">{right}</div> : null}
       </header>
       <div className="relative">{children}</div>
     </section>
@@ -75,14 +80,14 @@ function HudButton({
 
   const styles = {
     primary: disabled
-      ? "border-[#1DA1F2]/15 bg-[#1DA1F2]/5 text-[#1DA1F2]/35 cursor-not-allowed"
-      : "border-[#1DA1F2]/20 bg-[#1DA1F2]/10 text-[#1DA1F2] hover:bg-[#1DA1F2]/15 focus:ring-[#1DA1F2]/20",
+      ? "border-brand-cyan/15 bg-brand-cyan/5 text-brand-cyan/35 cursor-not-allowed"
+      : "border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan hover:bg-brand-cyan/15 focus:ring-brand-cyan/20",
     danger: disabled
-      ? "border-rose-500/15 bg-rose-500/5 text-rose-200/35 cursor-not-allowed"
-      : "border-rose-500/25 bg-rose-500/10 text-rose-100/85 hover:bg-rose-500/15 focus:ring-rose-500/20",
+      ? "border-brand-rose/15 bg-brand-rose/5 text-brand-rose/35 cursor-not-allowed"
+      : "border-brand-rose/25 bg-brand-rose/10 text-brand-rose hover:bg-brand-rose/15 focus:ring-brand-rose/20",
     neutral: disabled
-      ? "border-white/10 bg-white/5 text-white/35 cursor-not-allowed"
-      : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10 focus:ring-white/10",
+      ? "border-border-soft bg-surface text-text-faint cursor-not-allowed"
+      : "border-border-soft bg-surface text-text-secondary hover:bg-surface-elevated focus:ring-border-strong",
   };
 
   return (
@@ -106,8 +111,8 @@ function SegTab({ active, onClick, label }) {
       className={[
         "flex-1 rounded-xl border px-3 py-2 text-xs font-medium transition",
         active
-          ? "border-[#1DA1F2]/25 bg-[#1DA1F2]/12 text-[#1DA1F2]"
-          : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10",
+          ? "border-brand-cyan/25 bg-brand-cyan/12 text-brand-cyan"
+          : "border-border-soft bg-surface text-text-secondary hover:bg-surface-elevated",
       ].join(" ")}
     >
       {label}
@@ -121,16 +126,16 @@ function StatusDot({ ok }) {
       className={[
         "inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px]",
         ok
-          ? "border-[#1DA1F2]/20 bg-[#1DA1F2]/10 text-[#1DA1F2]/90"
-          : "border-white/10 bg-white/5 text-white/45",
+          ? "border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan/90"
+          : "border-border-soft bg-surface text-text-faint",
       ].join(" ")}
     >
       <span
         className={[
           "h-1.5 w-1.5 rounded-full",
           ok
-            ? "bg-[#1DA1F2] shadow-[0_0_12px_rgba(29,161,242,0.35)]"
-            : "bg-white/30",
+            ? "bg-brand-cyan shadow-glow-cyan"
+            : "bg-text-faint/40",
         ].join(" ")}
       />
       {ok ? "Connected" : "Connecting"}
@@ -144,7 +149,7 @@ function StatusDot({ ok }) {
 export default function LobbyPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id: lobbyId } = useParams();
+  const { gameType, id: lobbyId } = useParams();
 
   const { state, dispatch } = useLobbyContext();
   const { friends = [] } = useFriends();
@@ -167,8 +172,8 @@ export default function LobbyPage() {
   const chatContainerRef = useRef(null);
 
   const MAX_PLAYERS = 2;
-  const players = state?.players || [];
-  const messages = state?.messages || [];
+  const players = useMemo(() => state?.players || [], [state?.players]);
+  const messages = useMemo(() => state?.messages || [], [state?.messages]);
 
   const isLobbyFull = useMemo(() => players.length >= MAX_PLAYERS, [players]);
 
@@ -192,26 +197,30 @@ export default function LobbyPage() {
     }
   }, []);
 
-  // # Step 2: Session key helpers
+  // # Step 2: Session key helpers (namespaced by gameType so a TTT lobby and
+  // a Connect Four lobby sharing the same numeric id never share a cached key)
   const getStoredSessionKey = useCallback(() => {
     if (!lobbyId) return null;
-    return sessionStorage.getItem(`sessionKey:${lobbyId}`) || null;
-  }, [lobbyId]);
+    return sessionStorage.getItem(`sessionKey:${gameType}:${lobbyId}`) || null;
+  }, [gameType, lobbyId]);
 
   const setStoredSessionKey = useCallback((id, key) => {
     if (!id || !key) return;
-    sessionStorage.setItem(`sessionKey:${String(id)}`, String(key));
-  }, []);
+    sessionStorage.setItem(`sessionKey:${gameType}:${String(id)}`, String(key));
+  }, [gameType]);
 
   const buildGameUrl = useCallback(
     ({ gameId, sessionKey }) => {
+      if (gameType === "connect_four") {
+        return `/games/connect-four/${gameId}`;
+      }
       const params = new URLSearchParams();
       if (sessionKey) params.set("sessionKey", String(sessionKey));
       if (lobbyId) params.set("lobbyId", String(lobbyId));
       const qs = params.toString();
       return qs ? `/games/${gameId}?${qs}` : `/games/${gameId}`;
     },
-    [lobbyId]
+    [gameType, lobbyId]
   );
 
   // # Step 3: Boot WS
@@ -233,18 +242,19 @@ export default function LobbyPage() {
         const params = new URLSearchParams(location.search);
         const inviteId = params.get("invite");
         const sessionKeyFromUrl = params.get("sessionKey");
-        const storedSessionKey = sessionStorage.getItem(`sessionKey:${lobbyId}`);
+        const storedSessionKey = sessionStorage.getItem(`sessionKey:${gameType}:${lobbyId}`);
 
         const sessionKey = sessionKeyFromUrl || storedSessionKey || null;
 
         const lobbyUrl = getLobbyWSUrl({
+          gameType,
           lobbyId,
           token: access,
           inviteId,
           sessionKey,
         });
 
-        const chatUrl = getChatWSUrl({ lobbyId, token: access });
+        const chatUrl = getChatWSUrl({ gameType, lobbyId, token: access });
 
         // Lobby WS
         const lobbyWs = new WebSocket(lobbyUrl);
@@ -284,7 +294,7 @@ export default function LobbyPage() {
               next.delete("invite");
               next.set("sessionKey", String(nextSessionKey));
 
-              navigate(`/lobby/${nextLobbyId}?${next.toString()}`, {
+              navigate(`/lobby/${gameType}/${nextLobbyId}?${next.toString()}`, {
                 replace: true,
               });
             }
@@ -364,7 +374,7 @@ export default function LobbyPage() {
       dispatch({ type: "RESET_LOBBY" });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lobbyId]);
+  }, [gameType, lobbyId]);
 
   // # Step 4: Auto-scroll chat (when chat is visible)
   useEffect(() => {
@@ -385,10 +395,10 @@ export default function LobbyPage() {
     }
 
     navigator.clipboard.writeText(
-      `${window.location.origin}/lobby/${lobbyId}?${params.toString()}`
+      `${window.location.origin}/lobby/${gameType}/${lobbyId}?${params.toString()}`
     );
     showToast("success", "Link copied.");
-  }, [getStoredSessionKey, lobbyId, location.search]);
+  }, [getStoredSessionKey, gameType, lobbyId, location.search]);
 
   const handleInviteFriend = useCallback(
     async (friend) => {
@@ -403,7 +413,7 @@ export default function LobbyPage() {
 
         const result = await createInvite({
           toUserId: recipientUserId,
-          gameType: "tic_tac_toe",
+          gameType,
           lobbyId,
         });
 
@@ -427,7 +437,7 @@ export default function LobbyPage() {
         setIsInviting(false);
       }
     },
-    [lobbyId, user?.id]
+    [lobbyId, gameType, user?.id]
   );
 
   const handleSendChat = useCallback(() => {
@@ -477,15 +487,15 @@ export default function LobbyPage() {
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.22em] text-[#1DA1F2]/60">
-              Lobby • Tic-Tac-Toe
+            <div className="text-[11px] uppercase tracking-[0.22em] text-brand-cyan/60">
+              Lobby • {GAME_TYPE_LABELS[gameType] || gameType}
             </div>
 
             <div className="mt-1 flex items-baseline gap-2">
-              <h1 className="text-lg sm:text-xl font-semibold text-white/85">
+              <h1 className="text-lg sm:text-xl font-semibold text-text-primary">
                 Lobby {lobbyId}
               </h1>
-              <span className="hidden sm:inline text-xs text-slate-200/45">
+              <span className="hidden sm:inline text-xs text-text-secondary">
                 Online friends: {onlineFriends.length}
               </span>
             </div>
@@ -494,20 +504,20 @@ export default function LobbyPage() {
             <div className="mt-3 flex flex-wrap items-center gap-2 lg:hidden">
               <StatusDot ok={lobbyConnected} />
               <StatusDot ok={chatConnected} />
-              <span className="text-[11px] text-slate-200/40">
+              <span className="text-[11px] text-text-faint">
                 Online: {onlineFriends.length}
               </span>
             </div>
 
             {/* Desktop: richer info */}
             <div className="mt-3 hidden lg:flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#1DA1F2]/20 bg-[#1DA1F2]/10 px-2.5 py-1 text-[11px] text-[#1DA1F2]/90">
+              <span className="inline-flex items-center gap-2 rounded-full border border-brand-cyan/20 bg-brand-cyan/10 px-2.5 py-1 text-[11px] text-brand-cyan/90">
                 Lobby WS: {lobbyConnected ? "LIVE" : "CONNECTING"}
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#1DA1F2]/20 bg-[#1DA1F2]/10 px-2.5 py-1 text-[11px] text-[#1DA1F2]/90">
+              <span className="inline-flex items-center gap-2 rounded-full border border-brand-cyan/20 bg-brand-cyan/10 px-2.5 py-1 text-[11px] text-brand-cyan/90">
                 Chat WS: {chatConnected ? "LIVE" : "CONNECTING"}
               </span>
-              <span className="text-[11px] text-slate-200/40">
+              <span className="text-[11px] text-text-faint">
                 Online friends: {onlineFriends.length}
               </span>
             </div>
@@ -529,7 +539,7 @@ export default function LobbyPage() {
 
         {/* Mobile: simple tabs to reduce clutter */}
         <div className="lg:hidden flex items-center gap-2">
-          <div className="flex-1 flex gap-2 rounded-2xl border border-white/10 bg-white/5 p-2">
+          <div className="flex-1 flex gap-2 rounded-2xl border border-border-soft bg-surface p-2">
             <SegTab
               active={activeMobileTab === "players"}
               onClick={() => setActiveMobileTab("players")}
@@ -566,20 +576,20 @@ export default function LobbyPage() {
                         onClick={() => setIsInviteOpen(true)}
                         className={[
                           "group w-full text-left rounded-2xl",
-                          "border border-dashed border-[#1DA1F2]/20 bg-black/20",
+                          "border border-dashed border-brand-cyan/20 bg-surface",
                           "px-4 py-4 transition",
-                          "hover:border-[#1DA1F2]/30 hover:bg-black/25",
+                          "hover:border-brand-cyan/30 hover:bg-surface-elevated",
                         ].join(" ")}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#1DA1F2]/15 bg-[#1DA1F2]/5">
-                            <CiCirclePlus className="text-xl text-[#1DA1F2]/80 group-hover:text-[#1DA1F2]" />
+                          <div className="grid h-10 w-10 place-items-center rounded-xl border border-brand-cyan/15 bg-brand-cyan/5">
+                            <CiCirclePlus className="text-xl text-brand-cyan/80 group-hover:text-brand-cyan" />
                           </div>
                           <div className="min-w-0">
-                            <div className="text-[11px] uppercase tracking-[0.18em] text-slate-200/45">
+                            <div className="text-[11px] uppercase tracking-[0.18em] text-text-faint">
                               Slot {idx + 1}
                             </div>
-                            <div className="mt-1 text-sm font-semibold text-white/80">
+                            <div className="mt-1 text-sm font-semibold text-text-secondary">
                               Invite player
                             </div>
                           </div>
@@ -591,21 +601,21 @@ export default function LobbyPage() {
                   return (
                     <div
                       key={String(p.id)}
-                      className="rounded-2xl border border-[#1DA1F2]/12 bg-black/20 px-4 py-4"
+                      className="rounded-2xl border border-brand-cyan/12 bg-surface px-4 py-4"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-200/45">
+                          <div className="text-[11px] uppercase tracking-[0.18em] text-text-faint">
                             Player {idx + 1}
                           </div>
-                          <div className="mt-1 truncate text-sm font-semibold text-white/85">
+                          <div className="mt-1 truncate text-sm font-semibold text-text-primary">
                             {p.first_name || "Player"}
                           </div>
-                          <div className="mt-1 text-[11px] text-slate-200/40">
+                          <div className="mt-1 text-[11px] text-text-faint">
                             Connected
                           </div>
                         </div>
-                        <div className="mt-1 h-2 w-2 rounded-full bg-[#1DA1F2] shadow-[0_0_12px_rgba(29,161,242,0.35)]" />
+                        <div className="mt-1 h-2 w-2 rounded-full bg-brand-cyan shadow-glow-cyan" />
                       </div>
                     </div>
                   );
@@ -644,7 +654,7 @@ export default function LobbyPage() {
                 <div
                   ref={chatContainerRef}
                   className={[
-                    "overflow-y-auto rounded-2xl border border-[#1DA1F2]/10 bg-black/20 p-3 space-y-2 tron-scrollbar-dark",
+                    "overflow-y-auto rounded-2xl border border-brand-cyan/10 bg-surface p-3 space-y-2 tron-scrollbar-dark",
                     // ✅ Mobile: much smaller, not a giant feed
                     "h-[28dvh] min-h-[180px] max-h-[260px]",
                     // ✅ Desktop: can be larger
@@ -673,14 +683,14 @@ export default function LobbyPage() {
                             className={[
                               "max-w-[88%] rounded-2xl px-3 py-2 text-sm border",
                               isMe
-                                ? "border-[#1DA1F2]/20 bg-[#1DA1F2]/10 text-slate-100/90"
-                                : "border-white/10 bg-black/25 text-slate-100/90",
+                                ? "border-brand-cyan/20 bg-brand-cyan/10 text-text-primary"
+                                : "border-border-soft bg-surface-elevated text-text-primary",
                             ].join(" ")}
                           >
                             <div
                               className={[
                                 "text-[11px]",
-                                isMe ? "text-[#1DA1F2]/85" : "text-slate-200/55",
+                                isMe ? "text-brand-cyan/85" : "text-text-secondary",
                               ].join(" ")}
                             >
                               {isMe ? "You" : sender}
@@ -693,14 +703,14 @@ export default function LobbyPage() {
                       );
                     })
                   ) : (
-                    <div className="text-xs text-slate-200/50">
+                    <div className="text-xs text-text-secondary">
                       No messages yet.
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 flex items-center gap-2 rounded-2xl border border-[#1DA1F2]/20 bg-black/40 px-3 py-2">
+                  <div className="flex-1 flex items-center gap-2 rounded-2xl border border-brand-cyan/20 bg-surface px-3 py-2">
                     <input
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
@@ -708,8 +718,8 @@ export default function LobbyPage() {
                       placeholder={chatConnected ? "Type a message…" : "Connecting…"}
                       className="
                         flex-1 bg-transparent outline-none
-                        text-sm text-slate-100
-                        placeholder:text-slate-200/40
+                        text-sm text-text-primary
+                        placeholder:text-text-faint
                       "
                     />
 
@@ -719,10 +729,10 @@ export default function LobbyPage() {
                       disabled={!message.trim() || !chatConnected}
                       className={[
                         "h-9 w-9 grid place-items-center rounded-xl border transition",
-                        "border-[#1DA1F2]/20 bg-[#1DA1F2]/10 text-[#1DA1F2]",
+                        "border-brand-cyan/20 bg-brand-cyan/10 text-brand-cyan",
                         !message.trim() || !chatConnected
                           ? "opacity-40 cursor-not-allowed"
-                          : "hover:bg-[#1DA1F2]/15",
+                          : "hover:bg-brand-cyan/15",
                       ].join(" ")}
                       title={!chatConnected ? "Chat connecting…" : "Send"}
                     >
@@ -747,8 +757,8 @@ export default function LobbyPage() {
         <div
           className="
             mx-auto max-w-[1120px]
-            rounded-2xl border border-[#1DA1F2]/15 bg-black/65 backdrop-blur
-            shadow-[0_0_26px_rgba(29,161,242,0.10)]
+            rounded-2xl border border-brand-cyan/15 bg-background-app-panel/90 backdrop-blur-xl
+            shadow-glow-cyan
             p-2
             flex items-center gap-2
           "

@@ -13,9 +13,9 @@ export default function SudokuBoard({
     <div
       className="
         grid grid-cols-9
-        border-2 border-[#1DA1F2]/40
+        border-2 border-brand-cyan/40
         rounded-lg overflow-hidden
-        shadow-[0_0_24px_rgba(29,161,242,0.10)]
+        shadow-glow-cyan
         w-full max-w-[min(90vw,480px)]
         mx-auto
       "

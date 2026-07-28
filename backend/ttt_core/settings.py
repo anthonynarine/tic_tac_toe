@@ -68,6 +68,8 @@ INSTALLED_APPS = [
     "users.apps.UsersConfig",  # Signals
     "sudoku",
     "connect_four",
+    "checkers",
+    "stats",
 ]
 
 MIDDLEWARE = [

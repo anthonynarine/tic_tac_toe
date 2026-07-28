@@ -14,14 +14,18 @@ import { MultiplayerResultModal } from "../resultModal/MultiplayerResultModal";
  * - isAI (boolean): Whether the current game is against an AI.
  */
 const GameResult = ({ isGameOver, winner, onNewGameClicked, isAI }) => {
-    return isAI ? (
+    return (
+      <div className="w-full min-h-[96px] flex items-start justify-center">
+        {isAI ? (
         <AIResultModal
-        isGameOver={isGameOver}
-        winner={winner}
-        onNewGameClicked={onNewGameClicked}
+          isGameOver={isGameOver}
+          winner={winner}
+          onNewGameClicked={onNewGameClicked}
         />
-    ) : (
-        <MultiplayerResultModal isGameOver={isGameOver} winner={winner} />
+        ) : (
+          <MultiplayerResultModal isGameOver={isGameOver} winner={winner} />
+        )}
+      </div>
     );
 };
 

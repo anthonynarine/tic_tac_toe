@@ -16,17 +16,23 @@
  */
 
 export const initialDMState = {
+  activeMode: null,
   activeChat: null,
   activeFriendId: null,
+  activeGroup: null,
+  activeGroupId: null,
 
   socket: null,
   isLoading: false,
 
   // messages[friendId] = array of message objects
   messages: {},
+  groupMessages: {},
+  groups: [],
 
   // unreadCounts[friendId] = number
   unreadCounts: {},
+  groupUnreadCounts: {},
 
   // optional: used by your current app for navigation hints
   activeLobbyId: null,
@@ -39,18 +45,28 @@ export const initialDMState = {
 export const DmActionTypes = {
   // chat lifecycle
   OPEN_CHAT: "OPEN_CHAT",
+  OPEN_GROUP_CHAT: "OPEN_GROUP_CHAT",
   CLOSE_CHAT: "CLOSE_CHAT",
   SET_LOADING: "SET_LOADING",
 
   // history + realtime
   SET_MESSAGES: "SET_MESSAGES",
+  SET_GROUPS: "SET_GROUPS",
+  UPSERT_GROUP: "UPSERT_GROUP",
+  REMOVE_GROUP: "REMOVE_GROUP",
+  SET_GROUP_MESSAGES: "SET_GROUP_MESSAGES",
   RECEIVE_MESSAGE: "RECEIVE_MESSAGE",
+  RECEIVE_GROUP_MESSAGE: "RECEIVE_GROUP_MESSAGE",
   CLEAR_THREAD: "CLEAR_THREAD",
+  CLEAR_GROUP_THREAD: "CLEAR_GROUP_THREAD",
 
   // unread
   INCREMENT_UNREAD: "INCREMENT_UNREAD",
+  INCREMENT_GROUP_UNREAD: "INCREMENT_GROUP_UNREAD",
   RESET_UNREAD: "RESET_UNREAD",
+  RESET_GROUP_UNREAD: "RESET_GROUP_UNREAD",
   SET_UNREAD_COUNTS: "SET_UNREAD_COUNTS",
+  SET_GROUP_UNREAD_COUNTS: "SET_GROUP_UNREAD_COUNTS",
 
   // optional conversation id cache
   SET_CONVERSATION_ID: "SET_CONVERSATION_ID",
@@ -80,6 +96,25 @@ export function directMessageReducer(state, action) {
         ...state,
         activeChat: friend || null,
         activeFriendId: key,
+        activeMode: "direct",
+        activeGroup: null,
+        activeGroupId: null,
+        socket: socket || null,
+        isLoading: false,
+      };
+    }
+
+    case DmActionTypes.OPEN_GROUP_CHAT: {
+      const { group, socket, groupId } = action.payload || {};
+      const key = normalizeFriendKey(groupId);
+
+      return {
+        ...state,
+        activeMode: "group",
+        activeChat: null,
+        activeFriendId: null,
+        activeGroup: group || null,
+        activeGroupId: key,
         socket: socket || null,
         isLoading: false,
       };
@@ -88,8 +123,11 @@ export function directMessageReducer(state, action) {
     case DmActionTypes.CLOSE_CHAT: {
       return {
         ...state,
+        activeMode: null,
         activeChat: null,
         activeFriendId: null,
+        activeGroup: null,
+        activeGroupId: null,
         socket: null,
         isLoading: false,
       };
@@ -114,6 +152,69 @@ export function directMessageReducer(state, action) {
         isLoading: false,
         messages: {
           ...state.messages,
+          [key]: Array.isArray(messages) ? messages : [],
+        },
+      };
+    }
+
+    case DmActionTypes.SET_GROUPS: {
+      const groups = Array.isArray(action.payload?.groups) ? action.payload.groups : [];
+      return {
+        ...state,
+        groups,
+      };
+    }
+
+    case DmActionTypes.UPSERT_GROUP: {
+      const group = action.payload?.group;
+      if (!group?.id) return state;
+
+      const existing = Array.isArray(state.groups) ? state.groups : [];
+      const withoutGroup = existing.filter((g) => String(g.id) !== String(group.id));
+      return {
+        ...state,
+        groups: [group, ...withoutGroup],
+        activeGroup:
+          state.activeGroupId && String(state.activeGroupId) === String(group.id)
+            ? group
+            : state.activeGroup,
+      };
+    }
+
+    case DmActionTypes.REMOVE_GROUP: {
+      const groupId = action.payload?.groupId;
+      const key = normalizeFriendKey(groupId);
+      if (!groupId) return state;
+
+      const nextGroupMessages = { ...state.groupMessages };
+      delete nextGroupMessages[key];
+
+      const nextGroupUnread = { ...state.groupUnreadCounts };
+      delete nextGroupUnread[key];
+
+      const isActiveGroup = state.activeGroupId && String(state.activeGroupId) === key;
+
+      return {
+        ...state,
+        groups: (state.groups || []).filter((group) => String(group.id) !== key),
+        groupMessages: nextGroupMessages,
+        groupUnreadCounts: nextGroupUnread,
+        activeMode: isActiveGroup ? null : state.activeMode,
+        activeGroup: isActiveGroup ? null : state.activeGroup,
+        activeGroupId: isActiveGroup ? null : state.activeGroupId,
+        socket: isActiveGroup ? null : state.socket,
+      };
+    }
+
+    case DmActionTypes.SET_GROUP_MESSAGES: {
+      const { groupId, messages } = action.payload || {};
+      const key = normalizeFriendKey(groupId);
+
+      return {
+        ...state,
+        isLoading: false,
+        groupMessages: {
+          ...state.groupMessages,
           [key]: Array.isArray(messages) ? messages : [],
         },
       };
@@ -177,6 +278,40 @@ export function directMessageReducer(state, action) {
       };
     }
 
+    case DmActionTypes.RECEIVE_GROUP_MESSAGE: {
+      const payload = action.payload || {};
+      const groupId = payload.room_id ?? payload.group_id ?? payload.groupId;
+      if (!groupId) return state;
+
+      const key = normalizeFriendKey(groupId);
+      const existing = Array.isArray(state.groupMessages[key]) ? state.groupMessages[key] : [];
+      const msgId = payload.message_id ?? payload.id ?? null;
+      const alreadyExists =
+        msgId != null && existing.some((m) => String(m.id ?? m.message_id) === String(msgId));
+
+      const nextMessage = {
+        id: msgId ?? undefined,
+        message_id: msgId ?? undefined,
+        room: groupId,
+        room_id: groupId,
+        sender_id: payload.sender_id,
+        sender_name: payload.sender_name,
+        content: payload.message ?? payload.content ?? "",
+        message: payload.message ?? payload.content ?? "",
+        timestamp: payload.timestamp ?? null,
+      };
+
+      const nextThread = alreadyExists ? existing : [...existing, nextMessage];
+
+      return {
+        ...state,
+        groupMessages: {
+          ...state.groupMessages,
+          [key]: nextThread,
+        },
+      };
+    }
+
     case DmActionTypes.CLEAR_THREAD: {
       const { friendId } = action.payload || {};
       const key = normalizeFriendKey(friendId);
@@ -191,6 +326,23 @@ export function directMessageReducer(state, action) {
         ...state,
         messages: nextMessages,
         unreadCounts: nextUnread,
+      };
+    }
+
+    case DmActionTypes.CLEAR_GROUP_THREAD: {
+      const { groupId } = action.payload || {};
+      const key = normalizeFriendKey(groupId);
+
+      return {
+        ...state,
+        groupMessages: {
+          ...state.groupMessages,
+          [key]: [],
+        },
+        groupUnreadCounts: {
+          ...state.groupUnreadCounts,
+          [key]: 0,
+        },
       };
     }
 
@@ -211,6 +363,20 @@ export function directMessageReducer(state, action) {
       };
     }
 
+    case DmActionTypes.INCREMENT_GROUP_UNREAD: {
+      const { groupId } = action.payload || {};
+      const key = normalizeFriendKey(groupId);
+
+      const prev = safeNumber(state.groupUnreadCounts[key]);
+      return {
+        ...state,
+        groupUnreadCounts: {
+          ...state.groupUnreadCounts,
+          [key]: prev + 1,
+        },
+      };
+    }
+
     case DmActionTypes.RESET_UNREAD: {
       const { friendId } = action.payload || {};
       const key = normalizeFriendKey(friendId);
@@ -219,6 +385,19 @@ export function directMessageReducer(state, action) {
         ...state,
         unreadCounts: {
           ...state.unreadCounts,
+          [key]: 0,
+        },
+      };
+    }
+
+    case DmActionTypes.RESET_GROUP_UNREAD: {
+      const { groupId } = action.payload || {};
+      const key = normalizeFriendKey(groupId);
+
+      return {
+        ...state,
+        groupUnreadCounts: {
+          ...state.groupUnreadCounts,
           [key]: 0,
         },
       };
@@ -239,6 +418,20 @@ export function directMessageReducer(state, action) {
       return {
         ...state,
         unreadCounts: normalized,
+      };
+    }
+
+    case DmActionTypes.SET_GROUP_UNREAD_COUNTS: {
+      const next = action.payload?.unreadCounts;
+      if (!next || typeof next !== "object") return state;
+
+      const normalized = Object.fromEntries(
+        Object.entries(next).map(([k, v]) => [String(k), safeNumber(v)])
+      );
+
+      return {
+        ...state,
+        groupUnreadCounts: normalized,
       };
     }
 

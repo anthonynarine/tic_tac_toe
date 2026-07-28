@@ -133,3 +133,63 @@ class DemoLoginPlayer2(DemoLoginBase):
     demo_email = settings.DEMO_PLAYER2_EMAIL  
     demo_first_name = settings.DEMO_PLAYER2_FIRST_NAME  
     demo_last_name = settings.DEMO_PLAYER2_LAST_NAME  
+
+
+class DemoLoginGuest(APIView):
+    """Choose an available demo player account for one-click guest login."""
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "demo_login"
+
+    def post(self, request, *args, **kwargs):
+        if not getattr(settings, "DEMO_MODE", False):
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        candidates = [
+            {
+                "role": "player1",
+                "email": settings.DEMO_PLAYER1_EMAIL,
+                "first_name": settings.DEMO_PLAYER1_FIRST_NAME,
+                "last_name": settings.DEMO_PLAYER1_LAST_NAME,
+            },
+            {
+                "role": "player2",
+                "email": settings.DEMO_PLAYER2_EMAIL,
+                "first_name": settings.DEMO_PLAYER2_FIRST_NAME,
+                "last_name": settings.DEMO_PLAYER2_LAST_NAME,
+            },
+        ]
+
+        prepared = []
+        for candidate in candidates:
+            user, _created = ensure_demo_user(
+                email=candidate["email"],
+                first_name=candidate["first_name"],
+                last_name=candidate["last_name"],
+            )
+            prepared.append((candidate["role"], user))
+
+        selected_role = None
+        selected_user = None
+        for role, user in prepared:
+            if user.status != "online":
+                selected_role = role
+                selected_user = user
+                break
+
+        if not selected_user:
+            return Response(
+                {"detail": "All guest slots are currently in use."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        refresh = RefreshToken.for_user(selected_user)
+        return Response(
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "guestRole": selected_role,
+            },
+            status=status.HTTP_200_OK,
+        )

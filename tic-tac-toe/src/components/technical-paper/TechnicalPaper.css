@@ -1,4 +1,4 @@
-/* ========================================================================== 🌌 TECHNICAL PAPER LAYOUT ROOT */
+/* ========================================================================== TECHNICAL PAPER LAYOUT ROOT */
 .tech-page-root {
   width: 100%;
   min-height: 100vh;
@@ -7,12 +7,12 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  background: radial-gradient(ellipse at top left, #000000 100%, #0e1a2b);
+  background: radial-gradient(ellipse at top left, #030607 100%, #071011);
   padding: 3rem 1rem;
   position: relative;
 }
 
-/* ========================================================================== 🔲 MAIN LAYOUT CONTAINER */
+/* ========================================================================== MAIN LAYOUT CONTAINER */
 .tech-layout {
   display: flex;
   flex-direction: column;
@@ -23,10 +23,10 @@
   align-items: center;
 }
 
-/* ========================================================================== ⬅️ BACK BUTTON */
+/* ========================================================================== BACK BUTTON */
 .back-button {
   background-color: transparent;
-  color: #0c96ec;
+  color: #22D3EE;
   border: none;
   font-size: 1rem;
   font-weight: 600;
@@ -40,44 +40,42 @@
 .back-button:hover,
 .back-button:focus,
 .back-button:active {
-  background-color: transparent !important; /* ✅ kill any system background */
-  color: #01e7c0;
+  background-color: transparent !important;
+  color: #67E8F9;
   text-decoration: underline;
 }
 
-/* ========================================================================== 📄 MAIN CONTENT CONTAINER */
+/* ========================================================================== MAIN CONTENT CONTAINER */
 .tech-paper-container {
   flex-grow: 1;
   width: 100%;
   max-width: 680px;
-  background-color: #0e1117;
-  border: 1px solid rgba(29, 161, 242, 0.2);
-  border-radius: 12px;
+  background-color: #090D0F;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 16px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
   padding: 1.5rem;
   margin-bottom: 10rem;
 }
 
-/* ========================================================================== 🖋 HEADINGS & PARAGRAPH TEXT */
+/* ========================================================================== HEADINGS & PARAGRAPH TEXT */
 .tech-title {
   font-size: 2rem;
-  color: #1DA1F2;
+  color: #F8FAFC;
   text-align: center;
   margin-bottom: 1.5rem;
-  text-shadow: 0 0 8px rgba(29, 161, 242, 0.4),
-               0 0 16px rgba(29, 161, 242, 0.2);
 }
 
 .tech-paragraph {
   font-size: 0.95rem;
   line-height: 1.6;
-  color: #e0e0e0;
+  color: #A1A1AA;
   margin-bottom: 1.25rem;
 }
 
 .tech-list {
   margin-left: 1.25rem;
-  color: #ddd;
+  color: #A1A1AA;
   font-size: 0.95rem;
 }
 
@@ -85,14 +83,14 @@
   margin-bottom: 0.75rem;
 }
 
-/* ========================================================================== 🧰 DRAWER SECTION STYLE */
+/* ========================================================================== DRAWER SECTION STYLE */
 .drawer-section {
-  border: 1px solid rgba(29, 161, 242, 0.2);
-  border-radius: 0px;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 12px;
   margin-bottom: 1.25rem;
-  background-color: #0d1117;
+  background-color: rgba(255, 255, 255, 0.03);
   overflow: hidden;
-  box-shadow: 0 0 12px rgba(29, 161, 242, 0.05);
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.05);
   scroll-snap-align: start;
 }
 
@@ -102,21 +100,19 @@
   padding: 0.85rem 1rem;
   font-size: 1rem;
   font-weight: bold;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(255, 255, 255, 0.02);
   border: none;
-  color: #1da1f2;
+  color: #22D3EE;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  text-shadow: 0 0 6px rgba(29, 161, 242, 0.3);
   transition: background 0.3s ease;
-  border-radius: 0;
+  border-radius: 12px 12px 0 0;
 }
 
 .drawer-header:hover {
-  background: rgba(29, 161, 242, 0.05);
-  border-radius: 0;
+  background: rgba(34, 211, 238, 0.06);
 }
 
 .drawer-icon {
@@ -125,34 +121,34 @@
 
 .drawer-body {
   padding: 0.85rem 1.15rem;
-  border-top: 1px solid rgba(29, 161, 242, 0.1);
-  color: #e0e0e0;
+  border-top: 1px solid rgba(34, 211, 238, 0.1);
+  color: #A1A1AA;
   line-height: 1.6;
   will-change: height, opacity;
 }
 
-/* ========================================================================== 🦶 FOOTER */
+/* ========================================================================== FOOTER */
 .tech-footer {
   text-align: center;
   margin-top: 2.5rem;
-  color: #888;
+  color: #71717A;
   font-size: 0.9rem;
 }
 
-/* ========================================================================== 🖱️ CUSTOM SCROLLBAR */
+/* ========================================================================== CUSTOM SCROLLBAR */
 .tech-page-root::-webkit-scrollbar {
   width: 0px;
   background: transparent;
 }
 .tech-page-root::-webkit-scrollbar-thumb {
-  background: rgba(29, 161, 242, 0.2);
+  background: rgba(34, 211, 238, 0.2);
   border-radius: 8px;
 }
 .tech-page-root::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* ========================================================================== 📱 RESPONSIVE LAYOUT TWEAKS */
+/* ========================================================================== RESPONSIVE LAYOUT TWEAKS */
 @media (max-width: 1024px) {
   .tech-layout {
     flex-direction: column;

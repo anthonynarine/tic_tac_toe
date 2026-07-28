@@ -1,8 +1,9 @@
 // # Filename: src/components/modals/MultiplayerResultModal.jsx
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import styles from "./MultiplayerResultModal.module.css";
-import { AiFillHome } from "react-icons/ai";
+import { AiFillHome, AiOutlineCheck, AiOutlineClose } from "react-icons/ai";
+import { LuRefreshCcw } from "react-icons/lu";
 import { useNavigate } from "react-router-dom";
 import { useGameWebSocketContext } from "../../websocket/GameWebsocketContext";
 import { useCountdown } from "../../hooks/ui/useCountdown";
@@ -10,6 +11,7 @@ import { useCountdown } from "../../hooks/ui/useCountdown";
 export const MultiplayerResultModal = ({ isGameOver, winner }) => {
   const navigate = useNavigate();
   const { dispatch, sendMessage, state } = useGameWebSocketContext();
+  const [showResultActions, setShowResultActions] = useState(false);
 
   const {
     isRematchOfferVisible,
@@ -45,6 +47,16 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
       dispatch({ type: "HIDE_REMATCH_MODAL" });
     }
   }, [state.isCompleted, dispatch]);
+
+  useEffect(() => {
+    if (!isGameOver) {
+      setShowResultActions(false);
+      return undefined;
+    }
+
+    const id = window.setTimeout(() => setShowResultActions(true), 1100);
+    return () => window.clearTimeout(id);
+  }, [isGameOver]);
 
   // Step 4: Debug instrumentation at the UI decision point
   useEffect(() => {
@@ -126,7 +138,7 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
 
   // Step 8: Modal open logic
   const resultModalClasses =
-    isGameOver || isRematchOfferVisible ? styles.modalOpen : "";
+    (isGameOver && showResultActions) || isRematchOfferVisible ? styles.modalOpen : "";
 
   return (
     <div className={`${styles.modalOverlay} ${resultModalClasses}`}>
@@ -141,19 +153,23 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
 
                 <div className={styles.rematchButtons}>
                   <button
-                    className={styles.modalButton}
+                    className={styles.iconButton}
                     onClick={handleAccept}
                     disabled={rematchButtonLocked}
+                    aria-label="Accept rematch"
+                    title="Accept rematch"
                   >
-                    Accept
+                    <AiOutlineCheck />
                   </button>
 
                   <button
-                    className={`${styles.modalButton} ${styles.danger}`}
+                    className={`${styles.iconButton} ${styles.danger}`}
                     onClick={handleDecline}
                     disabled={rematchButtonLocked}
+                    aria-label="Decline rematch"
+                    title="Decline rematch"
                   >
-                    Decline
+                    <AiOutlineClose />
                   </button>
                 </div>
               </>
@@ -164,16 +180,23 @@ export const MultiplayerResultModal = ({ isGameOver, winner }) => {
             )
           ) : (
             <button
-              className={styles.modalButton}
+              className={styles.iconButton}
               onClick={handleRematchRequest}
               disabled={rematchButtonLocked}
+              aria-label="Request rematch"
+              title="Request rematch"
             >
-              Rematch
+              <LuRefreshCcw />
             </button>
           )}
 
-          <button className={styles.modalButton} onClick={handleGoHome}>
-            <AiFillHome style={{ marginRight: 8 }} /> Home
+          <button
+            className={styles.iconButton}
+            onClick={handleGoHome}
+            aria-label="Go home"
+            title="Go home"
+          >
+            <AiFillHome />
           </button>
         </div>
       </div>

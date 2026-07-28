@@ -1,126 +1,107 @@
-// # Filename: src/components/friends/GamesPanel.jsx
-// ✅ New Code
+// # Filename: src/components/game/GamesPanel.jsx
+import React, { useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { CiGrid42, CiBoxes } from "react-icons/ci";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CiCircleChevDown, CiCircleChevUp } from "react-icons/ci";
+import { connectFourApi } from "../../api/connectFourApi";
+import { showToast } from "../../utils/toast/Toast";
 
-const LS_KEY = "ui.gamesPanel.isOpen";
+export default function GamesPanel({ isLoggedIn, onStartMultiplayer, onStartAI, onGoHome }) {
+  const navigate = useNavigate();
 
-export default function GamesPanel({
-  isLoggedIn, // kept for future use
-  onStartMultiplayer,
-  onStartAI,
-  onGoHome,
-}) {
-  // Step 1: Initialize from localStorage (default false)
-  const [isOpen, setIsOpen] = useState(() => {
+  const handleC4AI = useCallback(() => {
+    if (!isLoggedIn) { navigate("/login"); return; }
+    navigate("/games/connect-four/ai");
+  }, [isLoggedIn, navigate]);
+
+  const handleC4MP = useCallback(async () => {
+    if (!isLoggedIn) { navigate("/login"); return; }
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      return raw === "true";
+      const game = await connectFourApi.createGame(false);
+      navigate(`/games/connect-four/${game.id}`);
     } catch {
-      return false;
+      showToast("error", "Could not create game.");
     }
-  });
+  }, [isLoggedIn, navigate]);
 
-  const userToggledRef = useRef(false);
+  const handleSudoku = useCallback(() => {
+    if (!isLoggedIn) { navigate("/login"); return; }
+    navigate("/games/sudoku");
+  }, [isLoggedIn, navigate]);
 
-  const handleToggle = useCallback(() => {
-    userToggledRef.current = true;
-    setIsOpen((v) => !v);
-  }, []);
-
-  // Step 2: Persist to localStorage whenever it changes
-  useEffect(() => {
-    try {
-      localStorage.setItem(LS_KEY, String(isOpen));
-    } catch {
-      // ignore storage errors (private mode, quota)
-    }
-  }, [isOpen]);
-
-  const bodyClassName = useMemo(() => {
-    const base =
-      "transition-all duration-300 ease-out will-change-[max-height,opacity]";
-    return isOpen
-      ? `${base} max-h-[320px] opacity-100 mt-3`
-      : `${base} max-h-0 opacity-0 mt-0 pointer-events-none`;
-  }, [isOpen]);
+  const GAMES = [
+    {
+      id: "ttt",
+      name: "Tic-Tac-Toe",
+      Icon: CiGrid42,
+      actions: [
+        { label: "Multiplayer", onClick: onStartMultiplayer },
+        { label: "vs AI",       onClick: onStartAI },
+      ],
+    },
+    {
+      id: "connect-four",
+      name: "Connect Four",
+      Icon: CiBoxes,
+      actions: [
+        { label: "vs AI",     onClick: handleC4AI },
+        { label: "vs Friend", onClick: handleC4MP },
+      ],
+    },
+    {
+      id: "sudoku",
+      name: "Sudoku",
+      Icon: CiBoxes,
+      actions: [
+        { label: "Play", onClick: handleSudoku },
+      ],
+    },
+  ];
 
   return (
     <section className="w-full">
+      {/* Section label */}
+      <p className="text-[10px] tracking-[0.28em] uppercase font-semibold text-text-faint mb-3">
+        Games
+      </p>
+
+      <div className="space-y-1.5">
+        {GAMES.map(({ id, name, Icon, actions }) => (
+          <div key={id} className="rounded-xl p-3 bg-surface border border-border-soft">
+            {/* Game name row */}
+            <div className="flex items-center gap-2 mb-2.5">
+              <Icon size={15} className="text-brand-cyan/70" />
+              <span className="text-xs font-semibold text-text-secondary">{name}</span>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-1.5">
+              {actions.map(({ label, onClick }, i) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={onClick}
+                  className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-opacity duration-150 hover:opacity-80 focus:outline-none border ${
+                    i === 0
+                      ? "bg-brand-cyan/10 text-brand-cyan border-brand-cyan/20"
+                      : "bg-surface-elevated text-text-muted border-border-soft"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
       <button
         type="button"
-        onClick={handleToggle}
-        className="w-full flex items-center justify-between gap-3 text-left select-none"
-        aria-expanded={isOpen}
-        aria-controls="games-panel-body"
+        onClick={onGoHome}
+        className="w-full mt-3 py-2 rounded-xl text-xs text-text-faint hover:text-text-secondary transition-colors border border-border-soft"
       >
-        <h3 className="text-sm font-medium tracking-wide text-[#1DA1F2] truncate">
-          Games
-        </h3>
-
-        <span
-          className="
-            h-9 w-9 grid place-items-center rounded-lg
-            text-[#1DA1F2]/90 hover:text-[#1DA1F2]
-            hover:bg-[#1DA1F2]/10
-            focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/35
-          "
-          aria-hidden="true"
-        >
-          {isOpen ? <CiCircleChevUp size={26} /> : <CiCircleChevDown size={26} />}
-        </span>
+        ← Back to hub
       </button>
-
-      <div id="games-panel-body" className={bodyClassName}>
-        <div className="mt-2 space-y-2">
-          <button
-            type="button"
-            onClick={onGoHome}
-            className="
-              w-full text-left px-4 py-3 rounded-xl
-              border border-slate-700/40 bg-slate-900/35
-              text-slate-200 hover:text-white
-              hover:border-[#1DA1F2]/30 hover:bg-slate-900/45
-              transition
-            "
-          >
-            Home
-          </button>
-
-          <button
-            type="button"
-            onClick={onStartMultiplayer}
-            className="
-              w-full text-left px-4 py-3 rounded-xl
-              border border-slate-700/40 bg-slate-900/35
-              text-slate-200 hover:text-white
-              hover:border-[#1DA1F2]/30 hover:bg-slate-900/45
-              transition
-            "
-          >
-            Create Multiplayer Game
-          </button>
-
-          <button
-            type="button"
-            onClick={onStartAI}
-            className="
-              w-full text-left px-4 py-3 rounded-xl
-              border border-slate-700/40 bg-slate-900/35
-              text-slate-200 hover:text-white
-              hover:border-[#1DA1F2]/30 hover:bg-slate-900/45
-              transition
-            "
-          >
-            Play vs AI
-          </button>
-
-          <div className="text-xs text-slate-600 px-1 pt-1">
-            More games coming (Connect 4, etc.)
-          </div>
-        </div>
-      </div>
     </section>
   );
 }

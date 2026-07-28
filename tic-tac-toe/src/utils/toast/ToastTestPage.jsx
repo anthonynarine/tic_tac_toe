@@ -34,11 +34,11 @@ const buttonStyle = {
     margin: "0 10px",
     padding: "10px 20px",
     fontSize: "16px",
-    borderRadius: "5px",
+    borderRadius: "9999px",
     cursor: "pointer",
     border: "none",
-    backgroundColor: "#E34F26",
-    color: "white",
+    backgroundColor: "#22D3EE",
+    color: "#030607",
 };
 
 export default ToastTestPage;

@@ -1,15 +1,11 @@
 /* # Filename: src/components/recruiter/RecruiterDemoPage.module.css */
 /* ✅ New Code */
 
-/* Step 1: Match Trinity typography + color tokens */
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap");
-
 :root {
-  /* Same variable names as Trinity so your app feels unified */
-  --glow-color: #00f7ff;
-  --glow-color-soft: rgba(0, 247, 255, 0.15);
-  --accent-color: #00ffff;
-  --border-color: rgba(0, 255, 255, 0.3);
+  --glow-color: #22D3EE;
+  --glow-color-soft: rgba(34, 211, 238, 0.15);
+  --accent-color: #22D3EE;
+  --border-color: rgba(34, 211, 238, 0.3);
 }
 
 .page {
@@ -18,28 +14,28 @@
   justify-content: center;
 }
 
-/* Step 2: Terminal shell (same gradient + glow vibe as Trinity) */
+/* Step 2: Terminal shell */
 .terminal {
   width: 100%;
   max-width: 1120px;
-  background: linear-gradient(135deg, #000000, #101010);
+  background: linear-gradient(135deg, #090D0F, #050708);
   border: 1px solid var(--border-color);
   box-shadow: 0 0 24px var(--glow-color-soft);
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
-  color: var(--glow-color);
-  font-family: "Orbitron", sans-serif;
+  color: #F8FAFC;
+  font-family: "Geist", sans-serif;
   animation: fadeInGlow 0.5s ease-in-out;
 }
 
-/* Step 3: Header matches TrinityDrawer header feel */
+/* Step 3: Header */
 .header {
   padding: 0.75rem 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #000;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+  background: #030607;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.15);
 }
 
 .titleGroup {
@@ -59,6 +55,7 @@
   font-size: 0.75rem;
   opacity: 0.8;
   letter-spacing: 0.6px;
+  color: #A1A1AA;
 }
 
 .headerRight {
@@ -71,9 +68,9 @@
   font-size: 0.75rem;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(0, 255, 255, 0.15);
-  color: #cfffff;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  color: #A1A1AA;
 }
 
 .modeValue {
@@ -97,22 +94,22 @@
 
 /* Step 5: Panels */
 .panel {
-  background-color: #0c0c0c;
+  background-color: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 14px;
   box-shadow: 0 0 10px var(--glow-color-soft);
 }
 
 .panelTitle {
   font-size: 0.85rem;
-  color: #00bfff;
+  color: #22D3EE;
   letter-spacing: 0.8px;
   margin-bottom: 12px;
   text-transform: uppercase;
 }
 
-/* Step 6: Buttons (match Trinity askButton / sendButton energy) */
+/* Step 6: Buttons */
 .buttonGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -126,12 +123,12 @@
 }
 
 .primaryButton {
-  background: linear-gradient(45deg, #00f7ff, #0077ff);
+  background: #22D3EE;
   border: none;
-  color: #000;
+  color: #030607;
   font-weight: bold;
   padding: 0.75rem 0.9rem;
-  border-radius: 8px;
+  border-radius: 9999px;
   cursor: pointer;
   text-transform: uppercase;
   transition: all 0.2s ease-in-out;
@@ -141,7 +138,6 @@
 .primaryButton:hover {
   box-shadow: 0 0 20px var(--accent-color);
   transform: scale(1.02);
-  color: #fff;
 }
 
 .primaryButton:disabled {
@@ -155,14 +151,14 @@
   color: var(--accent-color);
   font-weight: 700;
   padding: 0.75rem 0.9rem;
-  border-radius: 8px;
+  border-radius: 9999px;
   cursor: pointer;
   transition: box-shadow 0.25s ease-in-out, color 0.25s ease-in-out,
     transform 0.2s ease-in-out;
 }
 
 .ghostButton:hover {
-  background-color: black;
+  background-color: rgba(255, 255, 255, 0.06);
   box-shadow: 0 0 12px var(--glow-color-soft), 0 0 16px var(--glow-color);
   color: #fff;
   transform: translateY(-1px);
@@ -175,11 +171,11 @@
 
 .dangerButton {
   background: none;
-  border: 1px solid rgba(255, 77, 77, 0.6);
-  color: #ff4d4d;
+  border: 1px solid rgba(251, 113, 133, 0.5);
+  color: #FB7185;
   font-weight: 800;
   padding: 0.75rem 0.9rem;
-  border-radius: 8px;
+  border-radius: 9999px;
   cursor: pointer;
   transition: box-shadow 0.25s ease-in-out, color 0.25s ease-in-out,
     transform 0.2s ease-in-out;
@@ -187,8 +183,8 @@
 }
 
 .dangerButton:hover {
-  background-color: black;
-  box-shadow: 0 0 12px rgba(255, 77, 77, 0.25), 0 0 18px rgba(255, 77, 77, 0.35);
+  background-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 12px rgba(251, 113, 133, 0.25), 0 0 18px rgba(251, 113, 133, 0.35);
   color: #fff;
   transform: translateY(-1px);
 }
@@ -202,13 +198,13 @@
 .helpBox {
   margin-top: 14px;
   padding: 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 255, 255, 0.15);
-  background: rgba(0, 255, 255, 0.06);
+  border-radius: 12px;
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  background: rgba(34, 211, 238, 0.06);
 }
 
 .helpTitle {
-  color: #00ff9d;
+  color: #34D399;
   font-weight: 800;
   margin-bottom: 6px;
   letter-spacing: 0.6px;
@@ -217,25 +213,25 @@
 }
 
 .helpText {
-  color: #cfffff;
-  font-family: monospace;
+  color: #A1A1AA;
+  font-family: "Geist Mono", monospace;
   font-size: 0.9rem;
   line-height: 1.4;
 }
 
 .mono {
-  font-family: monospace;
+  font-family: "Geist Mono", monospace;
   color: var(--accent-color);
 }
 
-/* Step 8: Terminal log (Trinity-like line/prompt/label/text) */
+/* Step 8: Terminal log */
 .log {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  font-family: monospace;
+  font-family: "Geist Mono", monospace;
   font-size: 0.95rem;
-  color: #cfffff;
+  color: #A1A1AA;
 }
 
 .line {
@@ -245,13 +241,13 @@
 }
 
 .prompt {
-  color: #00ff9d;
+  color: #34D399;
   margin-right: 0.5rem;
   flex-shrink: 0;
 }
 
 .label {
-  color: #00bfff;
+  color: #22D3EE;
   margin-right: 0.5rem;
   min-width: 64px;
   flex-shrink: 0;
@@ -262,12 +258,12 @@
 }
 
 .lineError {
-  color: #ff4d4d;
+  color: #FB7185;
   font-weight: bold;
 }
 
 .lineOk {
-  color: #00ff9d;
+  color: #34D399;
   opacity: 0.9;
 }
 

@@ -40,7 +40,7 @@ const GamePage = () => {
     // Missing required multiplayer context → bounce back to lobby
     if (!hasLobby && !hasSessionKey && gameId) {
       didRedirectRef.current = true;
-      navigate(`/lobby/${gameId}`, { replace: true });
+      navigate(`/lobby/tic_tac_toe/${gameId}`, { replace: true });
     }
   }, [hasLobby, hasSessionKey, gameId, navigate]);
 
@@ -83,7 +83,7 @@ const GamePage = () => {
         };
 
         return (
-          <>
+          <div className="w-full min-h-[620px] pt-4 md:pt-8 xl:pt-10 flex flex-col items-center justify-start">
             <GameLoader loading={loading} error={error} />
 
             {!loading && !error && game && (
@@ -110,7 +110,7 @@ const GamePage = () => {
                 />
               </>
             )}
-          </>
+          </div>
         );
       }}
     </MultiplayerGameManager>

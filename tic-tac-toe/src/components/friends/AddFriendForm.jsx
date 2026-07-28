@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { IoAddSharp } from "react-icons/io5";
 import { useFriends } from "../../context/friendsContext"
 
-export default function AddFriendForm({ showLabel = true }) {
+export default function AddFriendForm({ showLabel = true, onSuccess }) {
   const [email, setEmail] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,13 +39,14 @@ export default function AddFriendForm({ showLabel = true }) {
         setFeedback({ type: "success", message: "Friend request sent." });
         setEmail("");
         refreshFriends();
+        setTimeout(() => onSuccess?.(), 900);
       } catch (error) {
         setFeedback({ type: "error", message: extractErrorMessage(error) });
       } finally {
         setIsSubmitting(false);
       }
     },
-    [email, isSubmitting, sendRequest, refreshFriends, extractErrorMessage]
+    [email, isSubmitting, sendRequest, refreshFriends, extractErrorMessage, onSuccess]
   );
 
   useEffect(() => {
@@ -58,7 +59,7 @@ export default function AddFriendForm({ showLabel = true }) {
     <form onSubmit={handleSubmit} className="w-full">
       {showLabel && (
         <div className="flex items-center justify-between">
-          <label htmlFor="friendEmail" className="text-sm font-medium tracking-wide text-[#1DA1F2]">
+          <label htmlFor="friendEmail" className="text-xs font-semibold tracking-wide uppercase text-text-muted">
             Add a friend
           </label>
         </div>
@@ -67,15 +68,7 @@ export default function AddFriendForm({ showLabel = true }) {
       <div
         className={[
           showLabel ? "mt-3" : "mt-1",
-          `
-          flex items-center gap-2
-          rounded-xl border border-slate-700/40
-          bg-slate-900/30
-          px-3 py-2
-          focus-within:border-[#1DA1F2]/50
-          focus-within:shadow-[0_0_18px_rgba(29,161,242,0.08)]
-          transition
-        `,
+          "flex items-center gap-2 rounded-xl border border-border-soft bg-surface px-3 py-2 focus-within:border-brand-cyan/40 transition",
         ].join(" ")}
       >
         <input
@@ -84,11 +77,7 @@ export default function AddFriendForm({ showLabel = true }) {
           placeholder="Enter email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="
-            flex-1 min-w-0 bg-transparent
-            text-sm text-slate-100 placeholder:text-slate-500
-            outline-none
-          "
+          className="flex-1 min-w-0 bg-transparent text-sm text-text-primary placeholder:text-text-faint outline-none"
           autoComplete="email"
           inputMode="email"
           required
@@ -99,9 +88,8 @@ export default function AddFriendForm({ showLabel = true }) {
           disabled={!canSubmit}
           className={[
             "h-9 w-9 grid place-items-center rounded-lg",
-            "text-[#1DA1F2]/85 hover:text-[#1DA1F2]",
-            "hover:bg-[#1DA1F2]/10",
-            "focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/35",
+            "text-text-muted hover:text-brand-cyan hover:bg-brand-cyan/10",
+            "focus:outline-none",
             !canSubmit ? "opacity-40 cursor-not-allowed hover:bg-transparent" : "",
           ].join(" ")}
           title={isSubmitting ? "Sending..." : "Send friend request"}
@@ -115,7 +103,7 @@ export default function AddFriendForm({ showLabel = true }) {
         <div
           className={[
             "mt-2 text-xs",
-            feedback.type === "success" ? "text-emerald-300" : "text-rose-300",
+            feedback.type === "success" ? "text-brand-emerald" : "text-brand-rose",
           ].join(" ")}
           role="status"
           aria-live="polite"

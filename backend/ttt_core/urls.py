@@ -38,6 +38,12 @@ urlpatterns = [
     # Connect Four
     path("api/connect-four/", include("connect_four.urls")),
 
+    # Checkers
+    path("api/checkers/", include("checkers.urls")),
+
+    # Stats / Leaderboards
+    path("api/stats/", include("stats.urls")),
+
     # JWT
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),

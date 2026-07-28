@@ -41,10 +41,11 @@ function getWsBaseUrl() {
 
 /**
  * Step 2: Lobby WS URL
- * Route: /ws/lobby/<lobbyId>/?token=...&invite=... OR &sessionKey=...
+ * Route: /ws/lobby/<gameType>/<lobbyId>/?token=...&invite=... OR &sessionKey=...
  */
-export function getLobbyWSUrl({ lobbyId, token, inviteId = null, sessionKey = null }) {
+export function getLobbyWSUrl({ gameType, lobbyId, token, inviteId = null, sessionKey = null }) {
   const wsBase = getWsBaseUrl();
+  const safeGameType = encodeURIComponent(String(gameType));
   const safeLobbyId = encodeURIComponent(String(lobbyId));
   const params = new URLSearchParams();
 
@@ -52,17 +53,19 @@ export function getLobbyWSUrl({ lobbyId, token, inviteId = null, sessionKey = nu
   if (inviteId) params.set("invite", String(inviteId));
   if (!inviteId && sessionKey) params.set("sessionKey", String(sessionKey));
 
-  return `${wsBase}/lobby/${safeLobbyId}/?${params.toString()}`;
+  return `${wsBase}/lobby/${safeGameType}/${safeLobbyId}/?${params.toString()}`;
 }
 
 /**
  * Step 3: Lobby Chat WS URL
  * Route: /ws/chat/lobby/<lobby_name>/?token=...
- * Note: backend currently uses `lobby_name` in the URL pattern; we pass lobbyId as that name.
+ * Note: backend currently uses `lobby_name` in the URL pattern (accepts any
+ * string); we namespace it as "<gameType>_<lobbyId>" so a Tic-Tac-Toe lobby
+ * and a Connect Four lobby sharing the same numeric id never collide.
  */
-export function getChatWSUrl({ lobbyId, token }) {
+export function getChatWSUrl({ gameType, lobbyId, token }) {
   const wsBase = getWsBaseUrl();
-  const safeLobbyName = encodeURIComponent(String(lobbyId));
+  const safeLobbyName = encodeURIComponent(`${gameType}_${lobbyId}`);
   const params = new URLSearchParams();
 
   params.set("token", token);
@@ -109,9 +112,10 @@ export default function getWebSocketURL({
   inviteId = null,
   sessionKey = null,
   lobbyId = null,
+  gameType = "tic_tac_toe",
 }) {
   if (isLobby) {
-    return getLobbyWSUrl({ lobbyId: id, token, inviteId, sessionKey });
+    return getLobbyWSUrl({ gameType, lobbyId: id, token, inviteId, sessionKey });
   }
   return getGameWSUrl({ gameId: id, token, sessionKey, lobbyId, inviteId });
 }

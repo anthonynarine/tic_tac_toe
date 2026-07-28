@@ -1,117 +1,129 @@
 // # Filename: src/components/home/HomeGameCard.jsx
-
 import React from "react";
+import Card from "../ui/Card";
+import Badge from "../ui/Badge";
 
-/**
- * Props:
- * - game: {
- *    id: string,
- *    title: string,
- *    statusText: string,
- *    icon: React.ComponentType,
- *    actions?: Array<{ id: string, label: string, onClick: () => Promise<void> | void }>
- *  }
- * - onComingSoon: (gameTitle: string) => void
- */
-export default function HomeGameCard({ game, onComingSoon }) {
+const GAME_META = {
+  ttt:            { tagline: "Real-time 1v1 strategy" },
+  "connect-four": { tagline: "Drop pieces, connect four to win" },
+  sudoku:         { tagline: "Fill the 9×9 grid with logic" },
+};
+
+function StandardCard({ game, onComingSoon }) {
   const Icon = game.icon;
+  const { tagline } = GAME_META[game.id] ?? { tagline: "" };
   const isLive = game.statusText === "Live";
 
   return (
-    <div
-      className="
-        group relative
-        rounded-2xl
-        border border-slate-800/70
-        bg-black/55
-        backdrop-blur
-        p-5
-        shadow-[0_0_18px_rgba(29,161,242,0.04)]
-        transition
-        hover:border-[#1DA1F2]/25
-        hover:shadow-[0_0_22px_rgba(29,161,242,0.08)]
-      "
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span
-            className="
-              grid h-11 w-11 place-items-center
-              rounded-xl
-              border border-slate-800/70
-              bg-slate-950/35
-              text-[#1DA1F2]/75
-              transition
-              group-hover:border-[#1DA1F2]/25
-              group-hover:bg-[#1DA1F2]/08
-              group-hover:text-[#1DA1F2]/90
-            "
-          >
-            <Icon size={26} />
-          </span>
-
-          <div className="min-w-0">
-            <h3 className="text-base font-semibold text-slate-200/80 truncate">
-              {game.title}
-            </h3>
-
-            <p
-              className={[
-                "mt-1 text-xs tracking-wide",
-                isLive ? "text-emerald-300/70" : "text-slate-400/70",
-              ].join(" ")}
-            >
-              {game.statusText}
-            </p>
-          </div>
+    <Card variant="glass" interactive className="relative p-5">
+      <div className="flex items-start justify-between mb-4">
+        <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-brand-cyan/10 border border-brand-cyan/25">
+          <Icon size={20} className="text-brand-cyan" />
         </div>
+        {isLive && <LivePip />}
       </div>
 
-      {/* Actions */}
-      <div className="mt-4 flex flex-wrap gap-2">
+      <h3 className="text-base font-semibold tracking-tight mb-1 text-text-primary">
+        {game.title}
+      </h3>
+      <p className="text-[12px] mb-5 leading-relaxed text-text-secondary">
+        {tagline}
+      </p>
+
+      <div className="flex gap-2">
         {game.actions ? (
-          game.actions.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              onClick={async () => await a.onClick()}
-              className="
-                inline-flex items-center justify-center
-                rounded-xl px-3 py-2
-                text-sm font-semibold
-                border border-slate-800/70
-                bg-slate-950/35
-                text-slate-200/70
-                hover:bg-[#1DA1F2]/08
-                hover:border-[#1DA1F2]/25
-                hover:text-[#1DA1F2]/85
-                transition
-                focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/20
-              "
-            >
-              {a.label}
-            </button>
+          game.actions.map((action, i) => (
+            <ActionButton key={action.id} label={action.label} onClick={action.onClick} primary={i === 0} />
           ))
         ) : (
-          <button
-            type="button"
-            onClick={async () => onComingSoon(game.title)}
-            className="
-              inline-flex items-center justify-center
-              rounded-xl px-3 py-2
-              text-sm font-semibold
-              border border-slate-800/70
-              bg-slate-950/25
-              text-slate-300/65
-              hover:bg-slate-900/30
-              hover:text-slate-200/75
-              transition
-            "
-          >
-            Coming soon
-          </button>
+          <ComingSoonButton onClick={() => onComingSoon?.(game.title)} />
         )}
       </div>
-    </div>
+    </Card>
+  );
+}
+
+function FeaturedCard({ game, onComingSoon }) {
+  const Icon = game.icon;
+  const { tagline } = GAME_META[game.id] ?? { tagline: "" };
+  const isLive = game.statusText === "Live";
+
+  return (
+    <Card variant="glass" interactive className="relative overflow-hidden">
+      {/* Subtle cyan top sheen */}
+      <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand-cyan/40 to-transparent" />
+
+      <div className="p-5 sm:flex sm:items-center sm:gap-6">
+        {/* Icon */}
+        <div className="w-14 h-14 flex items-center justify-center shrink-0 mb-4 sm:mb-0 rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
+          <Icon size={28} className="text-brand-cyan" />
+        </div>
+
+        {/* Title + tagline */}
+        <div className="flex-1 min-w-0 mb-4 sm:mb-0">
+          <div className="flex items-center gap-3 mb-1">
+            <h3 className="text-xl font-semibold tracking-tight text-text-primary">
+              {game.title}
+            </h3>
+            {isLive && <LivePip />}
+          </div>
+          <p className="text-sm text-text-secondary">{tagline}</p>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-2 sm:shrink-0">
+          {game.actions ? (
+            game.actions.map((action, i) => (
+              <ActionButton key={action.id} label={action.label} onClick={action.onClick} primary={i === 0} />
+            ))
+          ) : (
+            <ComingSoonButton onClick={() => onComingSoon?.(game.title)} />
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+export default function HomeGameCard({ game, featured = false, onComingSoon }) {
+  return featured
+    ? <FeaturedCard game={game} onComingSoon={onComingSoon} />
+    : <StandardCard game={game} onComingSoon={onComingSoon} />;
+}
+
+function LivePip() {
+  return (
+    <Badge variant="success" className="gap-1.5 px-2 py-0.5">
+      <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald shadow-glow-emerald" />
+      Live
+    </Badge>
+  );
+}
+
+function ActionButton({ label, onClick, primary }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick()}
+      className={`px-4 py-2 rounded-button text-xs font-semibold uppercase tracking-wide transition-colors duration-150 border ${
+        primary
+          ? "bg-brand-cyan/10 border-brand-cyan/40 text-brand-cyan hover:bg-brand-cyan/20 hover:border-brand-cyan/60"
+          : "bg-surface border-border-soft text-text-secondary hover:bg-surface-elevated hover:text-text-primary"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ComingSoonButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="px-4 py-2 rounded-button text-[11px] font-semibold uppercase tracking-wider bg-surface border border-border-soft text-text-faint cursor-default"
+    >
+      Coming soon
+    </button>
   );
 }

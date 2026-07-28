@@ -14,10 +14,10 @@ export default function SudokuControls({ notesMode, onNumber, onErase, onToggleN
             className="
               aspect-square flex items-center justify-center
               rounded-lg
-              border border-slate-700/50
-              bg-slate-900/60
-              text-slate-200/80 text-sm sm:text-base font-semibold
-              hover:bg-[#1DA1F2]/12 hover:border-[#1DA1F2]/30 hover:text-[#1DA1F2]/90
+              border border-border-soft
+              bg-surface
+              text-text-secondary text-sm sm:text-base font-semibold
+              hover:bg-brand-cyan/12 hover:border-brand-cyan/30 hover:text-brand-cyan
               transition
               focus:outline-none
             "
@@ -34,9 +34,9 @@ export default function SudokuControls({ notesMode, onNumber, onErase, onToggleN
           onClick={onErase}
           className="
             flex items-center gap-2 px-4 py-2 rounded-xl
-            border border-slate-700/50 bg-slate-900/60
-            text-slate-300/80 text-sm
-            hover:bg-slate-800/60 hover:text-slate-100/90
+            border border-border-soft bg-surface
+            text-text-secondary text-sm
+            hover:bg-surface-elevated hover:text-text-primary
             transition focus:outline-none
           "
         >
@@ -51,8 +51,8 @@ export default function SudokuControls({ notesMode, onNumber, onErase, onToggleN
             "flex items-center gap-2 px-4 py-2 rounded-xl",
             "border text-sm transition focus:outline-none",
             notesMode
-              ? "border-[#1DA1F2]/40 bg-[#1DA1F2]/12 text-[#1DA1F2]/90"
-              : "border-slate-700/50 bg-slate-900/60 text-slate-300/80 hover:bg-slate-800/60 hover:text-slate-100/90",
+              ? "border-brand-cyan/40 bg-brand-cyan/12 text-brand-cyan"
+              : "border-border-soft bg-surface text-text-secondary hover:bg-surface-elevated hover:text-text-primary",
           ].join(" ")}
         >
           <LuPencil size={15} />

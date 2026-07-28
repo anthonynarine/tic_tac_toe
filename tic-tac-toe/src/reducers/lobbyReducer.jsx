@@ -137,54 +137,6 @@ export const lobbyReducer = (state, action) => {
       };
     }
 
-    case "SET_GAME": {
-      const {
-        board_state,
-        current_turn,
-        winner,
-        player_x,
-        player_o,
-        player_role,
-        game_id,
-      } = action.payload || {};
-
-      if (process.env.NODE_ENV !== "production") {
-        console.log("SET_GAME payload:", {
-          board_state,
-          current_turn,
-          winner,
-          player_x,
-          player_o,
-          player_role,
-          game_id,
-        });
-      }
-
-      const normalizedPlayerX = {
-        id: player_x?.id || null,
-        first_name: player_x?.first_name || "Unknown",
-      };
-
-      const normalizedPlayerO = {
-        id: player_o?.id || null,
-        first_name: player_o?.first_name || "Unknown",
-      };
-
-      return {
-        ...state,
-        game: {
-          board_state: board_state || "_________",
-          current_turn: current_turn || "",
-          winner: winner || null,
-          player_x: normalizedPlayerX,
-          player_o: normalizedPlayerO,
-        },
-        game_id,
-        playerRole: player_role || state.playerRole,
-        isGameStarted: true,
-      };
-    }
-
     case "START_GAME": {
       return {
         ...state,

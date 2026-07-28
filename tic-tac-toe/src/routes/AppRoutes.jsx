@@ -30,6 +30,7 @@ import TechnicalPaper from "../components/technical-paper/TechnicalPaper";
 import SudokuPage from "../components/sudoku/SudokuPage";
 import ConnectFourAIPage from "../components/connect-four/ConnectFourAIPage";
 import ConnectFourMPPage from "../components/connect-four/ConnectFourMPPage";
+import LeaderboardPage from "../components/leaderboard/LeaderboardPage";
 
 
 import { GameWebSocketProvider } from "../websocket/GameWebSocketProvider";
@@ -101,7 +102,7 @@ export default function AppRoutes() {
               <Route element={<ProtectedLayout />}>
                 {/* Lobby needs GameProvider */}
                 <Route
-                  path="/lobby/:id"
+                  path="/lobby/:gameType/:id"
                   element={
                     <GameProvider>
                       <Lobby />
@@ -116,6 +117,7 @@ export default function AppRoutes() {
                 <Route path="/games/:id" element={<GameRoute />} />
 
                 <Route path="/games/sudoku" element={<SudokuPage />} />
+                <Route path="/leaderboard" element={<LeaderboardPage />} />
                 <Route path="/games/connect-four/ai" element={<ConnectFourAIPage />} />
                 <Route path="/games/connect-four/:id" element={<ConnectFourMPPage />} />
                 <Route path="/recruiter-demo" element={<RecruiterDemoPage />} />

@@ -1,7 +1,8 @@
 import React, { useEffect, useCallback, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 import { sudokuApi } from "../../api/sudokuApi";
+import { statsApi } from "../../api/statsApi";
+import { formatSeconds } from "../leaderboard/formatSeconds";
 import { useSudokuGame } from "./hooks/useSudokuGame";
 import { useSudokuTimer } from "./hooks/useSudokuTimer";
 import { useSudokuSession } from "./hooks/useSudokuSession";
@@ -14,13 +15,21 @@ import SudokuResultModal from "./SudokuResultModal";
 const DIFFICULTIES = ["easy", "medium", "hard", "expert"];
 
 export default function SudokuPage() {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [difficulty, setDifficulty] = useState("medium");
 
   const { state, dispatch, conflictSet, peerSet, selectedValue } = useSudokuGame();
   const isRunning = state.status === "playing";
+
+  const [myBests, setMyBests] = useState({});
+  const refreshMyBests = useCallback(() => {
+    statsApi.getMySudokuBests().then(setMyBests).catch(() => {});
+  }, []);
+  useEffect(() => { refreshMyBests(); }, [refreshMyBests]);
+  useEffect(() => {
+    if (state.status === "won") refreshMyBests();
+  }, [state.status, refreshMyBests]);
 
   const { elapsed, formatted: timerFormatted } = useSudokuTimer(
     state.savedElapsed ?? 0,
@@ -111,19 +120,23 @@ export default function SudokuPage() {
     : difficulty;
 
   return (
-    <div className="w-full px-4 pt-6 pb-24">
-      <div className="mx-auto max-w-lg flex flex-col items-center gap-5">
+    <div className="w-full px-4 pt-8 md:pt-12 xl:pt-14 pb-24">
+      <div
+        className="mx-auto max-w-lg flex flex-col items-center gap-5"
+        style={{ minHeight: "min(calc(90vw + 230px), 710px)" }}
+      >
         {/* Header */}
         <div className="w-full flex items-center justify-between">
           <div>
-            <div className="text-[11px] tracking-[0.28em] text-slate-400/70 uppercase">
+            <div className="text-[11px] tracking-[0.28em] text-text-muted uppercase">
               Puzzle
             </div>
-            <h1 className="text-2xl font-semibold text-slate-100/90 tracking-wide">Sudoku</h1>
+            <h1 className="text-2xl font-semibold text-text-primary tracking-wide">Sudoku</h1>
           </div>
 
           {/* Difficulty picker */}
-          <div className="flex gap-1">
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex gap-1">
             {DIFFICULTIES.map((d) => (
               <button
                 key={d}
@@ -133,13 +146,17 @@ export default function SudokuPage() {
                 className={[
                   "px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition focus:outline-none",
                   difficulty === d
-                    ? "border border-[#1DA1F2]/40 bg-[#1DA1F2]/12 text-[#1DA1F2]/90"
-                    : "border border-slate-700/50 bg-transparent text-slate-400/70 hover:text-slate-200/80",
+                    ? "border border-brand-cyan/40 bg-brand-cyan/12 text-brand-cyan"
+                    : "border border-border-soft bg-transparent text-text-muted hover:text-text-secondary",
                 ].join(" ")}
               >
                 {d}
               </button>
             ))}
+            </div>
+            <div className="text-[11px] text-text-faint">
+              Best: <span className="text-brand-cyan font-semibold">{formatSeconds(myBests[difficulty])}</span>
+            </div>
           </div>
         </div>
 
@@ -154,14 +171,14 @@ export default function SudokuPage() {
 
         {/* Loading / error states */}
         {loading && (
-          <div className="text-slate-400/70 text-sm py-8">Generating puzzle…</div>
+          <div className="text-text-secondary text-sm py-2">Generating puzzle…</div>
         )}
         {error && !loading && (
-          <div className="text-red-400/80 text-sm py-4">{error}</div>
+          <div className="text-brand-rose text-sm py-4">{error}</div>
         )}
 
         {/* Board */}
-        {!loading && state.board.length > 0 && (
+        {state.board.length > 0 ? (
           <>
             <SudokuBoard
               board={state.board}
@@ -179,6 +196,27 @@ export default function SudokuPage() {
               onToggleNotes={handleToggleNotes}
             />
           </>
+        ) : (
+          <>
+            <div
+              className="
+                grid grid-cols-9
+                border-2 border-brand-cyan/20
+                rounded-lg overflow-hidden
+                w-full max-w-[min(90vw,480px)]
+                mx-auto aspect-square bg-surface/40
+              "
+            >
+              {Array.from({ length: 81 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="aspect-square border border-border-soft/40"
+                />
+              ))}
+            </div>
+
+            <div className="w-full max-w-[min(90vw,480px)] min-h-[96px]" />
+          </>
         )}
 
         {/* New game button */}
@@ -187,7 +225,7 @@ export default function SudokuPage() {
             type="button"
             onClick={handlePlayAgain}
             className="
-              text-xs text-slate-500/70 hover:text-slate-300/80
+              text-xs text-text-faint hover:text-text-secondary
               underline underline-offset-2 transition
             "
           >

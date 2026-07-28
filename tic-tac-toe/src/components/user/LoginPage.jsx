@@ -1,199 +1,124 @@
 // # Filename: src/components/user/LoginPage.jsx
-
-
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
-
 import { useAuth } from "../../auth/hooks/useAuth";
+import Card from "../ui/Card";
+import Button from "../ui/Button";
+
+const inputClass =
+  "w-full px-4 py-3 text-sm rounded-xl bg-surface border border-border-soft text-text-primary placeholder:text-text-faint outline-none transition-colors duration-150 focus:border-brand-cyan/50";
 
 const LoginPage = () => {
   const { login, isLoading, error } = useAuth();
-
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
 
-  // # Step 1: Derived state for button + simple UX
-  const canSubmit = useMemo(() => {
-    return Boolean(formData.email.trim()) && Boolean(formData.password.trim());
-  }, [formData.email, formData.password]);
+  const canSubmit = useMemo(
+    () => Boolean(formData.email.trim()) && Boolean(formData.password.trim()),
+    [formData.email, formData.password]
+  );
 
-  // # Step 2: Handle field edits
-  const handleInputChange = (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-
-    // STEP 1: Merge previous state with updated field
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // # Step 3: Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isLoading) return;
-
     await login(formData);
   };
 
   return (
-    <div
-      className={[
-        // Step 1: Mobile should be centered + stable with modern viewport units (svh)
-        "min-h-[100svh] md:min-h-[calc(100vh-6rem)]",
-        // Step 2: Center on mobile, keep slightly higher on desktop
-        "flex items-center md:items-start justify-center",
-        // Step 3: Padding that won’t push content too high on phones + iOS safe area
-        "px-4 py-10 md:pt-14 md:pb-12",
-        "pt-[max(1.25rem,env(safe-area-inset-top))]",
-        "pb-[max(2rem,env(safe-area-inset-bottom))]",
-      ].join(" ")}
-    >
-      <div className="w-full max-w-[520px]">
-        <form
-          onSubmit={handleSubmit}
-          className={[
-            "relative overflow-hidden rounded-2xl bg-black",
-            "border border-[#1DA1F2]/15",
-            "shadow-[0_0_10px_rgba(29,161,242,0.22),0_0_26px_rgba(29,161,242,0.12),0_18px_40px_rgba(0,0,0,0.6)]",
-            "px-5 py-8 sm:px-8 sm:py-10",
-          ].join(" ")}
-        >
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(29,161,242,0.18),transparent_55%)]" />
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#1DA1F2]/30 to-transparent" />
+    <div className="w-full max-w-[400px]">
 
-          <div className="relative">
-            <h2
-              className={[
-                "text-center font-extrabold tracking-tight",
-                "text-3xl sm:text-4xl",
-                "text-[#1DA1F2]",
-                "drop-shadow-[0_0_10px_rgba(29,161,242,0.45)]",
-              ].join(" ")}
+      {/* Header */}
+      <div className="text-center mb-8">
+        <p className="text-[10px] tracking-[0.4em] uppercase font-semibold mb-5 text-text-muted">
+          Game Hub
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight mb-2 text-text-primary">
+          Welcome Back
+        </h1>
+        <p className="text-sm text-text-secondary">
+          Sign in to access friends, invites, and multiplayer.
+        </p>
+      </div>
+
+      {/* Card */}
+      <Card variant="glass" className="relative px-6 py-7">
+        <form onSubmit={handleSubmit}>
+          {/* Email */}
+          <div className="mb-5">
+            <label
+              htmlFor="email"
+              className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-2 text-text-muted"
             >
-              Welcome Back
-            </h2>
+              Email
+            </label>
+            <input
+              id="email" name="email" type="email"
+              value={formData.email} onChange={handleChange}
+              placeholder="you@example.com"
+              required autoComplete="email"
+              className={inputClass}
+            />
+          </div>
 
-            <p className="mt-3 text-center text-sm sm:text-base text-white/70">
-              Sign in to access friends, invites, and multiplayer.
-            </p>
-
-            <div className="mt-8">
-              <label
-                htmlFor="email"
-                className="block text-xs font-medium tracking-wide text-[#1DA1F2]/90 mb-2"
-              >
-                Email
-              </label>
-
+          {/* Password */}
+          <div className="mb-6">
+            <label
+              htmlFor="password"
+              className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-2 text-text-muted"
+            >
+              Password
+            </label>
+            <div className="relative">
               <input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-                className={[
-                  "w-full rounded-xl px-4 py-3 sm:py-3.5",
-                  "bg-[#0A0A0A] text-white",
-                  "border border-[#1DA1F2]/20",
-                  "outline-none",
-                  "focus:border-[#1DA1F2]/45 focus:shadow-[0_0_0_3px_rgba(29,161,242,0.14)]",
-                  "placeholder:text-white/30",
-                ].join(" ")}
+                id="password" name="password"
+                type={showPassword ? "text" : "password"}
+                value={formData.password} onChange={handleChange}
+                placeholder="••••••••"
+                required autoComplete="current-password"
+                className={`${inputClass} pr-12`}
               />
-            </div>
-
-            <div className="mt-6">
-              <label
-                htmlFor="password"
-                className="block text-xs font-medium tracking-wide text-[#1DA1F2]/90 mb-2"
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 focus:outline-none text-text-faint transition-colors hover:text-brand-cyan"
               >
-                Password
-              </label>
-
-              <div className="relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  placeholder="••••••••"
-                  required
-                  autoComplete="current-password"
-                  className={[
-                    "w-full rounded-xl px-4 py-3 sm:py-3.5 pr-12",
-                    "bg-[#0A0A0A] text-white",
-                    "border border-[#1DA1F2]/20",
-                    "outline-none",
-                    "focus:border-[#1DA1F2]/45 focus:shadow-[0_0_0_3px_rgba(29,161,242,0.14)]",
-                    "placeholder:text-white/30",
-                  ].join(" ")}
-                />
-
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className={[
-                    "absolute right-3 top-1/2 -translate-y-1/2",
-                    "p-2 rounded-lg",
-                    "text-white/60 hover:text-white",
-                    "hover:bg-white/5",
-                    "focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/30",
-                  ].join(" ")}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? (
-                    <AiOutlineEyeInvisible className="text-xl" />
-                  ) : (
-                    <AiOutlineEye className="text-xl" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {error ? (
-              <div
-                className={[
-                  "mt-6 rounded-xl px-4 py-3",
-                  "border border-red-500/25",
-                  "bg-red-500/10",
-                  "text-red-200 text-sm",
-                ].join(" ")}
-              >
-                {error}
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={isLoading || !canSubmit}
-              className={[
-                "mt-8 w-full rounded-xl py-3.5 font-semibold",
-                "bg-black text-white",
-                "border-2 border-[#1DA1F2]/25",
-                "shadow-[0_0_10px_rgba(29,161,242,0.22),0_0_18px_rgba(29,161,242,0.12)]",
-                "transition-transform duration-200",
-                "hover:shadow-[0_0_18px_rgba(29,161,242,0.28),0_0_32px_rgba(29,161,242,0.16)]",
-                "hover:-translate-y-[1px]",
-                "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
-              ].join(" ")}
-            >
-              {isLoading ? "Logging in..." : "Login"}
-            </button>
-
-            <div className="mt-6 text-center">
-              <Link
-                to="/register"
-                className="text-sm text-white/80 hover:text-[#1DA1F2] transition-colors"
-              >
-                Don&apos;t have an account? Register here
-              </Link>
+                {showPassword ? <AiOutlineEyeInvisible size={17} /> : <AiOutlineEye size={17} />}
+              </button>
             </div>
           </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mb-5 px-4 py-3 text-sm rounded-xl bg-brand-rose/10 border border-brand-rose/25 text-brand-rose">
+              {error}
+            </div>
+          )}
+
+          {/* Submit */}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={isLoading || !canSubmit}
+            className="w-full"
+          >
+            {isLoading ? "Signing in…" : "Sign In"}
+          </Button>
         </form>
-      </div>
+      </Card>
+
+      {/* Register link */}
+      <p className="text-center mt-6 text-sm text-text-muted">
+        No account?{" "}
+        <Link to="/register" className="text-brand-cyan/80 transition-colors hover:text-brand-cyan">
+          Register
+        </Link>
+      </p>
     </div>
   );
 };

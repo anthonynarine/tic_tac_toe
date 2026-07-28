@@ -21,14 +21,14 @@ const TronPlusIcon = ({ size = 24, onClick }) => (
     </defs>
     <path
       d="M12 5v14M5 12h14"
-      stroke="#00ffff"
+      stroke="#22D3EE"
       strokeWidth="2.5"
       strokeLinecap="round"
       filter="url(#glow)"
     >
       <animate
         attributeName="stroke"
-        values="#00ffff;#0ff;#00ffff"
+        values="#22D3EE;#0ff;#22D3EE"
         dur="2s"
         repeatCount="indefinite"
       />

@@ -1,125 +1,13 @@
 /* # Filename: src/index.css */
-/* ✅ New Code */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Use a Twitter-like font stack */
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;700&display=swap");
+/* EstateIQ-inspired dark glass design system */
 
-/* ✅ New Code: Set a root box-sizing so inherit works as intended */
 html {
   box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Ubuntu, Arial, sans-serif;
-  background-color: black;
-  color: #333;
-  margin: 0;
-  padding: 0;
-}
-
-.thin-text {
-  font-weight: 100;
-}
-
-:root {
-  --background-light-color: #57ebd7;
-  --background-dark-color: black;
-  --content-background-color: #f5ffbe;
-  --primary-color: white;
-  --accent-color: #fd0;
-  --box-shadow-color: rgba(0, 0, 0, 0.75);
-  --box-shadow: 0 1vmin 2vmin -1vmin rgba(0, 0, 0, 0.75);
-  --default-border-radius: 2vmin;
-  --default-primary-border: 0.25vmin solid var(--primary-color);
-  --main-title-font-size: 4vmin;
-
-  --glow-color: rgba(0, 170, 255, 0.2);
-  --glow-color-soft: rgba(0, 170, 255, 0.1);
-  --border-color: #0e1a2b;
-}
-
-/* === Connect Four drop animation === */
-@keyframes dropIn {
-  from { transform: translateY(-320px); opacity: 0.3; }
-  to   { transform: translateY(0);      opacity: 1; }
-}
-
-/* === Reusable Glow Border === */
-.glow-border {
-  border: 1px solid var(--border-color);
-  box-shadow: 0 0 8px var(--glow-color), 0 0 16px var(--glow-color-soft);
-}
-
-h1,
-h2,
-h3 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Ubuntu, Arial, sans-serif;
-  color: white;
-}
-
-/* ✅ New Code: keep global button styling neutral so Tailwind can style buttons */
-button {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
-    Ubuntu, Arial, sans-serif;
-}
-
-/* ✅ New Code: preserve your old "default button" styling as a reusable class */
-.btn-primary {
-  background-color: #1da1f2;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 25px;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.btn-primary:hover {
-  background-color: #1a91da;
-}
-
-.title-sign {
-  display: inline-block;
-  padding: 1rem 2rem;
-  border: 2px solid white;
-  border-radius: 15px;
-  background-color: rgba(0, 0, 0, 0.7);
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.4), 0 0 20px rgba(255, 255, 255, 0.3),
-    0 0 30px rgba(255, 255, 255, 0.2);
-  animation: pulse-glow 2.5s infinite ease-in-out;
-  margin-bottom: 1.5rem;
-}
-
-@keyframes pulse-glow {
-  0% {
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4),
-      0 0 20px rgba(255, 255, 255, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.7),
-      0 0 30px rgba(255, 255, 255, 0.4);
-  }
-  100% {
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.4),
-      0 0 20px rgba(255, 255, 255, 0.2);
-  }
-}
-
-html,
-body {
-  height: auto;
-  min-height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow-x: hidden; /* ✅ prevent sideways scroll */
-  overflow-y: auto; /* ✅ allow page scroll */
-  background-color: black;
 }
 
 *,
@@ -128,47 +16,92 @@ body {
   box-sizing: inherit;
 }
 
+html,
+body {
+  height: auto;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-color: #030607;
+  color: #f8fafc;
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  color: #f8fafc;
+}
+
+button {
+  font-family: inherit;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.28);
+  color: #f8fafc;
+}
+
+/* Glass card surface, matches ui/Card.jsx "glass" variant */
+.glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 1.5rem;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.07),
+    rgba(255, 255, 255, 0.03)
+  );
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(18px);
+}
+
+/* Cyan-tinted scrollbar (kept class names for compatibility with existing references) */
+.lol-scrollbar,
+.tron-scrollbar-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 211, 238, 0.25) rgba(0,0,0,0.6);
+}
+.lol-scrollbar::-webkit-scrollbar,
+.tron-scrollbar-dark::-webkit-scrollbar { width: 5px; }
+.lol-scrollbar::-webkit-scrollbar-track,
+.tron-scrollbar-dark::-webkit-scrollbar-track { background: rgba(0,0,0,0.4); }
+.lol-scrollbar::-webkit-scrollbar-thumb,
+.tron-scrollbar-dark::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.25);
+  border-radius: 2px;
+}
+.lol-scrollbar::-webkit-scrollbar-thumb:hover,
+.tron-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.5);
+}
+
+/* Connect Four drop animation */
+@keyframes dropIn {
+  from { transform: translateY(-320px); opacity: 0.3; }
+  to   { transform: translateY(0);      opacity: 1; }
+}
+
+/* Subtle atmospheric glow, cyan/violet dual vignette */
 body::after {
   content: "";
   position: fixed;
   inset: 0;
-  background: radial-gradient(circle at 30% 30%, rgba(0, 191, 255, 0.06), transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.03), transparent 60%),
-    radial-gradient(circle at center, rgba(0, 191, 255, 0.08), transparent 90%);
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(34,211,238,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 0%, rgba(167,139,250,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(0,10,20,0.6) 0%, transparent 70%);
   z-index: -1;
   pointer-events: none;
 }
 
-/* global */
-.tron-scrollbar-dark {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(29,161,242,0.25) rgba(0,0,0,0.85);
-}
-
-.tron-scrollbar-dark::-webkit-scrollbar {
-  width: 7px;
-}
-
-.tron-scrollbar-dark::-webkit-scrollbar-track {
-  background: rgba(0,0,0,0.85);
-}
-
-.tron-scrollbar-dark::-webkit-scrollbar-thumb {
-  background: rgba(15,23,42,0.9); /* slate-900 */
-  border-radius: 999px;
-  border: 1px solid rgba(29,161,242,0.15);
-}
-
-.tron-scrollbar-dark::-webkit-scrollbar-thumb:hover {
-  border-color: rgba(29,161,242,0.35);
-}
-
 @layer utilities {
-  /* Step 1: subtle Tron frame glow (desktop only via md:tron-frame) */
-  .tron-frame {
+  .app-frame {
     box-shadow:
-      0 0 0 1px rgba(0, 0, 0, 0.35),
-      0 0 18px rgba(29, 161, 242, 0.10),
-      0 0 40px rgba(0, 0, 0, 0.55);
+      0 0 0 1px rgba(255,255,255,0.12),
+      0 32px 80px rgba(0,0,0,0.85);
   }
 }

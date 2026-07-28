@@ -234,6 +234,7 @@ const useAuthAxios = () => {
       authAxios.interceptors.request.eject(reqInterceptor);
       authAxios.interceptors.response.eject(resInterceptor);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- interceptors register once per mount by design
   }, [navigate]);
 
   return { authAxios, setToken, getToken, removeToken };

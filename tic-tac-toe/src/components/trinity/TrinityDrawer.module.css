@@ -9,24 +9,24 @@
 */
 
 :root {
-  --glow-color: #00f7ff;
-  --accent-color: #00ffff;
-  --border-color: rgba(0, 255, 255, 0.3);
+  --glow-color: #A78BFA;
+  --accent-color: #A78BFA;
+  --border-color: rgba(167, 139, 250, 0.3);
 
   --app-maxw: 1400px;
   --gutter: 24px;
 
-  --user-accent: rgba(0, 255, 157, 0.95);
-  --ai-accent: rgba(0, 191, 255, 0.95);
+  --user-accent: rgba(34, 211, 238, 0.95);
+  --ai-accent: rgba(167, 139, 250, 0.95);
 
-  --panel-bg: rgba(0, 0, 0, 0.35);
-  --panel-border: rgba(29, 161, 242, 0.12);
+  --panel-bg: rgba(255, 255, 255, 0.03);
+  --panel-border: rgba(167, 139, 250, 0.12);
 
   --scroll-track: rgba(0, 0, 0, 0.82);
   --scroll-thumb: rgba(15, 23, 42, 0.92);
-  --scroll-border: rgba(29, 161, 242, 0.16);
-  --scroll-border-hover: rgba(29, 161, 242, 0.34);
-  --scroll-glow-hover: rgba(29, 161, 242, 0.14);
+  --scroll-border: rgba(167, 139, 250, 0.16);
+  --scroll-border-hover: rgba(167, 139, 250, 0.34);
+  --scroll-glow-hover: rgba(167, 139, 250, 0.14);
 }
 
 /* Backdrop (mobile/tablet only, controlled in JSX) */
@@ -68,11 +68,11 @@
   height: 40vh;
   height: 40dvh;
 
-  background: linear-gradient(135deg, #000000, #101010);
+  background: linear-gradient(135deg, #090D0F, #050708);
   border-top: 2px solid var(--glow-color);
   border-top-left-radius: 14px;
   border-top-right-radius: 14px;
-  box-shadow: 0 -2px 20px rgba(0, 247, 255, 0.2);
+  box-shadow: 0 -2px 20px rgba(167, 139, 250, 0.2);
 
   z-index: 999;
   overflow: hidden;
@@ -99,8 +99,8 @@
   justify-content: space-between;
   align-items: center;
 
-  background: #000;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+  background: #030607;
+  border-bottom: 1px solid rgba(167, 139, 250, 0.15);
 }
 
 .brand {
@@ -118,7 +118,7 @@
 .glowSvg {
   width: 28px;
   height: 28px;
-  filter: drop-shadow(0 0 10px rgba(0, 247, 255, 0.22));
+  filter: drop-shadow(0 0 10px rgba(167, 139, 250, 0.22));
 }
 
 .brandText {
@@ -127,7 +127,7 @@
   font-size: 14px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(0, 247, 255, 0.9);
+  color: rgba(167, 139, 250, 0.9);
 }
 
 .closeBtn {
@@ -141,11 +141,11 @@
 }
 
 .closeBtn:hover {
-  background-color: rgba(0, 0, 0, 0.35);
+  background-color: rgba(255, 255, 255, 0.06);
   transform: translateY(-1px);
   box-shadow:
     0 0 6px var(--glow-color),
-    0 0 10px rgba(0, 247, 255, 0.15),
+    0 0 10px rgba(167, 139, 250, 0.15),
     0 0 12px var(--glow-color);
 }
 
@@ -207,11 +207,11 @@
 }
 
 .userLine {
-  color: rgba(204, 255, 245, 0.98);
+  color: #F8FAFC;
 }
 
 .aiLine {
-  color: rgba(190, 235, 255, 0.98);
+  color: #F8FAFC;
 }
 
 .userTag,
@@ -222,21 +222,21 @@
   text-transform: uppercase;
   padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.55);
-  box-shadow: 0 0 14px rgba(0, 247, 255, 0.06);
+  border: 1px solid rgba(167, 139, 250, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 0 14px rgba(167, 139, 250, 0.06);
 }
 
 .userTag {
   color: var(--user-accent);
-  border-color: rgba(0, 255, 157, 0.22);
-  box-shadow: 0 0 18px rgba(0, 255, 157, 0.06);
+  border-color: rgba(34, 211, 238, 0.22);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.06);
 }
 
 .aiTag {
   color: var(--ai-accent);
-  border-color: rgba(0, 191, 255, 0.22);
-  box-shadow: 0 0 18px rgba(0, 191, 255, 0.06);
+  border-color: rgba(167, 139, 250, 0.22);
+  box-shadow: 0 0 18px rgba(167, 139, 250, 0.06);
 }
 
 .text {
@@ -255,16 +255,16 @@
 }
 
 .userText {
-  border-color: rgba(0, 255, 157, 0.14);
+  border-color: rgba(34, 211, 238, 0.14);
 }
 
 .aiText {
-  border-color: rgba(0, 191, 255, 0.14);
+  border-color: rgba(167, 139, 250, 0.14);
 }
 
 .errorText {
-  color: #ff4d4d;
-  border-color: rgba(255, 77, 77, 0.25);
+  color: #FB7185;
+  border-color: rgba(251, 113, 133, 0.25);
 }
 
 /* Dots */
@@ -281,8 +281,8 @@
 
 /* Input */
 .inputRow {
-  border-top: 1px solid rgba(0, 255, 255, 0.1);
-  background: #000;
+  border-top: 1px solid rgba(167, 139, 250, 0.1);
+  background: #030607;
   width: 100%;
 
   padding: 0.9rem 0;
@@ -297,9 +297,9 @@
 
 .textarea {
   width: 100%;
-  background-color: #111;
+  background-color: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-color);
-  color: var(--glow-color);
+  color: #F8FAFC;
   border-radius: 12px;
 
   font-family: inherit;
@@ -354,10 +354,10 @@
 }
 
 .sendButton:hover {
-  background-color: rgba(0, 0, 0, 0.35);
+  background-color: rgba(255, 255, 255, 0.06);
   box-shadow:
     0 0 8px var(--glow-color),
-    0 0 12px rgba(0, 247, 255, 0.15),
+    0 0 12px rgba(167, 139, 250, 0.15),
     0 0 16px var(--glow-color);
   color: #fff;
 }

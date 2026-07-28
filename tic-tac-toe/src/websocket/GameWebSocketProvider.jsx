@@ -1,5 +1,4 @@
 // # Filename: src/components/websocket/GameWebSocketProvider.jsx
-"use strict";
 
 import React, { useEffect, useRef, useReducer, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";

@@ -3,13 +3,6 @@ import { useReducer, useMemo } from "react";
 // board is a flat array of 81 cells:
 // { value: 0-9, isGiven: bool, notes: Set<number> }
 
-function buildBoard(puzzleStr) {
-  return Array.from(puzzleStr).map((ch) => {
-    const v = parseInt(ch, 10);
-    return { value: v, isGiven: v !== 0, notes: new Set() };
-  });
-}
-
 function getConflictSet(board) {
   if (board.length !== 81) return new Set();
   const conflicts = new Set();

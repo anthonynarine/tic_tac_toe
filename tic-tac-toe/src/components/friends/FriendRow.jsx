@@ -1,8 +1,13 @@
 // # Filename: src/components/friends/FriendRow.jsx
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { PiGameController } from "react-icons/pi";
 import { CiChat1 } from "react-icons/ci";
+
+const INVITE_GAME_OPTIONS = [
+  { gameType: "tic_tac_toe", label: "Tic-Tac-Toe" },
+  { gameType: "connect_four", label: "Connect Four" },
+];
 
 /**
  * FriendRow
@@ -17,6 +22,7 @@ import { CiChat1 } from "react-icons/ci";
  */
 export default function FriendRow({ friend, user, onClick, onInvite, unreadCount = 0 }) {
   const isOnline = friend?.friend_status === "online";
+  const [isGamePickerOpen, setIsGamePickerOpen] = useState(false);
 
   // Step 1: resolve friend user id (useful for debugging/future)
   const friendUserId = useMemo(() => {
@@ -29,9 +35,9 @@ export default function FriendRow({ friend, user, onClick, onInvite, unreadCount
       <div
         className={[
           "w-full flex items-center gap-3 p-3.5 rounded-xl border",
-          "border-slate-700/40 bg-slate-900/30",
+          "bg-transparent border-border-soft",
           "transition-colors duration-200",
-          isOnline ? "hover:bg-slate-900/45 hover:border-slate-600/50" : "opacity-50",
+          isOnline ? "hover:bg-surface hover:border-border" : "opacity-40",
         ].join(" ")}
       >
         {/* Step 2: Main clickable area (optional: also opens chat) */}
@@ -39,18 +45,16 @@ export default function FriendRow({ friend, user, onClick, onInvite, unreadCount
           <span
             className={[
               "h-2.5 w-2.5 rounded-full shrink-0",
-              isOnline
-                ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.18)]"
-                : "bg-slate-600",
+              isOnline ? "bg-brand-emerald shadow-glow-emerald" : "bg-text-faint/40",
             ].join(" ")}
             aria-hidden="true"
           />
 
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-100 truncate">
+            <p className="text-sm font-medium text-text-primary truncate">
               {friend?.friend_name || "Friend"}
             </p>
-            <p className={["text-xs", isOnline ? "text-emerald-300/90" : "text-slate-500"].join(" ")}>
+            <p className={["text-xs", isOnline ? "text-brand-emerald" : "text-text-faint"].join(" ")}>
               {isOnline ? "Online" : "Offline"}
             </p>
           </div>
@@ -58,7 +62,7 @@ export default function FriendRow({ friend, user, onClick, onInvite, unreadCount
           {/* Step 3: Per-friend unread indicator (dot only) */}
           {unreadCount >= 1 ? (
             <span
-              className="h-2 w-2 rounded-full bg-[#1DA1F2] shadow-[0_0_10px_rgba(29,161,242,0.18)]"
+              className="h-2 w-2 rounded-full bg-brand-cyan shadow-glow-cyan"
               aria-label="New message"
               title="New message"
             />
@@ -77,9 +81,8 @@ export default function FriendRow({ friend, user, onClick, onInvite, unreadCount
             disabled={!isOnline}
             className={[
               "h-9 w-9 grid place-items-center rounded-lg",
-              "text-[#1DA1F2]/80 hover:text-[#1DA1F2]",
-              "hover:bg-[#1DA1F2]/10",
-              "focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/35",
+              "text-text-muted hover:text-brand-cyan hover:bg-brand-cyan/10",
+              "focus:outline-none",
               !isOnline ? "cursor-not-allowed opacity-40" : "",
             ].join(" ")}
             title="Chat"
@@ -88,26 +91,47 @@ export default function FriendRow({ friend, user, onClick, onInvite, unreadCount
             <CiChat1 size={20} />
           </button>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!isOnline) return;
-              onInvite(friend);
-            }}
-            disabled={!isOnline}
-            className={[
-              "h-9 w-9 grid place-items-center rounded-lg",
-              "text-[#1DA1F2]/80 hover:text-[#1DA1F2]",
-              "hover:bg-[#1DA1F2]/10",
-              "focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/35",
-              !isOnline ? "cursor-not-allowed opacity-40" : "",
-            ].join(" ")}
-            title="Invite to Game"
-            aria-label="Invite to game"
-          >
-            <PiGameController size={18} />
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isOnline) return;
+                setIsGamePickerOpen((v) => !v);
+              }}
+              disabled={!isOnline}
+              className={[
+                "h-9 w-9 grid place-items-center rounded-lg",
+                "text-text-muted hover:text-brand-cyan hover:bg-brand-cyan/10",
+                "focus:outline-none",
+                !isOnline ? "cursor-not-allowed opacity-40" : "",
+              ].join(" ")}
+              title="Invite to Game"
+              aria-label="Invite to game"
+            >
+              <PiGameController size={18} />
+            </button>
+
+            {isGamePickerOpen && (
+              <ul className="absolute right-0 top-full z-20 mt-1 w-40 rounded-xl border border-border-soft bg-background-app-panel shadow-glow-cyan overflow-hidden">
+                {INVITE_GAME_OPTIONS.map(({ gameType, label }) => (
+                  <li key={gameType}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsGamePickerOpen(false);
+                        onInvite(friend, gameType);
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs text-text-secondary hover:bg-brand-cyan/10 hover:text-brand-cyan transition-colors"
+                    >
+                      {label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           {/* keep for future debugging/hooks */}
           <span className="sr-only">{friendUserId}</span>

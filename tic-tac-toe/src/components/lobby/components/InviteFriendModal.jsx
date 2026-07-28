@@ -84,12 +84,12 @@ export default function InviteFriendModal({
       {/* Backdrop (match DMDrawer) */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" />
 
-      {/* Accent bloom (subtle #1DA1F2) */}
+      {/* Accent bloom (subtle cyan) */}
       <div
         className="absolute inset-0 pointer-events-none opacity-30"
         style={{
           background:
-            "radial-gradient(circle at 50% 85%, rgba(29,161,242,0.22), transparent 55%)",
+            "radial-gradient(circle at 50% 85%, rgba(34,211,238,0.22), transparent 55%)",
         }}
       />
 
@@ -110,27 +110,27 @@ export default function InviteFriendModal({
           sm:h-auto sm:max-h-[78dvh]
 
           overflow-hidden
-          bg-black/70 backdrop-blur
-          border border-[#1DA1F2]/20
-          shadow-[0_0_26px_rgba(29,161,242,0.12)]
+          bg-background-app-panel/90 backdrop-blur-xl
+          border border-brand-cyan/20
+          shadow-glow-cyan
         "
       >
         {/* Mobile handle */}
         <div className="sm:hidden flex justify-center pt-3">
-          <div className="h-1 w-11 rounded-full bg-white/10" />
+          <div className="h-1 w-11 rounded-full bg-border-soft" />
         </div>
 
         {/* Header (sticky) */}
-        <div className="sticky top-0 z-20 px-4 sm:px-5 py-4 border-b border-[#1DA1F2]/15 bg-black/55 backdrop-blur">
+        <div className="sticky top-0 z-20 px-4 sm:px-5 py-4 border-b border-brand-cyan/15 bg-background-app-panel/90 backdrop-blur-xl">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-[11px] uppercase tracking-[0.22em] text-[#1DA1F2]/70">
+              <div className="text-[11px] uppercase tracking-[0.22em] text-brand-cyan/70">
                 Lobby {lobbyId}
               </div>
-              <h2 className="mt-1 text-[17px] sm:text-[18px] font-semibold text-white/85">
+              <h2 className="mt-1 text-[17px] sm:text-[18px] font-semibold text-text-primary">
                 Invite an online friend
               </h2>
-              <p className="mt-1 text-xs text-slate-200/45">
+              <p className="mt-1 text-xs text-text-secondary">
                 Only online friends are shown.
               </p>
             </div>
@@ -140,9 +140,9 @@ export default function InviteFriendModal({
               onClick={close}
               className="
                 h-9 w-9 grid place-items-center rounded-xl
-                border border-[#1DA1F2]/20 bg-[#1DA1F2]/10
-                text-[#1DA1F2]/90 hover:text-[#1DA1F2]
-                hover:bg-[#1DA1F2]/15 transition
+                border border-brand-cyan/20 bg-brand-cyan/10
+                text-brand-cyan/90 hover:text-brand-cyan
+                hover:bg-brand-cyan/15 transition
               "
               aria-label="Close"
               title="Close"
@@ -153,8 +153,8 @@ export default function InviteFriendModal({
 
           {/* Search (DMDrawer-style input shell) */}
           <div className="mt-4">
-            <div className="flex items-center gap-2 rounded-2xl border border-[#1DA1F2]/20 bg-black/40 px-3 py-2">
-              <span className="text-[#1DA1F2]/70">
+            <div className="flex items-center gap-2 rounded-2xl border border-brand-cyan/20 bg-surface px-3 py-2">
+              <span className="text-brand-cyan/70">
                 <LuSearch size={16} />
               </span>
               <input
@@ -163,8 +163,8 @@ export default function InviteFriendModal({
                 placeholder="Search online friends..."
                 className="
                   flex-1 bg-transparent outline-none
-                  text-sm text-slate-100
-                  placeholder:text-slate-200/40
+                  text-sm text-text-primary
+                  placeholder:text-text-faint
                 "
               />
             </div>
@@ -174,13 +174,13 @@ export default function InviteFriendModal({
         {/* Body: single scroll region */}
         <div className="px-4 sm:px-5 py-4 overflow-y-auto tron-scrollbar-dark">
           {onlineFriends.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
-              <p className="text-sm text-slate-100/70">
+            <div className="rounded-2xl border border-border-soft bg-surface px-4 py-4">
+              <p className="text-sm text-text-secondary">
                 {query.trim()
                   ? "No matching online friends."
                   : "No friends online right now."}
               </p>
-              <p className="mt-1 text-xs text-slate-200/45">
+              <p className="mt-1 text-xs text-text-secondary">
                 Try again later — invites will work instantly when someone is online.
               </p>
             </div>
@@ -214,14 +214,14 @@ function FriendRow({ friend, onInvite, isInviting }) {
     <li
       className="
         rounded-2xl
-        bg-white/[0.028]
-        border border-[#1DA1F2]/12
-        hover:bg-white/[0.04]
-        hover:border-[#1DA1F2]/18
+        bg-surface
+        border border-brand-cyan/12
+        hover:bg-surface-elevated
+        hover:border-brand-cyan/18
         transition
         px-4 py-3
         flex items-center justify-between gap-3
-        shadow-[0_0_18px_rgba(29,161,242,0.06)]
+        shadow-glow-cyan
       "
     >
       <div className="min-w-0 flex items-center gap-3">
@@ -229,32 +229,32 @@ function FriendRow({ friend, onInvite, isInviting }) {
         <div
           className="
             relative h-11 w-11 rounded-2xl grid place-items-center
-            bg-black/25
-            border border-[#1DA1F2]/18
-            text-white/80 font-semibold
+            bg-background-app-panel
+            border border-brand-cyan/18
+            text-text-primary font-semibold
             shrink-0
           "
-          style={{ boxShadow: "0 0 14px rgba(29,161,242,0.10)" }}
+          style={{ boxShadow: "0 0 14px rgba(34,211,238,0.10)" }}
           aria-hidden="true"
         >
           {initials(name)}
           <span
             className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full"
             style={{
-              background: "rgba(29,161,242,0.95)",
-              boxShadow: "0 0 12px rgba(29,161,242,0.30)",
+              background: "rgba(34,211,238,0.95)",
+              boxShadow: "0 0 12px rgba(34,211,238,0.30)",
             }}
           >
             <span
               className="absolute inset-0 rounded-full animate-ping"
-              style={{ background: "rgba(29,161,242,0.35)" }}
+              style={{ background: "rgba(34,211,238,0.35)" }}
             />
           </span>
         </div>
 
         <div className="min-w-0">
-          <div className="text-sm font-medium text-white/85 truncate">{name}</div>
-          <div className="mt-0.5 text-[11px] text-slate-200/45">Online</div>
+          <div className="text-sm font-medium text-text-primary truncate">{name}</div>
+          <div className="mt-0.5 text-[11px] text-text-faint">Online</div>
         </div>
       </div>
 
@@ -264,8 +264,8 @@ function FriendRow({ friend, onInvite, isInviting }) {
         disabled={isInviting}
         className="
           h-9 w-9 grid place-items-center rounded-xl
-          border border-[#1DA1F2]/20 bg-[#1DA1F2]/10
-          text-[#1DA1F2] hover:bg-[#1DA1F2]/15 transition
+          border border-brand-cyan/20 bg-brand-cyan/10
+          text-brand-cyan hover:bg-brand-cyan/15 transition
           disabled:opacity-40
         "
         aria-label={`Invite ${name}`}

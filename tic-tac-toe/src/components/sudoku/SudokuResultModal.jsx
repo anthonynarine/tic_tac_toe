@@ -13,31 +13,31 @@ export default function SudokuResultModal({ status, timerFormatted, onPlayAgain 
     <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4 bg-black/75 backdrop-blur-md">
       <div
         className="
-          w-[360px] max-w-[90%] rounded-[20px] p-8 text-center
-          bg-[#0e1117] border border-slate-700/50
-          shadow-[0_0_40px_rgba(29,161,242,0.12)]
+          w-[360px] max-w-[90%] rounded-card p-8 text-center
+          bg-background-app-panel border border-border-soft
+          shadow-glow-cyan
           animate-[fadeInScale_0.4s_ease-out]
         "
       >
         <div className="flex justify-center mb-4">
           {won ? (
-            <LuTrophy size={42} className="text-[#1DA1F2]/80" />
+            <LuTrophy size={42} className="text-brand-cyan" />
           ) : (
-            <span className="text-5xl text-red-400/80 leading-none select-none">✕</span>
+            <span className="text-5xl text-brand-rose leading-none select-none">✕</span>
           )}
         </div>
 
-        <h2 className="text-2xl font-bold text-slate-100/90 mb-1">
+        <h2 className="text-2xl font-bold text-text-primary mb-1">
           {won ? "Puzzle Solved!" : "Game Over"}
         </h2>
 
         {won && (
-          <p className="text-slate-400/70 text-sm mb-6">
-            Completed in <span className="text-[#1DA1F2]/80 font-semibold">{timerFormatted}</span>
+          <p className="text-text-secondary text-sm mb-6">
+            Completed in <span className="text-brand-cyan font-semibold">{timerFormatted}</span>
           </p>
         )}
         {!won && (
-          <p className="text-slate-400/70 text-sm mb-6">Too many mistakes. Better luck next time!</p>
+          <p className="text-text-secondary text-sm mb-6">Too many mistakes. Better luck next time!</p>
         )}
 
         <div className="flex flex-wrap justify-center gap-3">
@@ -45,9 +45,9 @@ export default function SudokuResultModal({ status, timerFormatted, onPlayAgain 
             type="button"
             onClick={onPlayAgain}
             className="
-              px-5 py-2.5 rounded-xl text-sm font-semibold
-              border border-[#1DA1F2]/30 bg-[#1DA1F2]/10 text-[#1DA1F2]/90
-              hover:bg-[#1DA1F2]/20 transition focus:outline-none
+              px-5 py-2.5 rounded-button text-sm font-semibold
+              border border-brand-cyan/30 bg-brand-cyan/10 text-brand-cyan
+              hover:bg-brand-cyan/20 transition focus:outline-none
             "
           >
             New Puzzle
@@ -57,9 +57,9 @@ export default function SudokuResultModal({ status, timerFormatted, onPlayAgain 
             type="button"
             onClick={() => navigate("/")}
             className="
-              flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
-              border border-slate-700/50 bg-slate-900/60 text-slate-300/80
-              hover:bg-slate-800/60 hover:text-slate-100/90 transition focus:outline-none
+              flex items-center gap-2 px-5 py-2.5 rounded-button text-sm font-semibold
+              border border-border-soft bg-surface text-text-secondary
+              hover:bg-surface-elevated hover:text-text-primary transition focus:outline-none
             "
           >
             <AiFillHome size={14} />

@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LuTrophy } from "react-icons/lu";
-import { AiFillHome } from "react-icons/ai";
+import { LuRefreshCcw, LuTrophy } from "react-icons/lu";
+import { AiFillHome, AiOutlineCheck, AiOutlineClose } from "react-icons/ai";
 import { PIECE } from "./utils/c4Logic";
 
 export default function ConnectFourResultModal({
@@ -12,10 +12,29 @@ export default function ConnectFourResultModal({
   p2Name,
   isAI,
   onPlayAgain,
+  rematchMessage = "",
+  rematchShowActions = false,
+  rematchPending = false,
+  rematchButtonLocked = false,
+  onAcceptRematch,
+  onDeclineRematch,
 }) {
   const navigate = useNavigate();
+  const [isVisible, setIsVisible] = useState(false);
 
-  if (status !== "won" && status !== "draw") return null;
+  const isOpen = status === "won" || status === "draw";
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsVisible(false);
+      return undefined;
+    }
+
+    const id = window.setTimeout(() => setIsVisible(true), 1100);
+    return () => window.clearTimeout(id);
+  }, [isOpen]);
+
+  if (!isOpen || !isVisible) return null;
 
   const isDraw = status === "draw";
   const iWon = !isDraw && winner === myPiece;
@@ -31,55 +50,93 @@ export default function ConnectFourResultModal({
     : `${isAI ? "AI" : (p2Name || "Player 2")} Wins!`;
 
   const iconColor = isDraw
-    ? "text-slate-400/70"
+    ? "text-text-secondary"
     : iWon
-    ? "text-[#1DA1F2]/80"
-    : "text-[#EF4444]/80";
+    ? "text-blue-400"
+    : "text-red-500";
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4 bg-black/75 backdrop-blur-md">
-      <div className="
-        w-[360px] max-w-[90%] rounded-[20px] p-8 text-center
-        bg-[#0e1117] border border-slate-700/50
-        shadow-[0_0_40px_rgba(29,161,242,0.12)]
-      ">
-        <div className="flex justify-center mb-4">
-          {isDraw ? (
-            <span className="text-5xl leading-none">🤝</span>
-          ) : (
-            <LuTrophy size={44} className={iconColor} />
-          )}
-        </div>
+    <div className="w-full max-w-[min(92vw,480px)] rounded-card border border-border-soft bg-background-app-panel/90 p-4 text-center shadow-glow-cyan">
+      <div className="flex items-center justify-center gap-3 mb-3">
+        {isDraw ? (
+          <span className="h-2.5 w-2.5 rounded-full bg-text-secondary" />
+        ) : (
+          <LuTrophy size={24} className={iconColor} />
+        )}
 
-        <h2 className="text-2xl font-bold text-slate-100/90 mb-5">{headline}</h2>
+        <h2 className="text-lg font-bold text-text-primary">{headline}</h2>
+      </div>
 
-        <div className="flex flex-wrap justify-center gap-3">
-          {onPlayAgain && (
+      {rematchMessage && (
+        <p className="mb-3 text-xs font-medium text-text-secondary">
+          {rematchShowActions ? rematchMessage : `${rematchMessage} Waiting...`}
+        </p>
+      )}
+
+      <div className="flex flex-wrap justify-center gap-2">
+        {rematchShowActions ? (
+          <>
             <button
               type="button"
-              onClick={onPlayAgain}
+              onClick={onAcceptRematch}
+              disabled={rematchButtonLocked}
+              aria-label="Accept rematch"
+              title="Accept rematch"
               className="
-                px-5 py-2.5 rounded-xl text-sm font-semibold
-                border border-[#1DA1F2]/30 bg-[#1DA1F2]/10 text-[#1DA1F2]/90
-                hover:bg-[#1DA1F2]/20 transition focus:outline-none
+                grid h-10 w-10 place-items-center rounded-full text-lg
+                border border-brand-cyan/30 bg-brand-cyan/10 text-brand-cyan
+                hover:bg-brand-cyan/20 transition focus:outline-none
+                disabled:opacity-45 disabled:cursor-not-allowed
               "
             >
-              Play Again
+              <AiOutlineCheck />
             </button>
-          )}
+            <button
+              type="button"
+              onClick={onDeclineRematch}
+              disabled={rematchButtonLocked}
+              aria-label="Decline rematch"
+              title="Decline rematch"
+              className="
+                grid h-10 w-10 place-items-center rounded-full text-lg
+                border border-red-500/35 bg-red-500/10 text-red-400
+                hover:bg-red-500/20 transition focus:outline-none
+                disabled:opacity-45 disabled:cursor-not-allowed
+              "
+            >
+              <AiOutlineClose />
+            </button>
+          </>
+        ) : onPlayAgain && !rematchPending ? (
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={onPlayAgain}
+            disabled={rematchButtonLocked}
+            aria-label={isAI ? "Play again" : "Request rematch"}
+            title={isAI ? "Play again" : "Request rematch"}
             className="
-              flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold
-              border border-slate-700/50 bg-slate-900/60 text-slate-300/80
-              hover:bg-slate-800/60 hover:text-slate-100/90 transition focus:outline-none
+              grid h-10 w-10 place-items-center rounded-full text-lg
+              border border-brand-cyan/30 bg-brand-cyan/10 text-brand-cyan
+              hover:bg-brand-cyan/20 transition focus:outline-none
+              disabled:opacity-45 disabled:cursor-not-allowed
             "
           >
-            <AiFillHome size={14} />
-            Home
+            <LuRefreshCcw />
           </button>
-        </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          aria-label="Go home"
+          title="Go home"
+          className="
+            grid h-10 w-10 place-items-center rounded-full text-lg
+            border border-border-soft bg-surface text-text-secondary
+            hover:bg-surface-elevated hover:text-text-primary transition focus:outline-none
+          "
+        >
+          <AiFillHome />
+        </button>
       </div>
     </div>
   );

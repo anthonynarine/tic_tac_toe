@@ -13,7 +13,9 @@ from invites.models import GameInvite, GameInviteStatus
 from invites.services import expire_invite_if_needed
 
 
-def validate_invite_for_lobby_join(*, user, lobby_id: str, invite_id: str) -> GameInvite:
+def validate_invite_for_lobby_join(
+    *, user, lobby_id: str, invite_id: str, expected_game_type: str | None = None
+) -> GameInvite:
     """
     Validate that a lobby WS join is permitted using an invite.
 
@@ -25,11 +27,16 @@ def validate_invite_for_lobby_join(*, user, lobby_id: str, invite_id: str) -> Ga
     - Sender (from_user) can join while invite is PENDING or ACCEPTED
     - Receiver (to_user) can join only after invite is ACCEPTED
     - EXPIRED/DECLINED/CANCELED => never allowed to join
+    - If expected_game_type is given, it must match invite.game_type
+      (prevents a mismatched-type invite from being used against a
+      same-numbered lobby_id belonging to a different game type)
 
     Args:
         user: Authenticated Django user.
         lobby_id: Target lobby/game id (string).
         invite_id: Invite UUID string.
+        expected_game_type: The game_type the caller (lobby WS) is
+            connecting for; validated against the invite's own game_type.
 
     Returns:
         GameInvite: validated invite (fresh status).
@@ -52,6 +59,9 @@ def validate_invite_for_lobby_join(*, user, lobby_id: str, invite_id: str) -> Ga
 
     if str(invite.lobby_id) != str(lobby_id):
         raise ValidationError({"detail": "Invite does not match this lobby."})
+
+    if expected_game_type is not None and invite.game_type != expected_game_type:
+        raise ValidationError({"detail": "Invite game_type mismatch."})
 
     # Step 3: Expire if needed (authoritative)
     invite = expire_invite_if_needed(invite=invite)

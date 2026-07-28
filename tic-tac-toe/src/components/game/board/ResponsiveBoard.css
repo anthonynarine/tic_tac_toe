@@ -19,13 +19,13 @@
   padding-left: max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-left));
   padding-right: max(clamp(1rem, 3vw, 2rem), env(safe-area-inset-right));
 
-  background: #000;
-  border-radius: 1rem;
+  background: #090D0F;
+  border-radius: 1.5rem;
 
   box-shadow:
-    0 0 8px rgba(0, 191, 255, 0.3),
-    0 0 16px rgba(0, 191, 255, 0.2),
-    0 0 32px rgba(0, 191, 255, 0.15),
+    0 0 8px rgba(34, 211, 238, 0.2),
+    0 0 16px rgba(34, 211, 238, 0.14),
+    0 0 32px rgba(34, 211, 238, 0.1),
     0 12px 24px rgba(0, 0, 0, 0.5);
 
   animation: fadeSlideIn 0.6s ease-out;
@@ -38,11 +38,8 @@
 .game-title {
   font-size: clamp(1.4rem, 3.5vw, 2rem);
   margin-bottom: 0.75rem;
-  font-weight: 700;
-  color: #ff073a;
-  text-shadow:
-    0 0 8px rgba(255, 7, 58, 0.6),
-    0 0 16px rgba(255, 7, 58, 0.4);
+  font-weight: 600;
+  color: #F8FAFC;
 }
 
 /* === 🌀 Turn Indicator === */
@@ -57,23 +54,20 @@
 }
 
 .turn-indicator.your-turn {
-  color: #1da1f2;
+  color: #22D3EE;
   text-shadow:
-    0 0 6px rgba(29, 161, 242, 0.6),
-    0 0 12px rgba(29, 161, 242, 0.3);
+    0 0 6px rgba(34, 211, 238, 0.5),
+    0 0 12px rgba(34, 211, 238, 0.25);
 }
 
 .turn-indicator.opponent-turn {
-  color: #ccc;
-  opacity: 0.75;
+  color: #A1A1AA;
+  opacity: 0.85;
 }
 
 .turn-indicator.game-over {
-  color: #ff073a;
+  color: #F8FAFC;
   font-weight: 700;
-  text-shadow:
-    0 0 8px rgba(255, 7, 58, 0.6),
-    0 0 16px rgba(255, 7, 58, 0.4);
 }
 
 /* === 🎯 Board Layout === */
@@ -96,7 +90,7 @@
   /* Step 1: Button reset + consistent sizing */
   appearance: none;
   -webkit-appearance: none;
-  border: 2px solid #eae7e7;
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: clamp(0.75rem, 2.5vmin, 1rem);
   padding: 0;
   margin: 0;
@@ -108,9 +102,9 @@
   align-items: center;
   justify-content: center;
 
-  background: radial-gradient(circle at 30% 30%, #0a0a0a, #000);
+  background: rgba(255,255,255,0.03);
   box-shadow:
-    inset 0 0 10px rgba(255, 255, 255, 0.05),
+    inset 0 0 10px rgba(255, 255, 255, 0.04),
     0 2px 10px rgba(0, 0, 0, 0.5);
 
   /* Step 2: Prevent iOS tap highlight / double-tap zoom quirks */
@@ -118,8 +112,8 @@
   touch-action: manipulation;
 
   /* Step 3: Typography (still useful for aria/empty state) */
-  font-family: "Orbitron", sans-serif;
-  font-weight: 900;
+  font-family: "Geist", sans-serif;
+  font-weight: 700;
   font-size: clamp(2.25rem, 7vmin, 6.5rem);
   line-height: 1;
 
@@ -136,20 +130,20 @@
 /* Step 4: Hover only on devices that actually hover (prevents mobile “stuck hover” jitter) */
 @media (hover: hover) and (pointer: fine) {
   .cell:hover:not(:disabled) {
-    background: #0d192a;
+    background: rgba(34, 211, 238, 0.06);
     transform: scale(0.98);
     box-shadow:
-      0 0 12px rgba(0, 255, 255, 0.2),
-      0 0 18px rgba(0, 255, 255, 0.3);
+      0 0 12px rgba(34, 211, 238, 0.18),
+      0 0 18px rgba(34, 211, 238, 0.22);
   }
 }
 
 /* Step 5: Active press feedback for touch without layout-y scaling */
 .cell:active:not(:disabled) {
-  background: #0d192a;
+  background: rgba(34, 211, 238, 0.08);
   box-shadow:
-    0 0 10px rgba(0, 255, 255, 0.18),
-    0 0 14px rgba(0, 255, 255, 0.22);
+    0 0 10px rgba(34, 211, 238, 0.16),
+    0 0 14px rgba(34, 211, 238, 0.2);
 }
 
 /* Step 6: Focus visible for keyboard users (don’t nuke winner glow) */
@@ -158,17 +152,17 @@
 }
 
 .cell:focus-visible {
-  outline: 2px solid rgba(0, 240, 255, 0.8);
+  outline: 2px solid rgba(34, 211, 238, 0.8);
   outline-offset: 3px;
 }
 
 /* Winner State */
 .cell.winner {
-  background: #111a2c;
-  border-color: var(--accent-color, #00f0ff);
+  background: rgba(34, 211, 238, 0.08);
+  border-color: var(--accent-color, #22D3EE);
   box-shadow:
-    0 0 15px var(--accent-color, #00f0ff),
-    0 0 25px var(--accent-color, #00f0ff);
+    0 0 15px var(--accent-color, #22D3EE),
+    0 0 25px var(--accent-color, #22D3EE);
 }
 
 /* Inner Content */

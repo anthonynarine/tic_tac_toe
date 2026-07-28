@@ -3,7 +3,9 @@
 
 import React, { useCallback, useMemo, useState } from "react";
 import { CiCircleChevDown, CiCircleChevUp } from "react-icons/ci";
+import { LuUserPlus } from "react-icons/lu";
 import PendingFriendRequest from "./PendingFriendRequest";
+import Badge from "../ui/Badge";
 
 export default function PendingRequestsPanel({
   requests = [],
@@ -36,39 +38,20 @@ export default function PendingRequestsPanel({
         aria-controls="pending-requests-panel-body"
       >
         <div className="flex items-center gap-2 min-w-0">
-          <h3 className="text-sm font-medium tracking-wide text-[#1DA1F2] truncate">
-            Pending Requests
-          </h3>
+          <LuUserPlus size={16} className="text-text-muted shrink-0" />
+          <span className="text-xs font-semibold tracking-wide uppercase text-text-muted">
+            Pending
+          </span>
 
           {count > 0 && (
-            <span
-              className="
-                inline-flex items-center justify-center
-                px-2.5 py-[1px]
-                text-xs font-semibold
-                rounded-full
-                bg-[#1DA1F2]/12 text-[#1DA1F2]
-                border border-[#1DA1F2]/30
-                shadow-[0_0_10px_rgba(29,161,242,0.08)]
-              "
-              aria-label={`${count} pending friend requests`}
-              title={`${count} pending friend requests`}
-            >
+            <Badge variant="brand" aria-label={`${count} pending friend requests`}>
               {count}
-            </span>
+            </Badge>
           )}
         </div>
 
-        <span
-          className="
-            h-9 w-9 grid place-items-center
-            rounded-lg hover:bg-[#1DA1F2]/10
-            text-[#1DA1F2]/90 hover:text-[#1DA1F2]
-            focus:outline-none focus:ring-2 focus:ring-[#1DA1F2]/40
-          "
-          aria-hidden="true"
-        >
-          {isOpen ? <CiCircleChevUp size={26} /> : <CiCircleChevDown size={26} />}
+        <span className="text-text-faint">
+          {isOpen ? <CiCircleChevUp size={20} /> : <CiCircleChevDown size={20} />}
         </span>
       </button>
 
@@ -87,7 +70,7 @@ export default function PendingRequestsPanel({
               ))}
             </ul>
           ) : (
-            <div className="text-sm text-slate-400">No pending requests.</div>
+            <div className="text-sm text-text-faint">No pending requests.</div>
           )}
         </div>
       </div>

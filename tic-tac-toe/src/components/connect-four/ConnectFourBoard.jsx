@@ -25,44 +25,18 @@ export default function ConnectFourBoard({
   return (
     <div
       className="
-        rounded-2xl border-2 border-[#1DA1F2]/25
-        bg-slate-900/60 backdrop-blur
+        rounded-2xl border-2 border-brand-cyan/25
+        bg-surface backdrop-blur
         p-2 sm:p-3
-        shadow-[0_0_30px_rgba(29,161,242,0.08)]
+        shadow-glow-cyan
         w-full max-w-[min(92vw,480px)]
         mx-auto select-none
       "
     >
-      <div className="grid"
+      <div
+        className="relative grid"
         style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}
       >
-        {/* Column click zones (top row hover handles) */}
-        {Array.from({ length: COLS }, (_, col) => (
-          <button
-            key={`col-${col}`}
-            type="button"
-            disabled={!canInteract}
-            onClick={() => canInteract && onColumnClick(col)}
-            onMouseEnter={() => setHoveredCol(col)}
-            onMouseLeave={() => setHoveredCol(null)}
-            className="
-              h-5 sm:h-6 flex items-center justify-center
-              focus:outline-none cursor-pointer disabled:cursor-default
-            "
-          >
-            {canInteract && hoveredCol === col && (
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{
-                  background: myPiece === PIECE.ONE ? "#1DA1F2" : "#EF4444",
-                  opacity: 0.7,
-                }}
-              />
-            )}
-          </button>
-        ))}
-
-        {/* Cells */}
         {Array.from({ length: ROWS }, (_, row) =>
           Array.from({ length: COLS }, (_, col) => {
             const idx = row * COLS + col;
@@ -78,6 +52,38 @@ export default function ConnectFourBoard({
             );
           })
         )}
+
+        <div
+          className="absolute inset-0 grid"
+          style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)` }}
+        >
+          {Array.from({ length: COLS }, (_, col) => (
+            <button
+              key={`col-${col}`}
+              type="button"
+              disabled={!canInteract}
+              aria-label={`Drop piece in column ${col + 1}`}
+              onClick={() => canInteract && onColumnClick(col)}
+              onMouseEnter={() => setHoveredCol(col)}
+              onMouseLeave={() => setHoveredCol(null)}
+              className="
+                relative h-full min-h-full rounded-md
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-cyan/70
+                cursor-pointer disabled:cursor-default
+              "
+            >
+              {canInteract && hoveredCol === col && (
+                <span
+                  className="absolute left-1/2 top-1 -translate-x-1/2 w-3 h-3 rounded-full"
+                  style={{
+                    background: myPiece === PIECE.ONE ? "#3B82F6" : "#EF4444",
+                    opacity: 0.7,
+                  }}
+                />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

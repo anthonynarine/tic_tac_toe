@@ -6,6 +6,7 @@ import { Outlet } from "react-router-dom";
 import Navbar from "../components/navbar/Navbar";
 import FriendsSidebar from "../components/friends/FriendsSidebar";
 import DMDrawer from "../components/messaging/DMDrawer/DMDrawer";
+import BottomTabBar from "../components/navbar/BottomTabBar";
 
 import LayoutFrame from "./LayoutFrame";
 import PublicAuthLayout from "./PublicAuthLayout";
@@ -20,24 +21,11 @@ export default function ResponsiveLayout() {
   // - Avoids sidebar/drawer mounting until auth is known (prevents WS/drawer races)
   if (!authLoaded) {
     return (
-      <div className="min-h-screen bg-black">
-        <Navbar />
-        <main className="mx-auto w-full max-w-[1100px] px-4 py-8">
-          <div className="rounded-2xl border border-cyan-500/20 bg-black/40 p-6">
-            <div className="text-sm tracking-widest text-cyan-300/70">
-              AUTH
-            </div>
-            <div className="mt-2 text-cyan-200/90">
-              Initializing session…
-            </div>
-            <div className="mt-4 h-2 w-full overflow-hidden rounded bg-cyan-500/10">
-              <div className="h-full w-1/3 animate-pulse bg-cyan-400/30" />
-            </div>
-            <div className="mt-4 text-xs text-cyan-300/50">
-              If this takes more than a few seconds, refresh the page.
-            </div>
-          </div>
-        </main>
+      <div className="min-h-screen flex items-center justify-center bg-background-app">
+        <div className="text-center">
+          <div className="w-8 h-8 mx-auto mb-4 rounded-lg bg-brand-cyan/10 border border-brand-cyan/25 animate-pulse" />
+          <p className="text-[10px] tracking-[0.3em] uppercase font-semibold text-text-muted">Loading</p>
+        </div>
       </div>
     );
   }
@@ -53,12 +41,19 @@ export default function ResponsiveLayout() {
 
   return (
     <div style={{ "--sidebar-w": SIDEBAR_WIDTH }}>
-      <LayoutFrame header={<Navbar />} sidebar={<FriendsSidebar />}>
+      <LayoutFrame
+        header={<Navbar />}
+        sidebar={<FriendsSidebar />}
+        overlay={
+          <>
+            <DMDrawer />
+            <BottomTabBar />
+          </>
+        }
+      >
         <div className="w-full min-w-0">
           <Outlet />
         </div>
-
-        <DMDrawer />
       </LayoutFrame>
     </div>
   );
