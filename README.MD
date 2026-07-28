@@ -38,6 +38,11 @@ A real-time multiplayer/social app with:
   - WebSocket live messages
   - REST preload history
   - Unread badge logic (DM drawer + notifications socket)
+- **Group chat**
+  - Create a group from any set of friends, add/remove members later
+  - Same DM drawer UI, switchable between multiple open groups
+  - WebSocket live messages + REST history/roster, per-group unread badges
+  - Owner-only delete-for-everyone; other members can clear their own view
 - **Game flow**
   - REST-based game state + moves
   - WebSocket rematch signaling (`rematch_request` → offer → start)
@@ -88,6 +93,15 @@ Then the code appends paths like:
   - `/api/games/ ...`
 - Chat:
   - `/api/chat/ ...`
+  - Group chat:
+    - `GET/POST /api/chat/groups/` — list groups / create group
+    - `GET /api/chat/groups/<room_id>/` — group detail (roster)
+    - `GET /api/chat/groups/<room_id>/messages/` — message history
+    - `POST /api/chat/groups/<room_id>/mark-read/`
+    - `POST /api/chat/groups/<room_id>/clear/` — clear own view of history
+    - `POST /api/chat/groups/<room_id>/delete/` — owner-only, deletes for everyone
+    - `POST /api/chat/groups/<room_id>/members/` — add members
+    - `DELETE /api/chat/groups/<room_id>/members/<user_id>/` — remove a member
 - Trinity / AI Agent:
   - `/api/trinity/` (mounted via `path("api/", include("ai_agent.urls"))`)
 - JWT:
@@ -101,6 +115,8 @@ Then the code appends paths like:
   - `/ws/chat/lobby/<lobby_name>/`
 - Direct messages:
   - `/ws/chat/<friend_id>/`
+- Group chat:
+  - `/ws/chat/group/<room_id>/`
 - Notifications:
   - `/ws/notifications/`
 - Game socket:
@@ -181,7 +197,25 @@ sequenceDiagram
   FE->>FE: reducer updates + unread logic
 ```
 
-### 4.5 Notifications (global socket → unread badge updates)
+### 4.5 Group chat (create → open → live messages)
+
+```mermaid
+sequenceDiagram
+  participant FE as React (DirectMessageProvider)
+  participant API as DRF (chat/groups endpoints)
+  participant WS as GroupChatConsumer
+
+  FE->>API: POST /api/chat/groups/ {name, memberIds}
+  API-->>FE: {id, name, members}
+  FE->>WS: WS connect /ws/chat/group/<room_id>/?token=<access>
+  WS-->>FE: onopen
+  FE->>API: GET /api/chat/groups/<room_id>/messages/
+  API-->>FE: [message history]
+  WS-->>FE: {type:"message", sender_id, content}
+  FE->>FE: groupMessages[room_id] reducer update + per-group unread count
+```
+
+### 4.6 Notifications (global socket → unread badge updates)
 
 ```mermaid
 sequenceDiagram
@@ -193,7 +227,7 @@ sequenceDiagram
   FE->>FE: if DM not open for sender: INCREMENT_UNREAD
 ```
 
-### 4.6 Presence (friends online/offline)
+### 4.7 Presence (friends online/offline)
 
 ```mermaid
 sequenceDiagram
@@ -251,6 +285,7 @@ Core endpoints:
 Core WS routes:
 - Presence: `/ws/friends/status/`
 - DMs: `/ws/chat/<friend_id>/`
+- Group chat: `/ws/chat/group/<room_id>/`
 - Lobby chat: `/ws/chat/lobby/<lobby_name>/`
 - Notifications: `/ws/notifications/`
 - Game: `/ws/game/<game_id>/`
@@ -271,16 +306,25 @@ Core WS routes:
   - optionally preload history via REST
 - Incoming messages can increment unread counts if the DM drawer isn’t open for that sender.
 
-### 7.3 Notifications
+### 7.3 Group chat
+- Same DM drawer, opened via the sidebar "Chats" quick action → group list.
+- Creating a group (`POST /api/chat/groups/`) immediately opens it and connects
+  `/ws/chat/group/<room_id>/`.
+- Switching between groups (when more than one is open) resets to that group's history
+  instantly — no animated re-scroll, since that's a thread switch, not a new message.
+- Header exposes "Add members" and "Switch chat" in a single overflow menu instead of
+  always-visible controls, to keep the header uniform with the DM view.
+
+### 7.4 Notifications
 - A global notification socket keeps unread dots up to date even when no DM socket is open.
 
-### 7.4 Game flow (REST)
+### 7.5 Game flow (REST)
 - Create: `POST /api/games/` with `{ is_ai_game }`
 - Fetch: `GET /api/games/<id>/`
 - Move: `POST /api/games/<id>/move/`
 - Complete: `POST /api/games/<id>/complete/`
 
-### 7.5 Rematch (WS)
+### 7.6 Rematch (WS)
 - Client sends: `{ type: "rematch_request" }`
 - Server should broadcast:
   - `rematch_offer` (to other player)
