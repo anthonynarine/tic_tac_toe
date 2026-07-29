@@ -15,7 +15,7 @@ import { MultiplayerResultModal } from "../resultModal/MultiplayerResultModal";
  */
 const GameResult = ({ isGameOver, winner, onNewGameClicked, isAI }) => {
     return (
-      <div className="w-full min-h-[96px] flex items-start justify-center">
+      <div className="w-full min-h-[76px] sm:min-h-[96px] flex items-start justify-center">
         {isAI ? (
         <AIResultModal
           isGameOver={isGameOver}

@@ -3,9 +3,9 @@ import { LuEraser, LuPencil } from "react-icons/lu";
 
 export default function SudokuControls({ notesMode, onNumber, onErase, onToggleNotes }) {
   return (
-    <div className="flex flex-col items-center gap-3 w-full max-w-[min(90vw,480px)] mx-auto">
+    <div className="flex flex-col items-center gap-2 sm:gap-3 w-full max-w-[min(90vw,480px)] mx-auto">
       {/* Number pad */}
-      <div className="grid grid-cols-9 gap-1 w-full">
+      <div className="grid grid-cols-9 gap-0.5 sm:gap-1 w-full">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
           <button
             key={n}
@@ -13,7 +13,7 @@ export default function SudokuControls({ notesMode, onNumber, onErase, onToggleN
             onClick={() => onNumber(n)}
             className="
               aspect-square flex items-center justify-center
-              rounded-lg
+              rounded-md sm:rounded-lg
               border border-border-soft
               bg-surface
               text-text-secondary text-sm sm:text-base font-semibold
@@ -28,12 +28,12 @@ export default function SudokuControls({ notesMode, onNumber, onErase, onToggleN
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-3">
+      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:gap-3">
         <button
           type="button"
           onClick={onErase}
           className="
-            flex items-center gap-2 px-4 py-2 rounded-xl
+            flex items-center justify-center gap-2 px-3 py-2 rounded-xl sm:px-4
             border border-border-soft bg-surface
             text-text-secondary text-sm
             hover:bg-surface-elevated hover:text-text-primary
@@ -48,7 +48,7 @@ export default function SudokuControls({ notesMode, onNumber, onErase, onToggleN
           type="button"
           onClick={onToggleNotes}
           className={[
-            "flex items-center gap-2 px-4 py-2 rounded-xl",
+            "flex items-center justify-center gap-2 px-3 py-2 rounded-xl sm:px-4",
             "border text-sm transition focus:outline-none",
             notesMode
               ? "border-brand-cyan/40 bg-brand-cyan/12 text-brand-cyan"

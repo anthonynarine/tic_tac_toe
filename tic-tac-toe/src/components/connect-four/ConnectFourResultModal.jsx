@@ -56,19 +56,19 @@ export default function ConnectFourResultModal({
     : "text-red-500";
 
   return (
-    <div className="w-full max-w-[min(92vw,480px)] rounded-card border border-border-soft bg-background-app-panel/90 p-4 text-center shadow-glow-cyan">
-      <div className="flex items-center justify-center gap-3 mb-3">
+    <div className="w-full max-w-[min(92vw,480px)] rounded-lg border border-border-soft bg-background-app-panel/90 p-3 text-center shadow-glow-cyan sm:rounded-card sm:p-4">
+      <div className="flex items-center justify-center gap-2 mb-2 sm:gap-3 sm:mb-3">
         {isDraw ? (
           <span className="h-2.5 w-2.5 rounded-full bg-text-secondary" />
         ) : (
           <LuTrophy size={24} className={iconColor} />
         )}
 
-        <h2 className="text-lg font-bold text-text-primary">{headline}</h2>
+        <h2 className="text-base font-bold text-text-primary sm:text-lg">{headline}</h2>
       </div>
 
       {rematchMessage && (
-        <p className="mb-3 text-xs font-medium text-text-secondary">
+        <p className="mb-2 text-xs font-medium text-text-secondary sm:mb-3">
           {rematchShowActions ? rematchMessage : `${rematchMessage} Waiting...`}
         </p>
       )}

@@ -23,13 +23,12 @@ function BetMarker({ amount, name, className = "" }) {
   return (
     <div
       className={[
-        "inline-flex max-w-[108px] items-center gap-1.5 rounded-md bg-cyan-100 px-2 py-1 text-[11px] font-black text-slate-950 shadow-[0_8px_22px_rgba(0,0,0,0.3)]",
+        "inline-flex items-center gap-1.5 rounded-md bg-cyan-100 px-2 py-1 text-[11px] font-black text-slate-950 shadow-[0_8px_22px_rgba(0,0,0,0.3)]",
         className,
       ].join(" ")}
       title={`${name || "Player"} bet ${amount}`}
     >
       <span className="h-3 w-3 rounded-full border border-cyan-900/40 bg-[radial-gradient(circle_at_35%_35%,#ffffff_0_18%,#67e8f9_20%_58%,#0e7490_60%)]" />
-      <span className="truncate text-slate-700">{name || "Player"}</span>
       <span>{amount}</span>
     </div>
   );
@@ -40,7 +39,7 @@ function PlayerPanel({ name, chips, bet, cards, active, label, dealer, best, fol
     <div className={[
       "relative w-full overflow-visible transition duration-200",
       tableSeat
-        ? "rounded-md px-2 py-1.5 shadow-[0_12px_26px_rgba(0,0,0,0.32)]"
+        ? "rounded-sm px-2 py-1.5 shadow-[0_12px_26px_rgba(0,0,0,0.32)]"
         : "rounded-lg border px-3 py-2.5",
       "bg-slate-950/88 backdrop-blur",
       folded ? "opacity-60" : "opacity-100",
@@ -228,7 +227,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 lg:hidden">
+      <div className="flex gap-2 overflow-x-auto pb-1 pt-5 lg:hidden">
         {opponents.map((opponent) => (
           <PlayerPanel
             key={opponent.seat}
@@ -237,7 +236,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
             dealer={Number(game?.dealer) === Number(opponent.seat)}
             tableSeat
             showMeta={false}
-            className="min-w-[138px] max-w-[138px]"
+            className="min-w-[154px] max-w-[154px]"
             {...opponent}
           />
         ))}
@@ -278,8 +277,8 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
           />
         </div>
 
-        <div className="relative z-10 h-full min-h-[300px] flex flex-col items-center justify-center gap-2 px-2 pb-5 pt-20 sm:min-h-[360px] sm:gap-4 sm:px-4 sm:pb-10 sm:pt-24 lg:min-h-[560px] lg:px-28 lg:pb-28 lg:pt-28">
-          <div className="absolute left-1/2 top-4 z-30 flex w-[min(94%,620px)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 px-1.5 py-1 text-[10px] font-semibold text-text-muted sm:top-6 sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[11px] lg:top-[27%]">
+        <div className="relative z-10 h-full min-h-[300px] flex flex-col items-center justify-center gap-2 px-2 pb-5 pt-24 sm:min-h-[360px] sm:gap-4 sm:px-4 sm:pb-10 sm:pt-28 lg:min-h-[560px] lg:px-28 lg:pb-28 lg:pt-28">
+          <div className="absolute left-1/2 top-4 z-30 flex w-[min(94%,620px)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 px-1.5 py-1 text-[10px] font-semibold text-text-muted sm:top-6 sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[11px] lg:top-[22%]">
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/35 px-2 py-0.5 text-emerald-100/80">
               <LuCircleDollarSign size={12} />
               Pot {game?.pot || 0}
@@ -290,7 +289,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
               {timerRemaining == null ? "--" : `${timerRemaining}s`}
             </span>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-1.5 min-h-[72px] px-2 py-2 sm:gap-2 sm:min-h-[96px] sm:px-4 sm:py-3 lg:min-h-[112px] lg:pt-8">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 min-h-[72px] px-2 py-2 sm:gap-2 sm:min-h-[96px] sm:px-4 sm:py-3 lg:min-h-[112px] lg:pt-16">
             {Array.from({ length: 5 }).map((_, idx) => (
               <PokerCard
                 key={`${game?.hand_number || 1}-${idx}-${game?.community_cards?.[idx] || "empty"}`}
@@ -320,14 +319,14 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
         </div>
       </div>
 
-      <div className="flex justify-center lg:hidden">
+      <div className="flex justify-center pt-5 lg:hidden">
         <PlayerPanel
           label=""
           active={isMyTurn}
           dealer={Number(game?.dealer) === Number(mySeat)}
           tableSeat
           showMeta={false}
-          className="w-[150px]"
+          className="w-[164px]"
           {...me}
         />
       </div>
@@ -351,11 +350,12 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="grid w-full grid-cols-3 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-center sm:gap-2">
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
+                className="px-2 sm:px-4"
                 disabled={!can("check")}
                 onClick={() => onAction("check")}
               >
@@ -365,6 +365,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 type="button"
                 variant="secondary"
                 size="sm"
+                className="px-2 sm:px-4"
                 disabled={!can("call")}
                 onClick={() => onAction("call")}
               >
@@ -374,7 +375,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 type="button"
                 variant="primary"
                 size="sm"
-                className="bg-amber-300 text-slate-950 shadow-[0_0_24px_rgba(251,191,36,0.25)] hover:bg-amber-200"
+                className="px-2 bg-amber-300 text-slate-950 shadow-[0_0_24px_rgba(251,191,36,0.25)] hover:bg-amber-200 sm:px-4"
                 disabled={!can("raise")}
                 onClick={() => onAction("raise", raiseTo)}
               >
@@ -384,6 +385,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 type="button"
                 variant="danger"
                 size="sm"
+                className="px-2 sm:px-4"
                 disabled={!can("all_in")}
                 onClick={() => onAction("all_in")}
               >
@@ -393,6 +395,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 type="button"
                 variant="outline"
                 size="sm"
+                className="px-2 sm:px-4"
                 disabled={!can("fold")}
                 onClick={() => onAction("fold")}
               >
@@ -418,7 +421,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 onChange={(e) => setRaiseTo(Number(e.target.value))}
                 className="mt-2 w-full accent-amber-300"
               />
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              <div className="mt-2 grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap">
                 {raisePresets.map((amount) => (
                   <button
                     key={amount}

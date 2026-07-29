@@ -34,7 +34,7 @@ export default function AIGamePage() {
         const isGameOver = Boolean(game?.is_game_over || winner);
 
         return (
-          <div className="w-full min-h-[620px] pt-4 md:pt-8 xl:pt-10 flex flex-col items-center justify-start">
+          <div className="w-full min-h-[calc(100dvh-180px)] sm:min-h-[620px] pt-1 sm:pt-4 md:pt-8 xl:pt-10 flex flex-col items-center justify-start">
             <GameLoader loading={loading} error={error} />
 
             {!loading && !error && game && (

@@ -14,7 +14,7 @@ export default function LayoutFrame({
 
   return (
     <div className="min-h-[100dvh] w-full bg-background-app md:flex md:items-center md:justify-center md:py-10">
-      <div className="w-full flex flex-col min-h-[100dvh] md:min-h-0 md:h-[calc(100dvh-5rem)] md:max-h-[calc(100dvh-5rem)] md:max-w-[1440px] md:rounded-panel md:overflow-hidden bg-background-app-panel border border-border shadow-[0_8px_40px_rgba(0,0,0,0.6)]">
+      <div className="w-full flex flex-col min-h-[100dvh] md:min-h-0 md:h-[calc(100dvh-5rem)] md:max-h-[calc(100dvh-5rem)] md:max-w-[1440px] md:rounded-panel md:overflow-hidden bg-background-app-panel md:border md:border-border md:shadow-[0_8px_40px_rgba(0,0,0,0.6)]">
         {header && <div className="shrink-0">{header}</div>}
 
         <div className="flex-1 min-h-0 flex">
@@ -30,9 +30,9 @@ export default function LayoutFrame({
             )}
             <div
               className={[
-                "h-full min-h-0 overflow-y-auto lol-scrollbar px-3 sm:px-5 md:px-8",
-                "py-8 md:py-10",
-                "pb-[calc(24px+env(safe-area-inset-bottom))]",
+                "h-full min-h-0 overflow-y-auto lol-scrollbar px-2.5 sm:px-5 md:px-8",
+                "py-4 sm:py-6 md:py-10",
+                "pb-[calc(92px+env(safe-area-inset-bottom))] lg:pb-[calc(24px+env(safe-area-inset-bottom))]",
                 fullBleed ? "" : "flex justify-center",
                 contentClassName,
               ].join(" ")}

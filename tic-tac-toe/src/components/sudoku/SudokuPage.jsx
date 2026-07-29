@@ -120,23 +120,23 @@ export default function SudokuPage() {
     : difficulty;
 
   return (
-    <div className="w-full px-4 pt-8 md:pt-12 xl:pt-14 pb-24">
+    <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 md:pt-10 pb-20 sm:pb-24">
       <div
-        className="mx-auto max-w-lg flex flex-col items-center gap-5"
-        style={{ minHeight: "min(calc(90vw + 230px), 710px)" }}
+        className="mx-auto max-w-lg flex flex-col items-center gap-3 sm:gap-5"
+        style={{ minHeight: "clamp(520px, calc(100dvh - 180px), 710px)" }}
       >
         {/* Header */}
-        <div className="w-full flex items-center justify-between">
+        <div className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-[11px] tracking-[0.28em] text-text-muted uppercase">
+            <div className="hidden text-[11px] tracking-[0.28em] text-text-muted uppercase sm:block">
               Puzzle
             </div>
-            <h1 className="text-2xl font-semibold text-text-primary tracking-wide">Sudoku</h1>
+            <h1 className="text-xl sm:text-2xl font-semibold text-text-primary tracking-wide">Sudoku</h1>
           </div>
 
           {/* Difficulty picker */}
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex gap-1">
+          <div className="flex flex-col items-start gap-1 sm:items-end">
+            <div className="grid w-full grid-cols-4 gap-1 sm:flex sm:w-auto">
             {DIFFICULTIES.map((d) => (
               <button
                 key={d}

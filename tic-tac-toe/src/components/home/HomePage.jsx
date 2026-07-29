@@ -182,16 +182,16 @@ export default function HomePage() {
   const [featuredGame, ...secondaryGames] = games;
 
   return (
-    <div className="w-full px-2 sm:px-4 pt-2 pb-28">
+    <div className="w-full px-1 sm:px-4 pt-1 pb-24 sm:pb-28">
       <div className="mx-auto max-w-3xl">
 
         {/* ── HERO ─────────────────────────────── */}
-        <div className="relative mb-10">
-          <div className="absolute -top-10 -left-10 -z-10 h-64 w-64 bg-radial-cyan-glow opacity-60" />
-          <p className="text-[10px] tracking-[0.4em] uppercase font-semibold mb-4 text-text-muted">
+        <div className="relative mb-6 sm:mb-10">
+          <div className="absolute -top-8 -left-8 -z-10 h-44 w-44 bg-radial-cyan-glow opacity-50 sm:h-64 sm:w-64 sm:opacity-60" />
+          <p className="text-[10px] tracking-[0.32em] sm:tracking-[0.4em] uppercase font-semibold mb-3 sm:mb-4 text-text-muted">
             Game Hub
           </p>
-          <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight leading-tight mb-3 text-text-primary">
+          <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight leading-tight mb-2 sm:mb-3 text-text-primary">
             {isLoggedIn ? (
               <>Welcome back, <span className="text-brand-cyan">{displayName}</span></>
             ) : (
@@ -203,7 +203,7 @@ export default function HomePage() {
           </p>
 
           {!isLoggedIn && (
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-wrap gap-2 sm:gap-3">
               <Button
                 type="button"
                 variant="primary"
@@ -224,7 +224,7 @@ export default function HomePage() {
         </div>
 
         {/* ── GAMES ────────────────────────────── */}
-        <div className="mb-10">
+        <div className="mb-7 sm:mb-10">
           <SectionDivider label="Games" />
           <div className="mt-5 space-y-3">
             <HomeGameCard game={featuredGame} featured onComingSoon={handleComingSoon} />

@@ -12,14 +12,14 @@ export default function ConnectFourAIPage() {
   const isGameOver = status === "won" || status === "draw";
 
   return (
-    <div className="w-full px-4 pt-8 md:pt-12 xl:pt-14 pb-24">
-      <div className="mx-auto max-w-lg min-h-[620px] flex flex-col items-center gap-5">
+    <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 md:pt-10 pb-20 sm:pb-24">
+      <div className="mx-auto max-w-lg min-h-[calc(100dvh-180px)] sm:min-h-[620px] flex flex-col items-center gap-3 sm:gap-5">
         {/* Header */}
         <div className="w-full">
-          <div className="text-[11px] tracking-[0.28em] text-text-muted uppercase">
+          <div className="hidden text-[11px] tracking-[0.28em] text-text-muted uppercase sm:block">
             vs AI
           </div>
-          <h1 className="text-2xl font-semibold text-text-primary tracking-wide">
+          <h1 className="text-xl sm:text-2xl font-semibold text-text-primary tracking-wide">
             Connect Four
           </h1>
         </div>
@@ -55,7 +55,7 @@ export default function ConnectFourAIPage() {
           </button>
         )}
 
-        <div className="w-full min-h-[96px] flex items-start justify-center">
+        <div className="w-full min-h-[76px] sm:min-h-[96px] flex items-start justify-center">
           <ConnectFourResultModal
             status={status}
             winner={winner}

@@ -41,7 +41,7 @@ const DEFAULT_POKER_SETTINGS = {
 // -------------------------------------
 function HudShell({ children }) {
   return (
-    <div className="w-full h-full min-h-0 px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+    <div className="w-full h-full min-h-0 px-1 sm:px-4 lg:px-6 py-2 sm:py-6">
       <div className="mx-auto max-w-[1120px]">
         <div className="relative">
           <div className="pointer-events-none absolute inset-0 -z-10 opacity-[0.30]">
@@ -59,11 +59,11 @@ function Panel({ title, right, children, className = "" }) {
   return (
     <section
       className={[
-        "relative overflow-hidden rounded-2xl",
+        "relative overflow-hidden rounded-xl sm:rounded-2xl",
         "border border-brand-cyan/15 bg-background-app-panel/70",
         "shadow-[0_0_0_1px_rgba(34,211,238,0.06),0_0_32px_rgba(34,211,238,0.06)]",
         "backdrop-blur-[2px]",
-        "flex flex-col p-4 sm:p-5",
+        "flex flex-col p-3 sm:p-5",
         className,
       ].join(" ")}
     >
@@ -661,16 +661,16 @@ export default function LobbyPage() {
   return (
     <HudShell>
       {/* Minimal header (mobile: calm) */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2 sm:gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[11px] uppercase tracking-[0.22em] text-brand-cyan/60">
+            <div className="hidden text-[11px] uppercase tracking-[0.22em] text-brand-cyan/60 sm:block">
               Lobby • {GAME_TYPE_LABELS[gameType] || gameType}
             </div>
 
-            <div className="mt-1 flex items-baseline gap-2">
+            <div className="flex items-baseline gap-2 sm:mt-1">
               <h1 className="text-lg sm:text-xl font-semibold text-text-primary">
-                Lobby {lobbyId}
+                {GAME_TYPE_LABELS[gameType] || "Lobby"} {lobbyId}
               </h1>
               <span className="hidden sm:inline text-xs text-text-secondary">
                 Online friends: {onlineFriends.length}
@@ -678,7 +678,7 @@ export default function LobbyPage() {
             </div>
 
             {/* Mobile: status compact */}
-            <div className="mt-3 flex flex-wrap items-center gap-2 lg:hidden">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 lg:hidden">
               <StatusDot ok={lobbyConnected} />
               <StatusDot ok={chatConnected} />
               <span className="text-[11px] text-text-faint">
@@ -716,7 +716,7 @@ export default function LobbyPage() {
 
         {/* Mobile: simple tabs to reduce clutter */}
         <div className="lg:hidden flex items-center gap-2">
-          <div className="flex-1 flex gap-2 rounded-2xl border border-border-soft bg-surface p-2">
+          <div className="flex-1 flex gap-1.5 rounded-xl border border-border-soft bg-surface p-1.5">
               <SegTab
               active={activeMobileTab === "players"}
               onClick={() => setActiveMobileTab("players")}
@@ -742,7 +742,7 @@ export default function LobbyPage() {
           >
               <Panel
                 title="Players"
-                className="lg:h-[536px]"
+                className="max-h-[calc(100dvh-250px)] lg:h-[536px] lg:max-h-none"
                 right={
                   gameType === "poker" ? (
                     <div className="flex items-center gap-2">
@@ -761,7 +761,7 @@ export default function LobbyPage() {
               <div className="flex h-full min-h-0 flex-col">
               <div
                 className={[
-                  "space-y-2 pr-1",
+                  "space-y-1.5 pr-1",
                   gameType === "poker"
                     ? "min-h-0 flex-1 overflow-y-auto tron-scrollbar-dark"
                     : "",
@@ -777,21 +777,21 @@ export default function LobbyPage() {
                         type="button"
                         onClick={() => setIsInviteOpen(true)}
                         className={[
-                          "group w-full text-left rounded-2xl",
+                          "group w-full text-left rounded-xl sm:rounded-2xl",
                           "border border-dashed border-white/[0.08] bg-surface",
-                          "px-4 py-4 transition",
+                          "px-3 py-2.5 sm:px-4 sm:py-4 transition",
                           "hover:border-emerald-300/20 hover:bg-surface-elevated",
                         ].join(" ")}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="grid h-10 w-10 place-items-center rounded-xl border border-brand-cyan/15 bg-brand-cyan/5">
+                          <div className="grid h-8 w-8 place-items-center rounded-lg border border-brand-cyan/15 bg-brand-cyan/5 sm:h-10 sm:w-10 sm:rounded-xl">
                             <CiCirclePlus className="text-xl text-brand-cyan/80 group-hover:text-brand-cyan" />
                           </div>
                           <div className="min-w-0">
-                            <div className="text-[11px] uppercase tracking-[0.18em] text-text-faint">
+                            <div className="text-[10px] uppercase tracking-[0.14em] text-text-faint sm:text-[11px] sm:tracking-[0.18em]">
                               Slot {idx + 1}
                             </div>
-                            <div className="mt-1 text-sm font-semibold text-text-secondary">
+                            <div className="mt-0.5 text-sm font-semibold text-text-secondary sm:mt-1">
                               Invite player
                             </div>
                           </div>
@@ -803,17 +803,17 @@ export default function LobbyPage() {
                   return (
                     <div
                       key={String(p.id)}
-                      className="rounded-2xl border border-white/[0.07] bg-surface px-4 py-4"
+                      className="rounded-xl border border-white/[0.07] bg-surface px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-4"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-[11px] uppercase tracking-[0.18em] text-text-faint">
+                          <div className="text-[10px] uppercase tracking-[0.14em] text-text-faint sm:text-[11px] sm:tracking-[0.18em]">
                             Player {idx + 1}
                           </div>
-                          <div className="mt-1 truncate text-sm font-semibold text-text-primary">
+                          <div className="mt-0.5 truncate text-sm font-semibold text-text-primary sm:mt-1">
                             {p.first_name || "Player"}
                           </div>
-                          <div className="mt-1 text-[11px] text-text-faint">
+                          <div className="mt-0.5 text-[11px] text-text-faint sm:mt-1">
                             Connected
                           </div>
                         </div>
@@ -852,7 +852,7 @@ export default function LobbyPage() {
             <Panel
               title="Lobby Chat"
               right={chatConnected ? "Connected" : "Connecting…"}
-              className="lg:h-[536px]"
+              className="max-h-[calc(100dvh-250px)] lg:h-[536px] lg:max-h-none"
             >
               <div className="flex h-full min-h-0 flex-col gap-3">
                 <div
@@ -860,7 +860,7 @@ export default function LobbyPage() {
                   className={[
                     "overflow-y-auto rounded-2xl border border-brand-cyan/10 bg-surface p-3 space-y-2 tron-scrollbar-dark",
                     // ✅ Mobile: much smaller, not a giant feed
-                    "h-[28dvh] min-h-[180px] max-h-[260px]",
+                    "h-[34dvh] min-h-[210px] max-h-[340px]",
                     // ✅ Desktop: can be larger
                     "lg:h-auto lg:min-h-0 lg:max-h-none lg:flex-1",
                   ].join(" ")}
@@ -992,12 +992,12 @@ export default function LobbyPage() {
       </div>
 
       {/* Spacer so content doesn't hide behind mobile bar */}
-      <div className="lg:hidden h-20" />
+      <div className="lg:hidden h-16" />
 
       {gameType === "poker" && isPokerSettingsOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/65 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-2xl border border-emerald-300/20 bg-background-app-panel shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
-            <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/65 px-0 py-0 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6">
+          <div className="max-h-[90dvh] w-full max-w-xl overflow-hidden rounded-t-2xl border border-emerald-300/20 bg-background-app-panel shadow-[0_24px_90px_rgba(0,0,0,0.55)] sm:rounded-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3 sm:px-5 sm:py-4">
               <div>
                 <div className="text-sm font-semibold text-text-primary">Poker Table Setup</div>
                 <div className="mt-1 text-[11px] text-text-secondary">
@@ -1013,7 +1013,7 @@ export default function LobbyPage() {
                 X
               </button>
             </div>
-            <div className="p-4">
+            <div className="max-h-[calc(90dvh-72px)] overflow-y-auto p-3 sm:p-4 tron-scrollbar-dark">
               <PokerSettingsPanel
                 settings={pokerSettings}
                 onChange={handlePokerSettingChange}
