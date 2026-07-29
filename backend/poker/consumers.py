@@ -1,4 +1,7 @@
+import threading
+
 from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from channels.generic.websocket import JsonWebsocketConsumer
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -9,6 +12,67 @@ from .models import PokerGame
 from .serializers import poker_payload
 
 POKER_GROUP = "poker_{game_id}"
+_TURN_TIMERS = {}
+_TURN_TIMERS_LOCK = threading.Lock()
+
+
+def _resolve_ai_turn(game):
+    guard = 0
+    while game.is_ai_game and game.current_turn == 2 and not game.is_completed and guard < 8:
+        game.apply_ai_action()
+        guard += 1
+
+
+def _cancel_turn_timer(game_id):
+    with _TURN_TIMERS_LOCK:
+        timer = _TURN_TIMERS.pop(str(game_id), None)
+    if timer:
+        timer.cancel()
+
+
+def _schedule_turn_timer(game):
+    deadline = game.current_turn_deadline_at()
+    game_id = str(game.id)
+    _cancel_turn_timer(game_id)
+    if not deadline:
+        return
+
+    delay = max(0.1, (deadline - timezone_now()).total_seconds())
+    started_at = game.current_turn_started_at.isoformat() if game.current_turn_started_at else None
+    timer = threading.Timer(delay, _fire_turn_timeout, args=(game_id, started_at))
+    timer.daemon = True
+    with _TURN_TIMERS_LOCK:
+        _TURN_TIMERS[game_id] = timer
+    timer.start()
+
+
+def timezone_now():
+    from django.utils import timezone
+
+    return timezone.now()
+
+
+def _fire_turn_timeout(game_id, started_at):
+    changed = False
+    try:
+        with transaction.atomic():
+            game = PokerGame.objects.select_for_update().get(pk=game_id)
+            current_started_at = game.current_turn_started_at.isoformat() if game.current_turn_started_at else None
+            if current_started_at != started_at:
+                return
+            changed = game.enforce_turn_timeout()
+            if not changed:
+                _schedule_turn_timer(game)
+                return
+    except PokerGame.DoesNotExist:
+        _cancel_turn_timer(game_id)
+        return
+    if changed:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            POKER_GROUP.format(game_id=game_id),
+            {"type": "poker_update", "game_id": game_id},
+        )
 
 
 class PokerConsumer(JsonWebsocketConsumer):
@@ -30,7 +94,13 @@ class PokerConsumer(JsonWebsocketConsumer):
             self._accept_and_close(4001)
             return
         try:
-            game = PokerGame.objects.get(pk=self.game_id)
+            with transaction.atomic():
+                game = PokerGame.objects.select_for_update().get(pk=self.game_id)
+                if game.enforce_turn_timeout():
+                    pass
+                elif not game.current_turn_started_at and game._current_turn_can_act():
+                    game.refresh_turn_timer()
+                    game.save(update_fields=["current_turn_started_at", "updated_at"])
         except PokerGame.DoesNotExist:
             self._accept_and_close(4004)
             return
@@ -46,6 +116,8 @@ class PokerConsumer(JsonWebsocketConsumer):
         msg_type = content.get("type", "")
         if msg_type == "action":
             self._handle_action(content)
+        elif msg_type == "next_hand":
+            self._handle_next_hand()
         elif msg_type == "sync":
             self._handle_sync()
         else:
@@ -53,18 +125,41 @@ class PokerConsumer(JsonWebsocketConsumer):
 
     def _handle_sync(self):
         try:
-            self._send_state(PokerGame.objects.get(pk=self.game_id))
+            with transaction.atomic():
+                game = PokerGame.objects.select_for_update().get(pk=self.game_id)
+                game.enforce_turn_timeout()
+            self._send_state(game)
         except PokerGame.DoesNotExist:
             self.send_json({"type": "error", "message": "Game not found."})
 
     def _send_state(self, game):
+        _schedule_turn_timer(game)
         self.send_json({"type": "game_state", "game": poker_payload(game, self.user)})
 
     def _handle_action(self, content):
         try:
             with transaction.atomic():
                 game = PokerGame.objects.select_for_update().get(pk=self.game_id)
-                game.apply_action(content.get("action"), self.user)
+                game.apply_action(content.get("action"), self.user, content.get("amount"))
+                _resolve_ai_turn(game)
+        except PokerGame.DoesNotExist:
+            self.send_json({"type": "error", "message": "Game not found."})
+            return
+        except ValidationError as exc:
+            self.send_json({"type": "error", "message": str(exc)})
+            return
+
+        async_to_sync(self.channel_layer.group_send)(
+            self._group(),
+            {"type": "poker_update", "game_id": self.game_id},
+        )
+
+    def _handle_next_hand(self):
+        try:
+            with transaction.atomic():
+                game = PokerGame.objects.select_for_update().get(pk=self.game_id)
+                game.start_next_hand(self.user)
+                _resolve_ai_turn(game)
         except PokerGame.DoesNotExist:
             self.send_json({"type": "error", "message": "Game not found."})
             return
@@ -79,10 +174,13 @@ class PokerConsumer(JsonWebsocketConsumer):
 
     def poker_update(self, event):
         try:
-            game = PokerGame.objects.get(pk=event["game_id"])
+            with transaction.atomic():
+                game = PokerGame.objects.select_for_update().get(pk=event["game_id"])
+                game.enforce_turn_timeout()
         except PokerGame.DoesNotExist:
             self.send_json({"type": "error", "message": "Game not found."})
             return
+        _schedule_turn_timer(game)
         self.send_json({"type": "game_update", "game": poker_payload(game, self.user)})
 
     def disconnect(self, close_code):

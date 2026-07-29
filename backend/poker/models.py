@@ -1,18 +1,26 @@
 import itertools
 import random
 from collections import Counter
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 
 RANKS = "23456789TJQKA"
 SUITS = "cdhs"
 PHASES = ("preflop", "flop", "turn", "river", "showdown", "completed")
 STARTING_CHIPS = 1000
-ANTE = 10
-RAISE_SIZE = 20
+SMALL_BLIND = 10
+BIG_BLIND = 20
+MIN_RAISE = 20
+MAX_PLAYERS = 9
+MIN_STARTING_CHIPS = 500
+MAX_STARTING_CHIPS = 10000
+MIN_TURN_TIMER_SECONDS = 15
+MAX_TURN_TIMER_SECONDS = 120
 
 
 def new_deck():
@@ -98,6 +106,12 @@ class PokerGame(models.Model):
     community_cards = models.JSONField(default=list)
     player_one_cards = models.JSONField(default=list)
     player_two_cards = models.JSONField(default=list)
+    table_seats = models.JSONField(default=list)
+    starting_chips = models.IntegerField(default=STARTING_CHIPS)
+    small_blind = models.IntegerField(default=SMALL_BLIND)
+    big_blind = models.IntegerField(default=BIG_BLIND)
+    turn_timer_seconds = models.IntegerField(default=45)
+    max_players = models.IntegerField(default=MAX_PLAYERS)
     player_one_chips = models.IntegerField(default=STARTING_CHIPS)
     player_two_chips = models.IntegerField(default=STARTING_CHIPS)
     pot = models.IntegerField(default=0)
@@ -105,7 +119,9 @@ class PokerGame(models.Model):
     player_one_bet = models.IntegerField(default=0)
     player_two_bet = models.IntegerField(default=0)
     current_turn = models.IntegerField(default=1)
+    current_turn_started_at = models.DateTimeField(null=True, blank=True)
     dealer = models.IntegerField(default=1)
+    hand_number = models.IntegerField(default=1)
     phase = models.CharField(max_length=16, default="preflop")
     last_action = models.CharField(max_length=64, blank=True, default="")
     actions_since_raise = models.IntegerField(default=0)
@@ -116,37 +132,272 @@ class PokerGame(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def piece_for_user(self, user):
+        if self.table_seats:
+            for seat in self.table_seats:
+                if str(seat.get("user_id")) == str(getattr(user, "id", None)):
+                    return int(seat["seat"])
+            return None
         if user == self.player_one:
             return 1
         if self.player_two and user == self.player_two:
             return 2
         return None
 
+    def initialize_table(self, users):
+        if self.table_seats:
+            return
+        clean_users = []
+        seen = set()
+        for user in users:
+            if not user or getattr(user, "id", None) in seen:
+                continue
+            seen.add(user.id)
+            clean_users.append(user)
+        if len(clean_users) < 2:
+            raise ValidationError("Poker needs at least 2 players.")
+        if len(clean_users) > self.max_players:
+            raise ValidationError(f"Poker supports up to {self.max_players} players.")
+
+        self.table_seats = [
+            {
+                "seat": idx + 1,
+                "user_id": user.id,
+                "name": user.first_name or user.email,
+                "chips": self.starting_chips,
+                "cards": [],
+                "bet": 0,
+                "contribution": 0,
+                "folded": False,
+                "all_in": False,
+                "best": None,
+            }
+            for idx, user in enumerate(clean_users)
+        ]
+        self.player_one = clean_users[0]
+        self.player_two = clean_users[1]
+        self.dealer = random.choice([seat["seat"] for seat in self.table_seats])
+        self.save()
+
+    def has_open_seat(self):
+        return len(self.table_seats or []) < self.max_players
+
+    def update_table_settings(self, user, settings_data):
+        if int(getattr(user, "id", 0)) != int(self.player_one_id):
+            raise ValidationError("Only the table host can edit poker settings.")
+        if self.table_seats or self.player_one_cards or self.player_two_cards:
+            raise ValidationError("Poker settings are locked after the table starts.")
+
+        next_starting_chips = int(settings_data.get("starting_chips", self.starting_chips))
+        next_small_blind = int(settings_data.get("small_blind", self.small_blind))
+        next_big_blind = int(settings_data.get("big_blind", self.big_blind))
+        next_turn_timer_seconds = int(settings_data.get("turn_timer_seconds", self.turn_timer_seconds))
+        next_max_players = int(settings_data.get("max_players", self.max_players))
+
+        if next_starting_chips < MIN_STARTING_CHIPS or next_starting_chips > MAX_STARTING_CHIPS:
+            raise ValidationError(f"Starting chips must be between {MIN_STARTING_CHIPS} and {MAX_STARTING_CHIPS}.")
+        if next_small_blind < 5:
+            raise ValidationError("Small blind must be at least 5.")
+        if next_big_blind < next_small_blind * 2:
+            raise ValidationError("Big blind must be at least double the small blind.")
+        if next_big_blind > next_starting_chips // 5:
+            raise ValidationError("Big blind is too high for the starting stack.")
+        if next_turn_timer_seconds < MIN_TURN_TIMER_SECONDS or next_turn_timer_seconds > MAX_TURN_TIMER_SECONDS:
+            raise ValidationError(
+                f"Turn timer must be between {MIN_TURN_TIMER_SECONDS} and {MAX_TURN_TIMER_SECONDS} seconds."
+            )
+        if next_max_players < 2 or next_max_players > MAX_PLAYERS:
+            raise ValidationError(f"Max players must be between 2 and {MAX_PLAYERS}.")
+
+        self.starting_chips = next_starting_chips
+        self.small_blind = next_small_blind
+        self.big_blind = next_big_blind
+        self.turn_timer_seconds = next_turn_timer_seconds
+        self.max_players = next_max_players
+        self.save(update_fields=[
+            "starting_chips",
+            "small_blind",
+            "big_blind",
+            "turn_timer_seconds",
+            "max_players",
+            "updated_at",
+        ])
+
+    def table_player_count(self):
+        if self.table_seats:
+            return len(self.table_seats)
+        return int(bool(self.player_one_id)) + int(bool(self.player_two_id))
+
+    def current_turn_deadline_at(self):
+        if not self.current_turn_started_at or self.is_completed:
+            return None
+        return self.current_turn_started_at + timedelta(seconds=self.turn_timer_seconds)
+
+    def refresh_turn_timer(self):
+        self.current_turn_started_at = timezone.now() if self._current_turn_can_act() else None
+
+    def _current_turn_can_act(self):
+        if self.is_completed:
+            return False
+        if self.table_seats:
+            seat = self._seat_by_number(self.current_turn)
+            return bool(
+                seat
+                and not seat.get("folded")
+                and not seat.get("all_in")
+                and int(seat.get("chips", 0)) > 0
+            )
+        if not self.player_two:
+            return False
+        return self.current_turn in (1, 2) and self._chips(self.current_turn) > 0
+
+    def _save_after_action(self):
+        self.refresh_turn_timer()
+        self.save()
+
+    def enforce_turn_timeout(self):
+        deadline = self.current_turn_deadline_at()
+        if not deadline or timezone.now() < deadline:
+            return False
+        if self.table_seats:
+            return self._apply_table_timeout()
+        return self._apply_legacy_timeout()
+
     def ensure_dealt(self):
+        if self.table_seats:
+            self._ensure_table_dealt()
+            return
         if self.player_one_cards:
+            return
+        if not self.player_two:
+            self.save()
             return
         deck = new_deck()
         self.player_one_cards = [deck.pop(), deck.pop()]
         self.player_two_cards = [deck.pop(), deck.pop()]
         self.deck = deck
-        self.player_one_chips = STARTING_CHIPS - ANTE
-        self.player_two_chips = STARTING_CHIPS - ANTE if self.player_two else STARTING_CHIPS
-        self.pot = ANTE * 2 if self.player_two else ANTE
-        self.current_turn = random.choice([1, 2]) if self.player_two else 1
+        self._post_blinds()
+        self.refresh_turn_timer()
         self.save()
 
+    def _ensure_table_dealt(self):
+        if any(seat.get("cards") for seat in self.table_seats):
+            return
+        seated = [seat for seat in self.table_seats if int(seat.get("chips", 0)) > 0]
+        if len(seated) < 2:
+            raise ValidationError("Poker needs at least 2 players with chips.")
+        deck = new_deck()
+        for seat in self.table_seats:
+            seat["cards"] = [deck.pop(), deck.pop()] if seat in seated else []
+            seat["bet"] = 0
+            seat["contribution"] = 0
+            seat["folded"] = False
+            seat["all_in"] = False
+            seat["best"] = None
+        self.deck = deck
+        self._post_table_blinds()
+        self.refresh_turn_timer()
+        self.save()
+
+    def start_next_hand(self, user):
+        if self.table_seats:
+            self._start_next_table_hand(user)
+            return
+        if self.piece_for_user(user) is None:
+            raise ValidationError("You are not a participant in this game.")
+        if not self.is_completed:
+            raise ValidationError("Finish the current hand first.")
+        if not self.player_two:
+            raise ValidationError("Waiting for another player.")
+
+        if self.player_one_chips <= 0 or self.player_two_chips <= 0:
+            self.player_one_chips = self.starting_chips
+            self.player_two_chips = self.starting_chips
+
+        self.dealer = 2 if self.dealer == 1 else 1
+        self.hand_number += 1
+        self.deck = []
+        self.community_cards = []
+        self.player_one_cards = []
+        self.player_two_cards = []
+        self.pot = 0
+        self.current_bet = 0
+        self.player_one_bet = 0
+        self.player_two_bet = 0
+        self.phase = "preflop"
+        self.last_action = ""
+        self.actions_since_raise = 0
+        self.winner = None
+        self.winning_label = ""
+        self.is_completed = False
+        self.ensure_dealt()
+
+    def _start_next_table_hand(self, user):
+        if self.piece_for_user(user) is None:
+            raise ValidationError("You are not a participant in this game.")
+        if not self.is_completed:
+            raise ValidationError("Finish the current hand first.")
+
+        if len([seat for seat in self.table_seats if int(seat.get("chips", 0)) > 0]) < 2:
+            for seat in self.table_seats:
+                seat["chips"] = self.starting_chips
+
+        active_seats = [seat["seat"] for seat in self.table_seats if int(seat.get("chips", 0)) > 0]
+        self.dealer = self._next_occupied_seat(self.dealer, active_seats)
+        self.hand_number += 1
+        self.deck = []
+        self.community_cards = []
+        self.pot = 0
+        self.current_bet = 0
+        self.phase = "preflop"
+        self.last_action = ""
+        self.actions_since_raise = 0
+        self.winner = None
+        self.winning_label = ""
+        self.is_completed = False
+        self.ensure_dealt()
+
+    def _post_blinds(self):
+        small_blind_player = self.dealer
+        big_blind_player = 2 if self.dealer == 1 else 1
+        self._charge(small_blind_player, self.small_blind)
+        self._charge(big_blind_player, self.big_blind)
+        self.current_bet = max(self.player_one_bet, self.player_two_bet)
+        self.current_turn = small_blind_player
+        self.actions_since_raise = 0
+        self.last_action = "Blinds posted"
+
     def legal_actions_for(self, user):
+        if self.table_seats:
+            return self._table_legal_actions_for(user)
         player = self.piece_for_user(user)
         if self.is_completed or player != self.current_turn or not self.player_two:
             return []
+        if self._chips(player) <= 0:
+            return []
         bet = self.player_one_bet if player == 1 else self.player_two_bet
-        actions = ["fold"]
+        actions = ["fold", "all_in"]
         actions.append("check" if bet == self.current_bet else "call")
-        if self._chips(player) >= (self.current_bet - bet + RAISE_SIZE):
+        if self._chips(player) >= (self.current_bet - bet + MIN_RAISE):
             actions.append("raise")
         return actions
 
-    def apply_action(self, action, user):
+    def _table_legal_actions_for(self, user):
+        seat = self._seat_for_user(user)
+        if not seat or self.is_completed or int(seat["seat"]) != int(self.current_turn):
+            return []
+        if seat.get("folded") or seat.get("all_in") or int(seat.get("chips", 0)) <= 0:
+            return []
+        actions = ["fold", "all_in"]
+        actions.append("check" if int(seat.get("bet", 0)) == self.current_bet else "call")
+        call_amount = max(0, self.current_bet - int(seat.get("bet", 0)))
+        if int(seat.get("chips", 0)) >= call_amount + MIN_RAISE:
+            actions.append("raise")
+        return actions
+
+    def apply_action(self, action, user, amount=None):
+        if self.table_seats:
+            self._apply_table_action(action, user, amount)
+            return
         player = self.piece_for_user(user)
         if player is None:
             raise ValidationError("You are not a participant in this game.")
@@ -161,7 +412,7 @@ class PokerGame(models.Model):
         if action == "fold":
             self._award(2 if player == 1 else 1, "Fold")
             self.last_action = f"Player {player} folded"
-            self.save()
+            self._save_after_action()
             return
         if action == "check":
             if self._bet(player) != self.current_bet:
@@ -176,19 +427,142 @@ class PokerGame(models.Model):
             self.actions_since_raise += 1
             self.last_action = f"Player {player} called"
         elif action == "raise":
-            diff = self.current_bet - self._bet(player) + RAISE_SIZE
-            self._charge(player, diff)
-            self.current_bet += RAISE_SIZE
+            try:
+                raise_to = int(amount) if amount is not None else self.current_bet + MIN_RAISE
+            except (TypeError, ValueError):
+                raise ValidationError("Invalid raise amount.")
+            min_raise_to = self.current_bet + MIN_RAISE
+            max_raise_to = self._bet(player) + self._chips(player)
+            if raise_to < min_raise_to:
+                raise ValidationError(f"Raise must be at least {min_raise_to}.")
+            if raise_to > max_raise_to:
+                raise ValidationError("Raise exceeds your chip stack.")
+            self._charge(player, raise_to - self._bet(player))
+            self.current_bet = raise_to
             self.actions_since_raise = 1
-            self.last_action = f"Player {player} raised"
+            self.last_action = f"Player {player} raised to {self.current_bet}"
+        elif action == "all_in":
+            target = self._bet(player) + self._chips(player)
+            self._charge(player, self._chips(player))
+            if target > self.current_bet:
+                self.current_bet = target
+                self.actions_since_raise = 1
+            else:
+                self.actions_since_raise += 1
+            self.last_action = f"Player {player} moved all-in"
         else:
             raise ValidationError("Unknown poker action.")
 
-        if self.player_one_bet == self.player_two_bet and self.actions_since_raise >= 2:
+        if self._betting_round_closed():
             self._advance_phase()
         else:
             self.current_turn = 2 if player == 1 else 1
-        self.save()
+        self._save_after_action()
+
+    def _apply_table_action(self, action, user, amount=None):
+        seat = self._seat_for_user(user)
+        if not seat:
+            raise ValidationError("You are not a participant in this game.")
+        if self.is_completed:
+            raise ValidationError("Hand is already over.")
+        if int(seat["seat"]) != int(self.current_turn):
+            raise ValidationError("It is not your turn.")
+
+        action = str(action or "").lower()
+        seat_no = int(seat["seat"])
+        if action == "fold":
+            seat["folded"] = True
+            self.last_action = f"{seat['name']} folded"
+            if self._remaining_live_seats_count() == 1:
+                self._award_table(self._remaining_live_seats()[0]["seat"], "Fold")
+                self._save_after_action()
+                return
+        elif action == "check":
+            if int(seat.get("bet", 0)) != self.current_bet:
+                raise ValidationError("Call is required.")
+            self.actions_since_raise += 1
+            self.last_action = f"{seat['name']} checked"
+        elif action == "call":
+            diff = self.current_bet - int(seat.get("bet", 0))
+            if diff <= 0:
+                raise ValidationError("Check is available.")
+            self._charge_table(seat, diff)
+            self.actions_since_raise += 1
+            self.last_action = f"{seat['name']} called"
+        elif action == "raise":
+            try:
+                raise_to = int(amount) if amount is not None else self.current_bet + MIN_RAISE
+            except (TypeError, ValueError):
+                raise ValidationError("Invalid raise amount.")
+            min_raise_to = self.current_bet + MIN_RAISE
+            max_raise_to = int(seat.get("bet", 0)) + int(seat.get("chips", 0))
+            if raise_to < min_raise_to:
+                raise ValidationError(f"Raise must be at least {min_raise_to}.")
+            if raise_to > max_raise_to:
+                raise ValidationError("Raise exceeds your chip stack.")
+            self._charge_table(seat, raise_to - int(seat.get("bet", 0)))
+            self.current_bet = raise_to
+            self.actions_since_raise = 1
+            self.last_action = f"{seat['name']} raised to {self.current_bet}"
+        elif action == "all_in":
+            target = int(seat.get("bet", 0)) + int(seat.get("chips", 0))
+            self._charge_table(seat, int(seat.get("chips", 0)))
+            if target > self.current_bet:
+                self.current_bet = target
+                self.actions_since_raise = 1
+            else:
+                self.actions_since_raise += 1
+            self.last_action = f"{seat['name']} moved all-in"
+        else:
+            raise ValidationError("Unknown poker action.")
+
+        if self._table_betting_round_closed():
+            self._advance_table_phase()
+        else:
+            self.current_turn = self._next_action_seat(seat_no)
+        self._save_after_action()
+
+    def _apply_legacy_timeout(self):
+        if not self._current_turn_can_act():
+            self._save_after_action()
+            return False
+        player = int(self.current_turn)
+        if self._bet(player) == self.current_bet:
+            self.actions_since_raise += 1
+            self.last_action = f"Player {player} checked (timeout)"
+            if self._betting_round_closed():
+                self._advance_phase()
+            else:
+                self.current_turn = 2 if player == 1 else 1
+        else:
+            self._award(2 if player == 1 else 1, "Timeout")
+            self.last_action = f"Player {player} folded on timeout"
+        self._save_after_action()
+        return True
+
+    def _apply_table_timeout(self):
+        seat = self._seat_by_number(self.current_turn)
+        if not seat or not self._current_turn_can_act():
+            self._save_after_action()
+            return False
+        seat_no = int(seat["seat"])
+        if int(seat.get("bet", 0)) == self.current_bet:
+            self.actions_since_raise += 1
+            self.last_action = f"{seat['name']} checked (timeout)"
+        else:
+            seat["folded"] = True
+            self.last_action = f"{seat['name']} folded on timeout"
+            if self._remaining_live_seats_count() == 1:
+                self._award_table(self._remaining_live_seats()[0]["seat"], "Timeout")
+                self._save_after_action()
+                return True
+
+        if self._table_betting_round_closed():
+            self._advance_table_phase()
+        else:
+            self.current_turn = self._next_action_seat(seat_no)
+        self._save_after_action()
+        return True
 
     def _chips(self, player):
         return self.player_one_chips if player == 1 else self.player_two_chips
@@ -206,12 +580,135 @@ class PokerGame(models.Model):
             self.player_two_bet += amount
         self.pot += amount
 
+    def _seat_for_user(self, user):
+        user_id = str(getattr(user, "id", None))
+        return next((seat for seat in self.table_seats if str(seat.get("user_id")) == user_id), None)
+
+    def _seat_by_number(self, seat_no):
+        return next((seat for seat in self.table_seats if int(seat.get("seat")) == int(seat_no)), None)
+
+    def _active_table_seats(self):
+        return [seat for seat in self.table_seats if int(seat.get("chips", 0)) > 0 or int(seat.get("bet", 0)) > 0]
+
+    def _remaining_live_seats(self):
+        return [seat for seat in self.table_seats if not seat.get("folded") and (seat.get("cards") or int(seat.get("bet", 0)) > 0)]
+
+    def _remaining_live_seats_count(self):
+        return len(self._remaining_live_seats())
+
+    def _next_occupied_seat(self, seat_no, allowed=None):
+        allowed_set = set(allowed or [seat["seat"] for seat in self._active_table_seats()])
+        ordered = sorted(allowed_set)
+        if not ordered:
+            return seat_no
+        for candidate in ordered:
+            if int(candidate) > int(seat_no):
+                return candidate
+        return ordered[0]
+
+    def _next_action_seat(self, seat_no):
+        candidates = [
+            seat["seat"]
+            for seat in self.table_seats
+            if not seat.get("folded") and not seat.get("all_in") and int(seat.get("chips", 0)) > 0
+        ]
+        return self._next_occupied_seat(seat_no, candidates)
+
+    def _charge_table(self, seat, amount):
+        amount = max(0, min(int(amount), int(seat.get("chips", 0))))
+        seat["chips"] = int(seat.get("chips", 0)) - amount
+        seat["bet"] = int(seat.get("bet", 0)) + amount
+        seat["contribution"] = int(seat.get("contribution", 0)) + amount
+        seat["all_in"] = seat["chips"] == 0
+        self.pot += amount
+
+    def _post_table_blinds(self):
+        live = [seat["seat"] for seat in self._active_table_seats()]
+        if len(live) < 2:
+            raise ValidationError("Poker needs at least 2 active players.")
+        small = self.dealer if len(live) == 2 else self._next_occupied_seat(self.dealer, live)
+        big = self._next_occupied_seat(small, live)
+        self._charge_table(self._seat_by_number(small), self.small_blind)
+        self._charge_table(self._seat_by_number(big), self.big_blind)
+        self.current_bet = max(int(seat.get("bet", 0)) for seat in self.table_seats)
+        self.current_turn = small if len(live) == 2 else self._next_occupied_seat(big, live)
+        self.actions_since_raise = 0
+        self.last_action = "Blinds posted"
+
+    def _table_betting_round_closed(self):
+        contenders = self._remaining_live_seats()
+        if len(contenders) <= 1:
+            return True
+        actionable = [
+            seat for seat in contenders
+            if not seat.get("all_in") and int(seat.get("chips", 0)) > 0
+        ]
+        if not actionable:
+            return True
+        return all(int(seat.get("bet", 0)) == self.current_bet for seat in actionable) and self.actions_since_raise >= len(actionable)
+
+    def _advance_table_phase(self):
+        self._refund_table_uncalled_bet()
+        for seat in self.table_seats:
+            seat["bet"] = 0
+        self.current_bet = 0
+        self.actions_since_raise = 0
+        if len([s for s in self._remaining_live_seats() if not s.get("all_in") and int(s.get("chips", 0)) > 0]) <= 1:
+            while self.phase != "river":
+                self._deal_next_street()
+            self._table_showdown()
+            return
+        self.current_turn = self._next_action_seat(self.dealer)
+        self._deal_next_street()
+
+    def _refund_table_uncalled_bet(self):
+        live_bets = sorted([int(seat.get("bet", 0)) for seat in self._remaining_live_seats() if int(seat.get("bet", 0)) > 0])
+        if len(live_bets) < 2:
+            return
+        matched = live_bets[-2]
+        for seat in self.table_seats:
+            over = int(seat.get("bet", 0)) - matched
+            if over > 0:
+                seat["bet"] -= over
+                seat["contribution"] = max(0, int(seat.get("contribution", 0)) - over)
+                seat["chips"] += over
+                self.pot = max(0, self.pot - over)
+
+    def _betting_round_closed(self):
+        if self.player_one_chips == 0 or self.player_two_chips == 0:
+            return True
+        if self.player_one_bet != self.player_two_bet:
+            return False
+        return self.actions_since_raise >= 2
+
     def _advance_phase(self):
+        self._refund_uncalled_bet()
         self.player_one_bet = 0
         self.player_two_bet = 0
         self.current_bet = 0
         self.actions_since_raise = 0
         self.current_turn = 2 if self.dealer == 1 else 1
+        if self.player_one_chips == 0 or self.player_two_chips == 0:
+            while self.phase != "river":
+                self._deal_next_street()
+            self._showdown()
+            return
+        self._deal_next_street()
+
+    def _refund_uncalled_bet(self):
+        if self.player_one_bet == self.player_two_bet:
+            return
+        if self.player_one_bet > self.player_two_bet:
+            refund = self.player_one_bet - self.player_two_bet
+            self.player_one_bet -= refund
+            self.player_one_chips += refund
+        else:
+            refund = self.player_two_bet - self.player_one_bet
+            self.player_two_bet -= refund
+            self.player_two_chips += refund
+        self.pot = max(0, self.pot - refund)
+
+    def _deal_next_street(self):
         if self.phase == "preflop":
             self.community_cards.extend([self.deck.pop(), self.deck.pop(), self.deck.pop()])
             self.phase = "flop"
@@ -225,6 +722,9 @@ class PokerGame(models.Model):
             self._showdown()
 
     def _showdown(self):
+        if self.table_seats:
+            self._table_showdown()
+            return
         one = evaluate_hand(self.player_one_cards + self.community_cards)
         two = evaluate_hand(self.player_two_cards + self.community_cards)
         if (one["rank"], one["kickers"]) > (two["rank"], two["kickers"]):
@@ -240,6 +740,69 @@ class PokerGame(models.Model):
             self.winning_label = "Split pot"
             self.phase = "completed"
             self.is_completed = True
+            self.current_turn_started_at = None
+
+    def _table_showdown(self):
+        contenders = self._remaining_live_seats()
+        if len(contenders) == 1:
+            self._award_table(contenders[0]["seat"], "Fold")
+            return
+        scored = []
+        for seat in contenders:
+            best = evaluate_hand(list(seat.get("cards", [])) + self.community_cards)
+            seat["best"] = best["label"]
+            scored.append((best["rank"], best["kickers"], seat))
+
+        payouts = self._calculate_side_pot_payouts(scored)
+        for seat_no, amount in payouts.items():
+            seat = self._seat_by_number(seat_no)
+            seat["chips"] = int(seat.get("chips", 0)) + amount
+        self.pot = 0
+        winning_seats = [seat_no for seat_no, amount in payouts.items() if amount > 0]
+        self.winner = winning_seats[0] if len(winning_seats) == 1 else 0
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        self.winning_label = scored[0][2].get("best") if len(winning_seats) == 1 else "Split pot"
+        self.phase = "completed"
+        self.is_completed = True
+        self.current_turn_started_at = None
+
+    def _calculate_side_pot_payouts(self, scored):
+        score_by_seat = {seat["seat"]: (rank, kickers) for rank, kickers, seat in scored}
+        live_seats = {seat["seat"] for _, _, seat in scored}
+        contributions = {
+            seat["seat"]: int(seat.get("contribution", 0))
+            for seat in self.table_seats
+            if int(seat.get("contribution", 0)) > 0
+        }
+        payouts = {seat["seat"]: 0 for seat in self.table_seats}
+        previous = 0
+
+        for level in sorted(set(contributions.values())):
+            contributors = [seat_no for seat_no, amount in contributions.items() if amount >= level]
+            pot_amount = (level - previous) * len(contributors)
+            eligible = [seat_no for seat_no in contributors if seat_no in live_seats]
+            if pot_amount <= 0 or not eligible:
+                previous = level
+                continue
+            best = max(score_by_seat[seat_no] for seat_no in eligible)
+            winners = [seat_no for seat_no in eligible if score_by_seat[seat_no] == best]
+            share = pot_amount // len(winners)
+            remainder = pot_amount % len(winners)
+            for idx, seat_no in enumerate(winners):
+                payouts[seat_no] += share + (1 if idx < remainder else 0)
+            previous = level
+
+        return payouts
+
+    def _award_table(self, seat_no, label):
+        seat = self._seat_by_number(seat_no)
+        seat["chips"] = int(seat.get("chips", 0)) + self.pot
+        self.pot = 0
+        self.winner = seat_no
+        self.winning_label = label
+        self.phase = "completed"
+        self.is_completed = True
+        self.current_turn_started_at = None
 
     def _award(self, player, label):
         if player == 1:
@@ -251,6 +814,7 @@ class PokerGame(models.Model):
         self.winning_label = label
         self.phase = "completed"
         self.is_completed = True
+        self.current_turn_started_at = None
 
     def apply_ai_action(self):
         if not self.is_ai_game or self.current_turn != 2 or self.is_completed:
@@ -258,8 +822,10 @@ class PokerGame(models.Model):
         bet = self.player_two_bet
         if bet < self.current_bet:
             action = "call"
+        elif self.player_two_chips <= MIN_RAISE:
+            action = "check"
         else:
-            action = random.choice(["check", "check", "raise"])
+            action = random.choice(["check", "check", "check", "raise"])
         self.apply_action(action, self.player_two)
 
     def __str__(self):

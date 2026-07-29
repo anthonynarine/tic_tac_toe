@@ -8,6 +8,8 @@ import { useUI } from "../../context/uiContext";
 const STATIC_TITLES = {
   "/games/sudoku": "Sudoku",
   "/games/connect-four/ai": "Connect Four",
+  "/games/checkers/ai": "Checkers",
+  "/games/poker/ai": "Poker",
   "/technical-paper": "Tech Overview",
   "/recruiter-demo": "Demo",
 };
@@ -15,6 +17,8 @@ const STATIC_TITLES = {
 const DYNAMIC_TITLES = [
   [/^\/games\/ai\//, "Tic-Tac-Toe"],
   [/^\/games\/connect-four\//, "Connect Four"],
+  [/^\/games\/checkers\//, "Checkers"],
+  [/^\/games\/poker\//, "Poker"],
   [/^\/games\/\d+/, "Tic-Tac-Toe"],
   [/^\/lobby\//, "Lobby"],
 ];

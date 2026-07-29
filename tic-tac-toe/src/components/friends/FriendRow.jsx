@@ -7,6 +7,8 @@ import { CiChat1 } from "react-icons/ci";
 const INVITE_GAME_OPTIONS = [
   { gameType: "tic_tac_toe", label: "Tic-Tac-Toe" },
   { gameType: "connect_four", label: "Connect Four" },
+  { gameType: "checkers", label: "Checkers" },
+  { gameType: "poker", label: "Poker" },
 ];
 
 /**

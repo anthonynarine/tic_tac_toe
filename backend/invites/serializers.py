@@ -111,7 +111,25 @@ class CreateInviteSerializer(serializers.Serializer):
         if getattr(game, "is_ai_game", False):
             raise serializers.ValidationError({"lobby_id": "Cannot invite into an AI game."})
 
-        # Step 5: Block full lobbies (both players assigned)
+        # Step 5: Block full lobbies
+        if game_type == "poker" and hasattr(game, "has_open_seat"):
+            if not game.has_open_seat():
+                raise serializers.ValidationError({"lobby_id": "Poker table is already full."})
+            inviter_id = int(request.user.id)
+            table_seats = getattr(game, "table_seats", []) or []
+            seated_user_ids = {int(seat.get("user_id")) for seat in table_seats if seat.get("user_id")}
+            host_id = getattr(game, "player_one_id", None)
+            second_id = getattr(game, "player_two_id", None)
+            inviter_is_member = inviter_id in seated_user_ids or inviter_id in {
+                int(host_id or 0),
+                int(second_id or 0),
+            }
+            if not inviter_is_member:
+                raise serializers.ValidationError({"lobby_id": "You are not a member of this poker table."})
+            if int(attrs["to_user_id"]) in seated_user_ids:
+                raise serializers.ValidationError({"to_user_id": "User is already seated at this poker table."})
+            return attrs
+
         player_x_id = getattr(game, f"{seat_x_field}_id", None)
         player_o_id = getattr(game, f"{seat_o_field}_id", None)
         if player_x_id and player_o_id:

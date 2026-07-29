@@ -30,6 +30,10 @@ import TechnicalPaper from "../components/technical-paper/TechnicalPaper";
 import SudokuPage from "../components/sudoku/SudokuPage";
 import ConnectFourAIPage from "../components/connect-four/ConnectFourAIPage";
 import ConnectFourMPPage from "../components/connect-four/ConnectFourMPPage";
+import CheckersAIPage from "../components/checkers/CheckersAIPage";
+import CheckersMPPage from "../components/checkers/CheckersMPPage";
+import PokerAIPage from "../components/poker/PokerAIPage";
+import PokerMPPage from "../components/poker/PokerMPPage";
 import LeaderboardPage from "../components/leaderboard/LeaderboardPage";
 
 
@@ -120,6 +124,12 @@ export default function AppRoutes() {
                 <Route path="/leaderboard" element={<LeaderboardPage />} />
                 <Route path="/games/connect-four/ai" element={<ConnectFourAIPage />} />
                 <Route path="/games/connect-four/:id" element={<ConnectFourMPPage />} />
+                <Route path="/games/checkers/ai" element={<CheckersAIPage />} />
+                <Route path="/games/checkers/ai/:id" element={<CheckersAIPage />} />
+                <Route path="/games/checkers/:id" element={<CheckersMPPage />} />
+                <Route path="/games/poker/ai" element={<PokerAIPage />} />
+                <Route path="/games/poker/ai/:id" element={<PokerAIPage />} />
+                <Route path="/games/poker/:id" element={<PokerMPPage />} />
                 <Route path="/recruiter-demo" element={<RecruiterDemoPage />} />
                 <Route path="/technical-paper" element={<TechnicalPaper />} />
               </Route>

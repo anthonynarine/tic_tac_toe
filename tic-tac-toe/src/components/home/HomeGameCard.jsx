@@ -6,6 +6,8 @@ import Badge from "../ui/Badge";
 const GAME_META = {
   ttt:            { tagline: "Real-time 1v1 strategy" },
   "connect-four": { tagline: "Drop pieces, connect four to win" },
+  checkers:       { tagline: "Capture pieces and crown kings" },
+  poker:          { tagline: "Bet, read, and reveal the river" },
   sudoku:         { tagline: "Fill the 9×9 grid with logic" },
 };
 

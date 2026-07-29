@@ -15,6 +15,7 @@ import { ensureFreshAccessToken } from "../../../auth/ensureFreshAccessToken";
 
 import { getLobbyWSUrl, getChatWSUrl } from "../../../websocket/getWebsocketURL";
 import { createInvite } from "../../../api/inviteApi";
+import { pokerApi } from "../../../api/pokerApi";
 import { resolveRecipientUserId } from "../../../invites/resolveRecipientUserId";
 
 import InviteFriendModal from "./InviteFriendModal";
@@ -22,6 +23,17 @@ import InviteFriendModal from "./InviteFriendModal";
 const GAME_TYPE_LABELS = {
   tic_tac_toe: "Tic-Tac-Toe",
   connect_four: "Connect Four",
+  checkers: "Checkers",
+  poker: "Poker",
+};
+
+const DEFAULT_POKER_SETTINGS = {
+  starting_chips: 1000,
+  small_blind: 10,
+  big_blind: 20,
+  turn_timer_seconds: 45,
+  max_players: 9,
+  can_update_settings: false,
 };
 
 // -------------------------------------
@@ -51,7 +63,7 @@ function Panel({ title, right, children, className = "" }) {
         "border border-brand-cyan/15 bg-background-app-panel/70",
         "shadow-[0_0_0_1px_rgba(34,211,238,0.06),0_0_32px_rgba(34,211,238,0.06)]",
         "backdrop-blur-[2px]",
-        "p-4 sm:p-5",
+        "flex flex-col p-4 sm:p-5",
         className,
       ].join(" ")}
     >
@@ -62,7 +74,7 @@ function Panel({ title, right, children, className = "" }) {
         </div>
         {right ? <div className="text-xs text-text-secondary">{right}</div> : null}
       </header>
-      <div className="relative">{children}</div>
+      <div className="relative min-h-0 flex-1">{children}</div>
     </section>
   );
 }
@@ -143,6 +155,101 @@ function StatusDot({ ok }) {
   );
 }
 
+function PokerSettingsPanel({
+  settings,
+  onChange,
+  onSave,
+  saving,
+  playerCount,
+  className = "",
+}) {
+  const locked = !settings?.can_update_settings;
+  const fields = [
+    { key: "starting_chips", label: "Starting Stack", min: 500, max: 10000, step: 100 },
+    { key: "small_blind", label: "Small Blind", min: 5, max: 500, step: 5 },
+    { key: "big_blind", label: "Big Blind", min: 10, max: 1000, step: 10 },
+    { key: "turn_timer_seconds", label: "Turn Timer", min: 15, max: 120, step: 5 },
+  ];
+
+  return (
+    <div className={[
+      "rounded-2xl border border-emerald-300/15 bg-[linear-gradient(145deg,rgba(15,23,42,0.9),rgba(2,6,23,0.72))] p-4",
+      className,
+    ].join(" ")}>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold text-text-primary">Table Setup</div>
+          <div className="mt-1 text-[11px] text-text-secondary">
+            Locked when the first hand starts.
+          </div>
+        </div>
+        <span className="whitespace-nowrap rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-100">
+          {playerCount}/{settings.max_players}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {fields.map((field) => (
+          <label key={field.key} className="block">
+            <span className="text-[11px] uppercase tracking-[0.16em] text-text-faint">
+              {field.label}
+            </span>
+            <input
+              type="number"
+              min={field.min}
+              max={field.max}
+              step={field.step}
+              value={settings[field.key]}
+              disabled={locked}
+              onChange={(e) => onChange(field.key, e.target.value)}
+              className="mt-1 h-10 w-full rounded-xl border border-white/[0.07] bg-surface px-3 text-sm font-semibold text-text-primary outline-none transition focus:border-emerald-300/40 disabled:opacity-55"
+            />
+          </label>
+        ))}
+
+        <label className="block sm:col-span-2">
+          <span className="text-[11px] uppercase tracking-[0.16em] text-text-faint">
+            Max Seats
+          </span>
+          <div className="mt-1 grid grid-cols-4 gap-1.5 sm:grid-cols-8">
+            {[2, 3, 4, 5, 6, 7, 8, 9].map((seatCount) => (
+              <button
+                key={seatCount}
+                type="button"
+                disabled={locked || seatCount < playerCount}
+                onClick={() => onChange("max_players", seatCount)}
+                className={[
+                  "h-10 rounded-xl border text-sm font-semibold transition",
+                  Number(settings.max_players) === seatCount
+                    ? "border-emerald-300/35 bg-emerald-300/15 text-emerald-100"
+                    : "border-white/[0.07] bg-surface text-text-secondary hover:bg-surface-elevated",
+                  locked || seatCount < playerCount ? "cursor-not-allowed opacity-45" : "",
+                ].join(" ")}
+              >
+                {seatCount}
+              </button>
+            ))}
+          </div>
+        </label>
+      </div>
+
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="text-[11px] text-text-faint">
+          {locked ? "Only the host can edit before start." : "Host controls are active."}
+        </div>
+        <HudButton
+          onClick={onSave}
+          disabled={locked || saving}
+          variant="primary"
+          className="border-emerald-300/25 bg-emerald-300/10 text-emerald-100 hover:bg-emerald-300/15"
+        >
+          {saving ? "Saving" : "Save"}
+        </HudButton>
+      </div>
+    </div>
+  );
+}
+
 // -------------------------------------
 // LobbyPage
 // -------------------------------------
@@ -157,6 +264,9 @@ export default function LobbyPage() {
 
   const [message, setMessage] = useState("");
   const [activeMobileTab, setActiveMobileTab] = useState("players"); // "players" | "chat"
+  const [pokerSettings, setPokerSettings] = useState(DEFAULT_POKER_SETTINGS);
+  const [isSavingPokerSettings, setIsSavingPokerSettings] = useState(false);
+  const [isPokerSettingsOpen, setIsPokerSettingsOpen] = useState(false);
 
   // Modal state
   const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -171,16 +281,45 @@ export default function LobbyPage() {
 
   const chatContainerRef = useRef(null);
 
-  const MAX_PLAYERS = 2;
+  const MAX_PLAYERS = gameType === "poker" ? Number(pokerSettings.max_players || 9) : 2;
   const players = useMemo(() => state?.players || [], [state?.players]);
   const messages = useMemo(() => state?.messages || [], [state?.messages]);
 
-  const isLobbyFull = useMemo(() => players.length >= MAX_PLAYERS, [players]);
+  const isLobbyFull = useMemo(() => players.length >= MAX_PLAYERS, [MAX_PLAYERS, players]);
+  const canStartGame = gameType === "poker" ? players.length >= 2 : isLobbyFull;
 
   const onlineFriends = useMemo(
     () => (friends || []).filter((f) => f?.friend_status === "online"),
     [friends]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPokerSettings = async () => {
+      if (gameType !== "poker" || !lobbyId) {
+        setPokerSettings(DEFAULT_POKER_SETTINGS);
+        return;
+      }
+      try {
+        const data = await pokerApi.getGame(lobbyId);
+        if (cancelled) return;
+        setPokerSettings({
+          starting_chips: data?.starting_chips || DEFAULT_POKER_SETTINGS.starting_chips,
+          small_blind: data?.small_blind || DEFAULT_POKER_SETTINGS.small_blind,
+          big_blind: data?.big_blind || DEFAULT_POKER_SETTINGS.big_blind,
+          turn_timer_seconds: data?.turn_timer_seconds || DEFAULT_POKER_SETTINGS.turn_timer_seconds,
+          max_players: data?.max_players || DEFAULT_POKER_SETTINGS.max_players,
+          can_update_settings: Boolean(data?.can_update_settings),
+        });
+      } catch (error) {
+        console.error("[LobbyPage] poker settings fetch failed:", error);
+      }
+    };
+    fetchPokerSettings();
+    return () => {
+      cancelled = true;
+    };
+  }, [gameType, lobbyId]);
 
   // # Step 1: Safe close WS
   const safeClose = useCallback((wsRef) => {
@@ -213,6 +352,12 @@ export default function LobbyPage() {
     ({ gameId, sessionKey }) => {
       if (gameType === "connect_four") {
         return `/games/connect-four/${gameId}`;
+      }
+      if (gameType === "checkers") {
+        return `/games/checkers/${gameId}`;
+      }
+      if (gameType === "poker") {
+        return `/games/poker/${gameId}`;
       }
       const params = new URLSearchParams();
       if (sessionKey) params.set("sessionKey", String(sessionKey));
@@ -455,8 +600,8 @@ export default function LobbyPage() {
   }, [message]);
 
   const handleStartGame = useCallback(() => {
-    if (!isLobbyFull) {
-      showToast("error", "Need 2 players to start.");
+    if (!canStartGame) {
+      showToast("error", gameType === "poker" ? "Need at least 2 players to start." : "Need 2 players to start.");
       return;
     }
 
@@ -467,7 +612,39 @@ export default function LobbyPage() {
     }
 
     ws.send(JSON.stringify({ type: "start_game" }));
-  }, [isLobbyFull]);
+  }, [canStartGame, gameType]);
+
+  const handlePokerSettingChange = useCallback((key, value) => {
+    setPokerSettings((prev) => ({ ...prev, [key]: Number(value) }));
+  }, []);
+
+  const handleSavePokerSettings = useCallback(async () => {
+    if (gameType !== "poker" || !lobbyId) return;
+    try {
+      setIsSavingPokerSettings(true);
+      const data = await pokerApi.updateSettings(lobbyId, {
+        starting_chips: pokerSettings.starting_chips,
+        small_blind: pokerSettings.small_blind,
+        big_blind: pokerSettings.big_blind,
+        turn_timer_seconds: pokerSettings.turn_timer_seconds,
+        max_players: pokerSettings.max_players,
+      });
+      setPokerSettings({
+        starting_chips: data?.starting_chips || pokerSettings.starting_chips,
+        small_blind: data?.small_blind || pokerSettings.small_blind,
+        big_blind: data?.big_blind || pokerSettings.big_blind,
+        turn_timer_seconds: data?.turn_timer_seconds || pokerSettings.turn_timer_seconds,
+        max_players: data?.max_players || pokerSettings.max_players,
+        can_update_settings: Boolean(data?.can_update_settings),
+      });
+      showToast("success", "Poker settings saved.");
+    } catch (error) {
+      console.error("[LobbyPage] poker settings save failed:", error);
+      showToast("error", error?.response?.data?.error || "Could not save poker settings.");
+    } finally {
+      setIsSavingPokerSettings(false);
+    }
+  }, [gameType, lobbyId, pokerSettings]);
 
   const handleLeaveLobby = useCallback(() => {
     try {
@@ -540,10 +717,10 @@ export default function LobbyPage() {
         {/* Mobile: simple tabs to reduce clutter */}
         <div className="lg:hidden flex items-center gap-2">
           <div className="flex-1 flex gap-2 rounded-2xl border border-border-soft bg-surface p-2">
-            <SegTab
+              <SegTab
               active={activeMobileTab === "players"}
               onClick={() => setActiveMobileTab("players")}
-              label={`Players (${players.length}/2)`}
+              label={`Players (${players.length}/${MAX_PLAYERS})`}
             />
             <SegTab
               active={activeMobileTab === "chat"}
@@ -563,9 +740,34 @@ export default function LobbyPage() {
               "lg:block",
             ].join(" ")}
           >
-            <Panel title="Players" right={`${players.length}/2`}>
-              <div className="space-y-2">
-                {Array.from({ length: 2 }).map((_, idx) => {
+              <Panel
+                title="Players"
+                className="lg:h-[536px]"
+                right={
+                  gameType === "poker" ? (
+                    <div className="flex items-center gap-2">
+                      <span className="whitespace-nowrap">{players.length}/{MAX_PLAYERS}</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsPokerSettingsOpen(true)}
+                        className="rounded-lg border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-[11px] font-semibold text-emerald-100 transition hover:bg-emerald-300/15"
+                      >
+                        Setup
+                      </button>
+                    </div>
+                  ) : `${players.length}/${MAX_PLAYERS}`
+                }
+              >
+              <div className="flex h-full min-h-0 flex-col">
+              <div
+                className={[
+                  "space-y-2 pr-1",
+                  gameType === "poker"
+                    ? "min-h-0 flex-1 overflow-y-auto tron-scrollbar-dark"
+                    : "",
+                ].join(" ")}
+              >
+                {Array.from({ length: MAX_PLAYERS }).map((_, idx) => {
                   const p = players[idx];
 
                   if (!p) {
@@ -576,9 +778,9 @@ export default function LobbyPage() {
                         onClick={() => setIsInviteOpen(true)}
                         className={[
                           "group w-full text-left rounded-2xl",
-                          "border border-dashed border-brand-cyan/20 bg-surface",
+                          "border border-dashed border-white/[0.08] bg-surface",
                           "px-4 py-4 transition",
-                          "hover:border-brand-cyan/30 hover:bg-surface-elevated",
+                          "hover:border-emerald-300/20 hover:bg-surface-elevated",
                         ].join(" ")}
                       >
                         <div className="flex items-center gap-3">
@@ -601,7 +803,7 @@ export default function LobbyPage() {
                   return (
                     <div
                       key={String(p.id)}
-                      className="rounded-2xl border border-brand-cyan/12 bg-surface px-4 py-4"
+                      className="rounded-2xl border border-white/[0.07] bg-surface px-4 py-4"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -623,10 +825,10 @@ export default function LobbyPage() {
               </div>
 
               {/* Desktop extra controls inside panel */}
-              <div className="mt-4 hidden lg:flex gap-2">
-                <HudButton
+              <div className="mt-4 hidden shrink-0 lg:flex gap-2">
+                  <HudButton
                   onClick={handleStartGame}
-                  disabled={!isLobbyFull}
+                  disabled={!canStartGame}
                   className="flex-1"
                 >
                   Start Game
@@ -634,6 +836,7 @@ export default function LobbyPage() {
                 <HudButton onClick={handleLeaveLobby} variant="neutral">
                   Exit
                 </HudButton>
+              </div>
               </div>
             </Panel>
           </div>
@@ -649,8 +852,9 @@ export default function LobbyPage() {
             <Panel
               title="Lobby Chat"
               right={chatConnected ? "Connected" : "Connecting…"}
+              className="lg:h-[536px]"
             >
-              <div className="flex flex-col gap-3">
+              <div className="flex h-full min-h-0 flex-col gap-3">
                 <div
                   ref={chatContainerRef}
                   className={[
@@ -658,7 +862,7 @@ export default function LobbyPage() {
                     // ✅ Mobile: much smaller, not a giant feed
                     "h-[28dvh] min-h-[180px] max-h-[260px]",
                     // ✅ Desktop: can be larger
-                    "lg:h-[440px] lg:max-h-none",
+                    "lg:h-auto lg:min-h-0 lg:max-h-none lg:flex-1",
                   ].join(" ")}
                 >
                   {messages.length ? (
@@ -709,7 +913,7 @@ export default function LobbyPage() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   <div className="flex-1 flex items-center gap-2 rounded-2xl border border-brand-cyan/20 bg-surface px-3 py-2">
                     <input
                       value={message}
@@ -773,10 +977,10 @@ export default function LobbyPage() {
 
           <HudButton
             onClick={handleStartGame}
-            disabled={!isLobbyFull}
+            disabled={!canStartGame}
             className="flex-1"
             variant="primary"
-            title={!isLobbyFull ? "Need 2 players" : "Start the match"}
+            title={!canStartGame ? "Need more players" : "Start the match"}
           >
             Start
           </HudButton>
@@ -789,6 +993,38 @@ export default function LobbyPage() {
 
       {/* Spacer so content doesn't hide behind mobile bar */}
       <div className="lg:hidden h-20" />
+
+      {gameType === "poker" && isPokerSettingsOpen ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/65 px-4 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-2xl border border-emerald-300/20 bg-background-app-panel shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
+            <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-4">
+              <div>
+                <div className="text-sm font-semibold text-text-primary">Poker Table Setup</div>
+                <div className="mt-1 text-[11px] text-text-secondary">
+                  {players.length}/{MAX_PLAYERS}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPokerSettingsOpen(false)}
+                className="grid h-9 w-9 place-items-center rounded-xl border border-white/[0.07] bg-surface text-text-secondary transition hover:bg-surface-elevated hover:text-text-primary"
+                title="Close setup"
+              >
+                X
+              </button>
+            </div>
+            <div className="p-4">
+              <PokerSettingsPanel
+                settings={pokerSettings}
+                onChange={handlePokerSettingChange}
+                onSave={handleSavePokerSettings}
+                saving={isSavingPokerSettings}
+                playerCount={players.length}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Invite modal */}
       <InviteFriendModal

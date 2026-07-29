@@ -132,9 +132,18 @@ class LobbyConsumer(JsonWebsocketConsumer):
                 return
 
             if not is_valid:
-                self.accept()
-                self.close(code=4408)  # invalid/expired session
-                return
+                if self.game_type == "poker":
+                    stored = self.game_lobby_manager.redis.get(
+                        self.game_lobby_manager._session_key_key(self.redis_scope_id)
+                    )
+                    is_valid = bool(stored and str(stored) == str(session_key))
+                    if is_valid:
+                        self.game_lobby_manager.add_user_to_session(self.redis_scope_id, int(self.user.id))
+
+                if not is_valid:
+                    self.accept()
+                    self.close(code=4408)  # invalid/expired session
+                    return
 
             minted_or_valid_session_key = str(session_key)
             try:
@@ -272,8 +281,12 @@ class LobbyConsumer(JsonWebsocketConsumer):
         """
         cfg = get_game_type_config(self.game_type)
 
-        # Step 1: Require X and O (roles are Redis-authoritative)
         players = self.game_lobby_manager.get_players_with_roles(self.redis_scope_id) or []
+        if self.game_type == "poker":
+            self._handle_start_poker(players)
+            return
+
+        # Step 1: Require X and O (roles are Redis-authoritative)
         player_x = next((p for p in players if p.get("role") == "X"), None)
         player_o = next((p for p in players if p.get("role") == "O"), None)
 
@@ -323,6 +336,9 @@ class LobbyConsumer(JsonWebsocketConsumer):
                     setattr(game, f"{seat_x_field}_id", int(player_x["id"]))
                     setattr(game, f"{seat_o_field}_id", int(player_o["id"]))
                     game.current_turn = starting_turn
+
+                    if hasattr(game, "ensure_dealt"):
+                        game.ensure_dealt()
 
                     game.save(update_fields=[seat_x_field, seat_o_field, "current_turn"])
                 else:
@@ -374,6 +390,67 @@ class LobbyConsumer(JsonWebsocketConsumer):
                 "message": event.get("message"),
                 "game_type": event.get("game_type"),
                 "game_id": event.get("game_id"),
+                "sessionKey": event.get("sessionKey"),
                 "current_turn": event.get("current_turn"),
             }
+        )
+
+    def _handle_start_poker(self, players):
+        if len(players) < 2:
+            self.send_json({"type": "error", "message": "Poker needs at least 2 players."})
+            return
+        if len(players) > 9:
+            self.send_json({"type": "error", "message": "Poker supports up to 9 players."})
+            return
+
+        session_key = None
+        try:
+            session_key = self.game_lobby_manager.ensure_session_key(self.redis_scope_id)
+        except Exception as exc:
+            logger.error("[LOBBY] ensure_session_key failed lobby_id=%s err=%s", self.redis_scope_id, exc)
+
+        try:
+            GameModel = get_model_for(self.game_type)
+            UserModel = GameModel._meta.get_field("player_one").remote_field.model
+            with transaction.atomic():
+                game = GameModel.objects.select_for_update().get(id=self.lobby_id)
+                if int(getattr(self.user, "id", 0)) != int(game.player_one_id):
+                    self.send_json({"type": "error", "message": "Only the table host can start the game."})
+                    return
+                if len(players) > int(getattr(game, "max_players", 6)):
+                    self.send_json({"type": "error", "message": f"Poker table is capped at {game.max_players} players."})
+                    return
+
+                player_ids = [int(player["id"]) for player in players]
+                if int(game.player_one_id) in player_ids:
+                    player_ids = [int(game.player_one_id)] + [
+                        player_id for player_id in player_ids if player_id != int(game.player_one_id)
+                    ]
+
+                users_by_id = {
+                    user.id: user
+                    for user in UserModel.objects.filter(id__in=player_ids)
+                }
+                ordered_users = [users_by_id[user_id] for user_id in player_ids if user_id in users_by_id]
+                game.initialize_table(ordered_users)
+                game.ensure_dealt()
+                starting_turn = game.current_turn
+        except GameModel.DoesNotExist:
+            self.send_json({"type": "error", "message": "Lobby game not found."})
+            return
+        except Exception as exc:
+            logger.error("[LOBBY] poker start_game persist failed lobby_id=%s err=%s", self.redis_scope_id, exc)
+            self.send_json({"type": "error", "message": "Failed to start poker table."})
+            return
+
+        async_to_sync(self.channel_layer.group_send)(
+            self.lobby_group_name,
+            {
+                "type": "game_start_acknowledgment",
+                "message": "Poker table has started.",
+                "game_type": self.game_type,
+                "game_id": str(self.lobby_id),
+                "sessionKey": session_key,
+                "current_turn": starting_turn,
+            },
         )

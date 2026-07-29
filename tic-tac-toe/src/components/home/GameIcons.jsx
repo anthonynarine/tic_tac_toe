@@ -67,3 +67,42 @@ export function SudokuIcon({ size = 20, className = "" }) {
     </svg>
   );
 }
+
+export function CheckersIcon({ size = 20, className = "" }) {
+  const red = "#EF4444";
+  const blue = "#3B82F6";
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="1.5" y="1.5" width="21" height="21" rx="3" stroke="currentColor" strokeOpacity="0.35" strokeWidth="1.5" />
+      {Array.from({ length: 4 }).map((_, row) =>
+        Array.from({ length: 4 }).map((__, col) => (
+          <rect
+            key={`${row}-${col}`}
+            x={2.5 + col * 5}
+            y={2.5 + row * 5}
+            width="5"
+            height="5"
+            fill={(row + col) % 2 === 0 ? "currentColor" : "transparent"}
+            opacity={(row + col) % 2 === 0 ? 0.16 : 1}
+          />
+        ))
+      )}
+      <circle cx="7" cy="7" r="2" fill={blue} />
+      <circle cx="17" cy="7" r="2" fill={blue} />
+      <circle cx="7" cy="17" r="2" fill={red} />
+      <circle cx="17" cy="17" r="2" fill={red} />
+    </svg>
+  );
+}
+
+export function PokerIcon({ size = 20, className = "" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <rect x="4" y="3" width="12" height="17" rx="2" fill="#F8FAFC" stroke="currentColor" strokeOpacity="0.35" strokeWidth="1.3" />
+      <rect x="8" y="5" width="12" height="17" rx="2" fill="#E2E8F0" stroke="currentColor" strokeOpacity="0.35" strokeWidth="1.3" />
+      <path d="M14 10.5c1.9-2.7 5.5-.2 3.3 2.4L14 17l-3.3-4.1c-2.2-2.6 1.4-5.1 3.3-2.4Z" fill="#EF4444" />
+      <circle cx="8" cy="7" r="1.3" fill="#0F172A" />
+      <circle cx="8" cy="16" r="1.3" fill="#0F172A" />
+    </svg>
+  );
+}

@@ -75,16 +75,23 @@ class InviteCreateView(APIView):
             GameModel = get_model_for(game_type)
             game = get_object_or_404(GameModel, id=str(lobby_id))
 
-            # Guard: full lobby (generic across game types via seat_fk_names)
-            seat_x_field = cfg["seat_fk_names"]["X"]
-            seat_o_field = cfg["seat_fk_names"]["O"]
-            if getattr(game, f"{seat_x_field}_id", None) and getattr(game, f"{seat_o_field}_id", None):
-                return Response(
-                    {"detail": "Cannot invite: lobby is already full."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            resolved_lobby_id = str(game.id)
+            if game_type == "poker" and hasattr(game, "has_open_seat"):
+                if not game.has_open_seat():
+                    return Response(
+                        {"detail": "Cannot invite: poker table is already full."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                resolved_lobby_id = str(game.id)
+            else:
+                # Guard: full lobby (generic across game types via seat_fk_names)
+                seat_x_field = cfg["seat_fk_names"]["X"]
+                seat_o_field = cfg["seat_fk_names"]["O"]
+                if getattr(game, f"{seat_x_field}_id", None) and getattr(game, f"{seat_o_field}_id", None):
+                    return Response(
+                        {"detail": "Cannot invite: lobby is already full."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                resolved_lobby_id = str(game.id)
 
         else:
             # Existing behavior: create new lobby/game

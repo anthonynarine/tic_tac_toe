@@ -59,9 +59,26 @@ def create_game(request):
 @permission_classes([IsAuthenticated])
 def game_detail(request, game_id):
     try:
-        game = PokerGame.objects.get(pk=game_id)
+        with transaction.atomic():
+            game = PokerGame.objects.select_for_update().get(pk=game_id)
+            game.enforce_turn_timeout()
     except PokerGame.DoesNotExist:
         return Response({"error": "Game not found."}, status=404)
+    return Response(poker_payload(game, request.user))
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def table_settings(request, game_id):
+    try:
+        game = PokerGame.objects.get(pk=game_id)
+        game.update_table_settings(request.user, request.data)
+    except PokerGame.DoesNotExist:
+        return Response({"error": "Game not found."}, status=404)
+    except (TypeError, ValueError):
+        return Response({"error": "Invalid poker settings."}, status=400)
+    except ValidationError as exc:
+        return Response({"error": str(exc)}, status=400)
     return Response(poker_payload(game, request.user))
 
 
@@ -93,7 +110,23 @@ def action(request, game_id):
     try:
         with transaction.atomic():
             game = PokerGame.objects.select_for_update().get(pk=game_id)
-            game.apply_action(request.data.get("action"), request.user)
+            game.enforce_turn_timeout()
+            game.apply_action(request.data.get("action"), request.user, request.data.get("amount"))
+            _resolve_ai_turn(game)
+    except PokerGame.DoesNotExist:
+        return Response({"error": "Game not found."}, status=404)
+    except ValidationError as exc:
+        return Response({"error": str(exc)}, status=400)
+    return Response(poker_payload(game, request.user))
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def next_hand(request, game_id):
+    try:
+        with transaction.atomic():
+            game = PokerGame.objects.select_for_update().get(pk=game_id)
+            game.start_next_hand(request.user)
             _resolve_ai_turn(game)
     except PokerGame.DoesNotExist:
         return Response({"error": "Game not found."}, status=404)

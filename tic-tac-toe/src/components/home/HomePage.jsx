@@ -6,7 +6,7 @@ import { LuUserRound, LuTrophy } from "react-icons/lu";
 
 import HomeFeatureCard from "./HomeFeatureCard";
 import HomeGameCard from "./HomeGameCard";
-import { TicTacToeIcon, ConnectFourIcon, SudokuIcon } from "./GameIcons";
+import { TicTacToeIcon, ConnectFourIcon, SudokuIcon, CheckersIcon, PokerIcon } from "./GameIcons";
 import Button from "../ui/Button";
 import { useUserContext } from "../../context/userContext";
 import { useAuth } from "../../auth/hooks/useAuth";
@@ -14,6 +14,8 @@ import authAxios from "../../auth/authAxios";
 import useGameCreation from "../game/hooks/useGameCreation";
 import { showToast } from "../../utils/toast/Toast";
 import { connectFourApi } from "../../api/connectFourApi";
+import { checkersApi } from "../../api/checkersApi";
+import { pokerApi } from "../../api/pokerApi";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -91,8 +93,8 @@ export default function HomePage() {
       icon: TicTacToeIcon,
       featured: true,
       actions: [
-        { id: "mp", label: "Multiplayer", onClick: handleCreateMultiplayer },
-        { id: "ai", label: "vs AI",       onClick: handleCreateAI },
+        { id: "ai", label: "vs AI",     onClick: handleCreateAI },
+        { id: "mp", label: "vs Friend", onClick: handleCreateMultiplayer },
       ],
     },
     {
@@ -111,6 +113,50 @@ export default function HomePage() {
               const qs = new URLSearchParams();
               if (g.sessionKey) qs.set("sessionKey", String(g.sessionKey));
               await safeNavigate(`/lobby/connect_four/${g.id}${qs.toString() ? `?${qs}` : ""}`);
+            }
+            catch { showToast("error", "Could not create game."); }
+          },
+        },
+      ],
+    },
+    {
+      id: "checkers",
+      title: "Checkers",
+      statusText: "Live",
+      icon: CheckersIcon,
+      actions: [
+        { id: "ai", label: "vs AI", onClick: () => { if (!isLoggedIn) { navigate("/login"); return; } navigate("/games/checkers/ai"); } },
+        {
+          id: "mp", label: "vs Friend",
+          onClick: async () => {
+            if (!isLoggedIn) { navigate("/login"); return; }
+            try {
+              const g = await checkersApi.createGame(false);
+              const qs = new URLSearchParams();
+              if (g.sessionKey) qs.set("sessionKey", String(g.sessionKey));
+              await safeNavigate(`/lobby/checkers/${g.id}${qs.toString() ? `?${qs}` : ""}`);
+            }
+            catch { showToast("error", "Could not create game."); }
+          },
+        },
+      ],
+    },
+    {
+      id: "poker",
+      title: "Poker",
+      statusText: "Live",
+      icon: PokerIcon,
+      actions: [
+        { id: "ai", label: "vs AI", onClick: () => { if (!isLoggedIn) { navigate("/login"); return; } navigate("/games/poker/ai"); } },
+        {
+          id: "mp", label: "vs Friend",
+          onClick: async () => {
+            if (!isLoggedIn) { navigate("/login"); return; }
+            try {
+              const g = await pokerApi.createGame(false);
+              const qs = new URLSearchParams();
+              if (g.sessionKey) qs.set("sessionKey", String(g.sessionKey));
+              await safeNavigate(`/lobby/poker/${g.id}${qs.toString() ? `?${qs}` : ""}`);
             }
             catch { showToast("error", "Could not create game."); }
           },
