@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Game Hub">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="32" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07110f"/>
+      <stop offset="0.56" stop-color="#061a1d"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="g" x1="130" y1="110" x2="390" y2="398" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67e8f9"/>
+      <stop offset="0.55" stop-color="#34d399"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="38" y="38" width="436" height="436" rx="96" fill="none" stroke="#22d3ee" stroke-opacity="0.22" stroke-width="10"/>
+  <path d="M134 116h78v107h88V116h78v280h-78V287h-88v109h-78z" fill="url(#g)"/>
+</svg>
