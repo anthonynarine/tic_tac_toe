@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LuBadgeDollarSign, LuCircleDollarSign, LuCopy, LuRefreshCw } from "react-icons/lu";
 import { CiHome } from "react-icons/ci";
 import { useNavigate } from "react-router-dom";
@@ -142,7 +142,12 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
   const [raiseTo, setRaiseTo] = useState(0);
   const [copied, setCopied] = useState(false);
   const [clientNow, setClientNow] = useState(Date.now());
+  const [visibleHoleCards, setVisibleHoleCards] = useState(Number.POSITIVE_INFINITY);
+  const [visibleCommunityCards, setVisibleCommunityCards] = useState(Number.POSITIVE_INFINITY);
+  const dealStateRef = useRef({ handNumber: null, communityCount: 0 });
   const mySeat = game?.my_seat;
+  const handNumber = game?.hand_number || 1;
+  const communityCount = game?.community_cards?.length || 0;
   const tablePlayers = useMemo(() => {
     if (game?.players?.length) {
       return game.players.map((seat) => ({
@@ -175,8 +180,39 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
       },
     ];
   }, [game]);
-  const me = tablePlayers.find((player) => Number(player.seat) === Number(mySeat)) || tablePlayers[0];
-  const opponents = tablePlayers.filter((player) => Number(player.seat) !== Number(mySeat));
+  const totalHoleCards = useMemo(
+    () => tablePlayers.reduce((total, player) => total + (player.cards?.length || 0), 0),
+    [tablePlayers]
+  );
+  const holeRevealBySeat = useMemo(() => {
+    const counts = {};
+    const ordered = [...tablePlayers].sort((a, b) => Number(a.seat) - Number(b.seat));
+    let revealIndex = 0;
+    for (let cardIndex = 0; cardIndex < 2; cardIndex += 1) {
+      for (const player of ordered) {
+        if ((player.cards || [])[cardIndex]) {
+          revealIndex += 1;
+          if (visibleHoleCards >= revealIndex) {
+            counts[player.seat] = (counts[player.seat] || 0) + 1;
+          }
+        }
+      }
+    }
+    return counts;
+  }, [tablePlayers, visibleHoleCards]);
+  const displayedTablePlayers = useMemo(
+    () => tablePlayers.map((player) => ({
+      ...player,
+      cards: (player.cards || []).slice(0, holeRevealBySeat[player.seat] || 0),
+    })),
+    [holeRevealBySeat, tablePlayers]
+  );
+  const displayedCommunityCards = useMemo(
+    () => (game?.community_cards || []).slice(0, visibleCommunityCards),
+    [game?.community_cards, visibleCommunityCards]
+  );
+  const me = displayedTablePlayers.find((player) => Number(player.seat) === Number(mySeat)) || displayedTablePlayers[0];
+  const opponents = displayedTablePlayers.filter((player) => Number(player.seat) !== Number(mySeat));
   const isMyTurn = game?.current_turn === mySeat && !game?.is_completed;
   const currentPlayer = tablePlayers.find((player) => Number(player.seat) === Number(game?.current_turn));
   const winnerPlayer = tablePlayers.find((player) => Number(player.seat) === Number(game?.winner));
@@ -218,6 +254,58 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
     const interval = window.setInterval(() => setClientNow(Date.now()), 250);
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!game?.id) return undefined;
+    const previous = dealStateRef.current;
+
+    if (game.is_completed) {
+      setVisibleHoleCards(Number.POSITIVE_INFINITY);
+      setVisibleCommunityCards(Number.POSITIVE_INFINITY);
+      dealStateRef.current = {
+        handNumber,
+        communityCount: 0,
+      };
+      return undefined;
+    }
+
+    if (previous.handNumber === handNumber) return undefined;
+
+    dealStateRef.current = {
+      handNumber,
+      communityCount: 0,
+    };
+    setVisibleCommunityCards(0);
+
+    if (!totalHoleCards) {
+      setVisibleHoleCards(0);
+      return undefined;
+    }
+
+    setVisibleHoleCards(0);
+    const timers = Array.from({ length: totalHoleCards }, (_, idx) => (
+      window.setTimeout(() => setVisibleHoleCards(idx + 1), 140 + idx * 115)
+    ));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [game?.id, game?.is_completed, handNumber, totalHoleCards]);
+
+  useEffect(() => {
+    if (!game?.id || game.is_completed) return undefined;
+    const nextCount = communityCount;
+    const previous = dealStateRef.current;
+
+    if (previous.handNumber !== handNumber) return undefined;
+    if (nextCount <= previous.communityCount) return undefined;
+
+    const startCount = previous.communityCount;
+    dealStateRef.current = { handNumber, communityCount: nextCount };
+    setVisibleCommunityCards(startCount);
+
+    const timers = Array.from({ length: nextCount - startCount }, (_, idx) => (
+      window.setTimeout(() => setVisibleCommunityCards(startCount + idx + 1), 160 + idx * 150)
+    ));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [communityCount, game?.id, game?.is_completed, handNumber]);
 
   const handleCopyTableLink = async () => {
     try {
@@ -321,9 +409,9 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
           <div className="flex flex-wrap items-center justify-center gap-1.5 min-h-[72px] px-2 py-2 sm:gap-2 sm:min-h-[96px] sm:px-4 sm:py-3 lg:min-h-[112px] lg:pt-16">
             {Array.from({ length: 5 }).map((_, idx) => (
               <PokerCard
-                key={`${game?.hand_number || 1}-${idx}-${game?.community_cards?.[idx] || "empty"}`}
-                card={game?.community_cards?.[idx]}
-                animate={Boolean(game?.community_cards?.[idx])}
+                key={`${game?.hand_number || 1}-${idx}-${displayedCommunityCards?.[idx] || "empty"}`}
+                card={displayedCommunityCards?.[idx]}
+                animate={Boolean(displayedCommunityCards?.[idx])}
                 dealVariant="community"
                 delay={idx * 90}
               />
@@ -364,10 +452,14 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
 
       <div className="min-h-0 flex flex-col items-center justify-center gap-2 rounded-lg border border-white/10 bg-black/20 px-2 py-2 sm:min-h-[150px] sm:gap-3 sm:px-3 sm:py-4">
         {game?.is_completed ? (
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex flex-col items-center justify-center gap-2 text-center">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary">
+              Next hand auto-deals shortly
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
             {onNextHand ? (
-              <Button type="button" variant="primary" size="sm" onClick={onNextHand} title="Next hand">
-                Next Hand
+              <Button type="button" variant="outline" size="sm" onClick={onNextHand} title="Deal next hand now">
+                Deal Now
               </Button>
             ) : null}
             {onPlayAgain ? (
@@ -378,6 +470,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
             <Button type="button" variant="outline" size="sm" onClick={() => navigate("/")} title="Home">
               <CiHome size={16} />
             </Button>
+            </div>
           </div>
         ) : (
           <>
