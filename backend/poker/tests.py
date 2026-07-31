@@ -6,7 +6,9 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from .models import PokerGame, evaluate_hand
+from friends.models import Friendship
+
+from .models import PokerGame, PokerTournament, PokerTournamentRegistration, evaluate_hand
 from .serializers import poker_payload
 
 User = get_user_model()
@@ -345,3 +347,139 @@ class PokerApiTests(APITestCase):
 
         with self.assertRaisesMessage(ValidationError, "Poker supports up to 9 players."):
             game.initialize_table(users)
+
+
+class PokerTournamentApiTests(APITestCase):
+    def setUp(self):
+        self.creator = User.objects.create_user(
+            email="tour-creator@example.com",
+            password="pass",
+            first_name="Creator",
+        )
+        self.friend = User.objects.create_user(
+            email="tour-friend@example.com",
+            password="pass",
+            first_name="Friend",
+        )
+        self.other = User.objects.create_user(
+            email="tour-other@example.com",
+            password="pass",
+            first_name="Other",
+        )
+        Friendship.objects.create(from_user=self.creator, to_user=self.friend, is_accepted=True)
+
+    def _payload(self, **overrides):
+        data = {
+            "title": "Friday Night Hold'em",
+            "scheduled_start": (timezone.now() + timedelta(hours=1)).isoformat(),
+            "max_players": 2,
+            "starting_chips": 1000,
+            "small_blind": 10,
+            "big_blind": 20,
+            "turn_timer_seconds": 45,
+        }
+        data.update(overrides)
+        return data
+
+    def test_creator_can_create_and_friend_can_see_tournament(self):
+        self.client.force_authenticate(user=self.creator)
+        response = self.client.post("/api/poker/tournaments/", self._payload(), format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["registered_count"], 1)
+        self.assertTrue(response.data["is_creator"])
+
+        self.client.force_authenticate(user=self.friend)
+        list_response = self.client.get("/api/poker/tournaments/")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(len(list_response.data["results"]), 1)
+        self.assertEqual(list_response.data["results"][0]["title"], "Friday Night Hold'em")
+
+    def test_non_friend_cannot_see_or_register(self):
+        tournament = PokerTournament.objects.create(
+            creator=self.creator,
+            title="Private table",
+            scheduled_start=timezone.now() + timedelta(hours=1),
+            max_players=2,
+        )
+        PokerTournamentRegistration.objects.create(tournament=tournament, user=self.creator)
+
+        self.client.force_authenticate(user=self.other)
+        list_response = self.client.get("/api/poker/tournaments/")
+        register_response = self.client.post(f"/api/poker/tournaments/{tournament.id}/register/")
+
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_response.data["results"], [])
+        self.assertEqual(register_response.status_code, 404)
+
+    def test_registration_auto_closes_when_full(self):
+        self.client.force_authenticate(user=self.creator)
+        create_response = self.client.post("/api/poker/tournaments/", self._payload(), format="json")
+        tournament_id = create_response.data["id"]
+
+        self.client.force_authenticate(user=self.friend)
+        register_response = self.client.post(f"/api/poker/tournaments/{tournament_id}/register/")
+
+        self.assertEqual(register_response.status_code, 200)
+        self.assertEqual(register_response.data["registered_count"], 2)
+        self.assertEqual(register_response.data["status"], PokerTournament.STATUS_CLOSED)
+
+    def test_creator_can_remove_registration_and_reopen(self):
+        tournament = PokerTournament.objects.create(
+            creator=self.creator,
+            title="Manage roster",
+            scheduled_start=timezone.now() + timedelta(hours=1),
+            max_players=2,
+            status=PokerTournament.STATUS_CLOSED,
+        )
+        PokerTournamentRegistration.objects.create(tournament=tournament, user=self.creator)
+        registration = PokerTournamentRegistration.objects.create(tournament=tournament, user=self.friend)
+
+        self.client.force_authenticate(user=self.creator)
+        response = self.client.post(
+            f"/api/poker/tournaments/{tournament.id}/registrations/{registration.id}/remove/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], PokerTournament.STATUS_OPEN)
+        self.assertEqual(response.data["registered_count"], 1)
+
+    def test_start_creates_multiplayer_poker_table_after_scheduled_time(self):
+        tournament = PokerTournament.objects.create(
+            creator=self.creator,
+            title="Startable",
+            scheduled_start=timezone.now() - timedelta(minutes=1),
+            max_players=2,
+            status=PokerTournament.STATUS_CLOSED,
+        )
+        PokerTournamentRegistration.objects.create(tournament=tournament, user=self.creator)
+        PokerTournamentRegistration.objects.create(tournament=tournament, user=self.friend)
+
+        self.client.force_authenticate(user=self.creator)
+        response = self.client.post(f"/api/poker/tournaments/{tournament.id}/start/")
+
+        self.assertEqual(response.status_code, 200)
+        game = PokerGame.objects.get(pk=response.data["gameId"])
+        tournament.refresh_from_db()
+        self.assertEqual(tournament.status, PokerTournament.STATUS_IN_PROGRESS)
+        self.assertEqual(game.table_player_count(), 2)
+        self.assertEqual(len(game.table_seats), 2)
+        self.assertEqual(len(game.table_seats[0]["cards"]), 2)
+
+    def test_start_before_scheduled_time_is_rejected(self):
+        tournament = PokerTournament.objects.create(
+            creator=self.creator,
+            title="Too early",
+            scheduled_start=timezone.now() + timedelta(hours=1),
+            max_players=2,
+            status=PokerTournament.STATUS_CLOSED,
+        )
+        PokerTournamentRegistration.objects.create(tournament=tournament, user=self.creator)
+        PokerTournamentRegistration.objects.create(tournament=tournament, user=self.friend)
+
+        self.client.force_authenticate(user=self.creator)
+        response = self.client.post(f"/api/poker/tournaments/{tournament.id}/start/")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("scheduled time", response.data["error"])

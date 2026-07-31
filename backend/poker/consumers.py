@@ -14,6 +14,9 @@ from .serializers import poker_payload
 POKER_GROUP = "poker_{game_id}"
 _TURN_TIMERS = {}
 _TURN_TIMERS_LOCK = threading.Lock()
+_NEXT_HAND_TIMERS = {}
+_NEXT_HAND_TIMERS_LOCK = threading.Lock()
+AUTO_NEXT_HAND_DELAY_SECONDS = 5.0
 
 
 def _resolve_ai_turn(game):
@@ -30,6 +33,13 @@ def _cancel_turn_timer(game_id):
         timer.cancel()
 
 
+def _cancel_next_hand_timer(game_id):
+    with _NEXT_HAND_TIMERS_LOCK:
+        entry = _NEXT_HAND_TIMERS.pop(str(game_id), None)
+    if entry:
+        entry[1].cancel()
+
+
 def _schedule_turn_timer(game):
     deadline = game.current_turn_deadline_at()
     game_id = str(game.id)
@@ -44,6 +54,31 @@ def _schedule_turn_timer(game):
     with _TURN_TIMERS_LOCK:
         _TURN_TIMERS[game_id] = timer
     timer.start()
+
+
+def _schedule_next_hand_timer(game):
+    game_id = str(game.id)
+    if not game.is_completed or game.is_ai_game:
+        _cancel_next_hand_timer(game_id)
+        return
+
+    hand_number = int(game.hand_number or 1)
+    with _NEXT_HAND_TIMERS_LOCK:
+        existing = _NEXT_HAND_TIMERS.get(game_id)
+        if existing and existing[0] == hand_number:
+            return
+        if existing:
+            existing[1].cancel()
+
+        timer = threading.Timer(AUTO_NEXT_HAND_DELAY_SECONDS, _fire_auto_next_hand, args=(game_id, hand_number))
+        timer.daemon = True
+        _NEXT_HAND_TIMERS[game_id] = (hand_number, timer)
+        timer.start()
+
+
+def _schedule_game_timers(game):
+    _schedule_turn_timer(game)
+    _schedule_next_hand_timer(game)
 
 
 def timezone_now():
@@ -73,6 +108,30 @@ def _fire_turn_timeout(game_id, started_at):
             POKER_GROUP.format(game_id=game_id),
             {"type": "poker_update", "game_id": game_id},
         )
+
+
+def _fire_auto_next_hand(game_id, hand_number):
+    with _NEXT_HAND_TIMERS_LOCK:
+        existing = _NEXT_HAND_TIMERS.get(str(game_id))
+        if not existing or existing[0] != int(hand_number):
+            return
+        _NEXT_HAND_TIMERS.pop(str(game_id), None)
+
+    try:
+        with transaction.atomic():
+            game = PokerGame.objects.select_for_update().get(pk=game_id)
+            if not game.is_completed or int(game.hand_number or 1) != int(hand_number):
+                return
+            game.start_next_hand(game.player_one)
+            _resolve_ai_turn(game)
+    except (PokerGame.DoesNotExist, ValidationError):
+        return
+
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        POKER_GROUP.format(game_id=game_id),
+        {"type": "poker_update", "game_id": game_id},
+    )
 
 
 class PokerConsumer(JsonWebsocketConsumer):
@@ -117,7 +176,7 @@ class PokerConsumer(JsonWebsocketConsumer):
         if msg_type == "action":
             self._handle_action(content)
         elif msg_type == "next_hand":
-            self._handle_next_hand()
+            self._handle_next_hand(content)
         elif msg_type == "sync":
             self._handle_sync()
         else:
@@ -133,7 +192,7 @@ class PokerConsumer(JsonWebsocketConsumer):
             self.send_json({"type": "error", "message": "Game not found."})
 
     def _send_state(self, game):
-        _schedule_turn_timer(game)
+        _schedule_game_timers(game)
         self.send_json({"type": "game_state", "game": poker_payload(game, self.user)})
 
     def _handle_action(self, content):
@@ -154,16 +213,21 @@ class PokerConsumer(JsonWebsocketConsumer):
             {"type": "poker_update", "game_id": self.game_id},
         )
 
-    def _handle_next_hand(self):
+    def _handle_next_hand(self, content=None):
+        content = content or {}
         try:
             with transaction.atomic():
                 game = PokerGame.objects.select_for_update().get(pk=self.game_id)
                 game.start_next_hand(self.user)
                 _resolve_ai_turn(game)
+                _cancel_next_hand_timer(self.game_id)
         except PokerGame.DoesNotExist:
             self.send_json({"type": "error", "message": "Game not found."})
             return
         except ValidationError as exc:
+            if content.get("auto"):
+                self._handle_sync()
+                return
             self.send_json({"type": "error", "message": str(exc)})
             return
 
@@ -180,7 +244,7 @@ class PokerConsumer(JsonWebsocketConsumer):
         except PokerGame.DoesNotExist:
             self.send_json({"type": "error", "message": "Game not found."})
             return
-        _schedule_turn_timer(game)
+        _schedule_game_timers(game)
         self.send_json({"type": "game_update", "game": poker_payload(game, self.user)})
 
     def disconnect(self, close_code):

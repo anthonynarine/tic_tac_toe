@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 
-from .models import MIN_RAISE, PokerGame, evaluate_hand
+from .models import MIN_RAISE, PokerGame, PokerTournament, PokerTournamentRegistration, evaluate_hand
 
 
 class PokerGameSerializer(serializers.ModelSerializer):
@@ -113,3 +113,134 @@ def poker_payload(game, user):
         data["player_one_best"] = evaluate_hand(game.player_one_cards + game.community_cards)["label"]
         data["player_two_best"] = evaluate_hand(game.player_two_cards + game.community_cards)["label"]
     return data
+
+
+class PokerTournamentRegistrationSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    name = serializers.SerializerMethodField()
+    is_me = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PokerTournamentRegistration
+        fields = ["id", "user_id", "name", "status", "is_me", "created_at", "updated_at"]
+
+    def get_name(self, obj):
+        return obj.user.first_name or obj.user.email
+
+    def get_is_me(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user and obj.user_id == request.user.id)
+
+
+class PokerTournamentSerializer(serializers.ModelSerializer):
+    creator_id = serializers.IntegerField(source="creator.id", read_only=True)
+    creator_name = serializers.SerializerMethodField()
+    registered_count = serializers.SerializerMethodField()
+    available_seats = serializers.SerializerMethodField()
+    is_creator = serializers.SerializerMethodField()
+    is_registered = serializers.SerializerMethodField()
+    my_registration_status = serializers.SerializerMethodField()
+    game_id = serializers.IntegerField(source="game.id", read_only=True)
+    registrations = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PokerTournament
+        fields = [
+            "id",
+            "creator_id",
+            "creator_name",
+            "title",
+            "scheduled_start",
+            "max_players",
+            "starting_chips",
+            "small_blind",
+            "big_blind",
+            "turn_timer_seconds",
+            "status",
+            "registered_count",
+            "available_seats",
+            "is_creator",
+            "is_registered",
+            "my_registration_status",
+            "game_id",
+            "registrations",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "creator_id",
+            "creator_name",
+            "status",
+            "registered_count",
+            "available_seats",
+            "is_creator",
+            "is_registered",
+            "my_registration_status",
+            "game_id",
+            "registrations",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_creator_name(self, obj):
+        return obj.creator.first_name or obj.creator.email
+
+    def get_registered_count(self, obj):
+        return obj.registered_count()
+
+    def get_available_seats(self, obj):
+        return max(0, obj.max_players - obj.registered_count())
+
+    def get_is_creator(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user and obj.creator_id == request.user.id)
+
+    def _my_registration(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user:
+            return None
+        return next(
+            (registration for registration in obj.registrations.all() if registration.user_id == request.user.id),
+            None,
+        )
+
+    def get_is_registered(self, obj):
+        registration = self._my_registration(obj)
+        return bool(registration and registration.status == PokerTournamentRegistration.STATUS_REGISTERED)
+
+    def get_my_registration_status(self, obj):
+        registration = self._my_registration(obj)
+        return registration.status if registration else None
+
+    def get_registrations(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return []
+        registrations = obj.registrations.select_related("user").order_by("created_at", "id")
+        if obj.creator_id != request.user.id:
+            registrations = registrations.filter(status=PokerTournamentRegistration.STATUS_REGISTERED)
+        return PokerTournamentRegistrationSerializer(
+            registrations,
+            many=True,
+            context=self.context,
+        ).data
+
+    def validate_title(self, value):
+        value = str(value or "").strip()
+        if len(value) < 3:
+            raise serializers.ValidationError("Tournament title must be at least 3 characters.")
+        return value
+
+    def validate_max_players(self, value):
+        if int(value) < 2 or int(value) > 9:
+            raise serializers.ValidationError("Max players must be between 2 and 9.")
+        return value
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        tournament = PokerTournament(creator=request.user, **validated_data)
+        tournament.full_clean()
+        tournament.save()
+        PokerTournamentRegistration.objects.create(tournament=tournament, user=request.user)
+        tournament.sync_registration_status()
+        return tournament

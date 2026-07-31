@@ -832,3 +832,145 @@ class PokerGame(models.Model):
         p1 = getattr(self.player_one, "first_name", "?") if self.player_one else "?"
         p2 = getattr(self.player_two, "first_name", "AI") if self.player_two else "Waiting"
         return f"Poker: {p1} vs {p2}"
+
+
+class PokerTournament(models.Model):
+    STATUS_OPEN = "open"
+    STATUS_CLOSED = "closed"
+    STATUS_IN_PROGRESS = "in_progress"
+    STATUS_COMPLETED = "completed"
+    STATUS_CANCELLED = "cancelled"
+
+    STATUS_CHOICES = (
+        (STATUS_OPEN, "Open"),
+        (STATUS_CLOSED, "Closed"),
+        (STATUS_IN_PROGRESS, "In progress"),
+        (STATUS_COMPLETED, "Completed"),
+        (STATUS_CANCELLED, "Cancelled"),
+    )
+
+    creator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="created_poker_tournaments",
+    )
+    title = models.CharField(max_length=80)
+    scheduled_start = models.DateTimeField()
+    max_players = models.IntegerField(default=6)
+    starting_chips = models.IntegerField(default=STARTING_CHIPS)
+    small_blind = models.IntegerField(default=SMALL_BLIND)
+    big_blind = models.IntegerField(default=BIG_BLIND)
+    turn_timer_seconds = models.IntegerField(default=45)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_OPEN)
+    game = models.ForeignKey(
+        PokerGame,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tournaments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["scheduled_start", "-created_at"]
+
+    def clean(self):
+        if self.max_players < 2 or self.max_players > MAX_PLAYERS:
+            raise ValidationError(f"Max players must be between 2 and {MAX_PLAYERS}.")
+        if self.starting_chips < MIN_STARTING_CHIPS or self.starting_chips > MAX_STARTING_CHIPS:
+            raise ValidationError(f"Starting chips must be between {MIN_STARTING_CHIPS} and {MAX_STARTING_CHIPS}.")
+        if self.small_blind < 5:
+            raise ValidationError("Small blind must be at least 5.")
+        if self.big_blind < self.small_blind * 2:
+            raise ValidationError("Big blind must be at least double the small blind.")
+        if self.big_blind > self.starting_chips // 5:
+            raise ValidationError("Big blind is too high for the starting stack.")
+        if self.turn_timer_seconds < MIN_TURN_TIMER_SECONDS or self.turn_timer_seconds > MAX_TURN_TIMER_SECONDS:
+            raise ValidationError(
+                f"Turn timer must be between {MIN_TURN_TIMER_SECONDS} and {MAX_TURN_TIMER_SECONDS} seconds."
+            )
+
+    def registered_registrations(self):
+        return self.registrations.filter(status=PokerTournamentRegistration.STATUS_REGISTERED)
+
+    def registered_count(self):
+        return self.registered_registrations().count()
+
+    def can_register(self):
+        return self.status == self.STATUS_OPEN and self.registered_count() < self.max_players
+
+    def sync_registration_status(self):
+        if self.status in {self.STATUS_IN_PROGRESS, self.STATUS_COMPLETED, self.STATUS_CANCELLED}:
+            return
+        self.status = self.STATUS_CLOSED if self.registered_count() >= self.max_players else self.STATUS_OPEN
+        self.save(update_fields=["status", "updated_at"])
+
+    def start(self):
+        if self.status in {self.STATUS_IN_PROGRESS, self.STATUS_COMPLETED, self.STATUS_CANCELLED}:
+            raise ValidationError("Tournament cannot be started from its current status.")
+        if timezone.now() < self.scheduled_start:
+            raise ValidationError("Tournament cannot start before its scheduled time.")
+        registrations = list(
+            self.registered_registrations()
+            .select_related("user")
+            .order_by("created_at", "id")
+        )
+        if len(registrations) < 2:
+            raise ValidationError("Tournament needs at least 2 registered players.")
+
+        users = [registration.user for registration in registrations]
+        game = PokerGame.objects.create(
+            player_one=self.creator,
+            player_two=users[1],
+            is_ai_game=False,
+            starting_chips=self.starting_chips,
+            small_blind=self.small_blind,
+            big_blind=self.big_blind,
+            turn_timer_seconds=self.turn_timer_seconds,
+            max_players=self.max_players,
+        )
+        ordered_users = [self.creator] + [user for user in users if user.id != self.creator_id]
+        game.initialize_table(ordered_users[: self.max_players])
+        game.ensure_dealt()
+
+        self.game = game
+        self.status = self.STATUS_IN_PROGRESS
+        self.save(update_fields=["game", "status", "updated_at"])
+        return game
+
+    def __str__(self):
+        return self.title
+
+
+class PokerTournamentRegistration(models.Model):
+    STATUS_REGISTERED = "registered"
+    STATUS_WITHDRAWN = "withdrawn"
+    STATUS_REMOVED = "removed"
+
+    STATUS_CHOICES = (
+        (STATUS_REGISTERED, "Registered"),
+        (STATUS_WITHDRAWN, "Withdrawn"),
+        (STATUS_REMOVED, "Removed"),
+    )
+
+    tournament = models.ForeignKey(
+        PokerTournament,
+        on_delete=models.CASCADE,
+        related_name="registrations",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="poker_tournament_registrations",
+    )
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_REGISTERED)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("tournament", "user")
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return f"{self.user_id} -> {self.tournament_id} ({self.status})"
