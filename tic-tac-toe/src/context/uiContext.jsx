@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from "rea
 import { useLocation } from "react-router-dom";
 
 const UIContext = createContext(null);
-const SIDEBAR_COLLAPSED_STORAGE_KEY = "ui:sidebarCollapsed:v2";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "ui:sidebarCollapsed:session:v1";
 
 export const useUI = () => useContext(UIContext);
 
@@ -21,8 +21,8 @@ export const UIProvider = ({ children }) => {
 
   // # Step 4: Desktop social sidebar density
   const [isSidebarCollapsed, setSidebarCollapsedState] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const saved = window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+    if (typeof window === "undefined") return true;
+    const saved = window.sessionStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
     if (saved === "true") return true;
     if (saved === "false") return false;
     return true;
@@ -34,7 +34,7 @@ export const UIProvider = ({ children }) => {
     setSidebarCollapsedState((prev) => {
       const value = typeof next === "function" ? next(prev) : Boolean(next);
       if (typeof window !== "undefined") {
-        window.localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(value));
+        window.sessionStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(value));
       }
       return value;
     });
@@ -42,7 +42,7 @@ export const UIProvider = ({ children }) => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) !== null) return;
+    if (window.sessionStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) !== null) return;
     setSidebarCollapsedState(true);
   }, [location.pathname]);
 
