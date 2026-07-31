@@ -34,7 +34,23 @@ function BetMarker({ amount, name, className = "" }) {
   );
 }
 
-function PlayerPanel({ name, chips, bet, cards, active, label, dealer, best, folded, allIn, className = "", tableSeat = false, showMeta = true }) {
+function PlayerPanel({
+  name,
+  chips,
+  bet,
+  cards,
+  active,
+  label,
+  dealer,
+  best,
+  folded,
+  allIn,
+  className = "",
+  tableSeat = false,
+  showMeta = true,
+  handNumber = 1,
+  seat,
+}) {
   return (
     <div className={[
       "relative overflow-visible transition duration-200",
@@ -104,7 +120,17 @@ function PlayerPanel({ name, chips, bet, cards, active, label, dealer, best, fol
           </div>
         </div>
         <div className="flex shrink-0 gap-0.5">
-          {(cards || []).map((card, idx) => <PokerCard key={`${card}-${idx}`} card={card} small={!tableSeat} mini={tableSeat} />)}
+          {(cards || []).map((card, idx) => (
+            <PokerCard
+              key={`${handNumber}-${seat || name || "seat"}-${idx}-${card}`}
+              card={card}
+              small={!tableSeat}
+              mini={tableSeat}
+              animate={Boolean(card)}
+              dealVariant="hole"
+              delay={idx * 110 + (tableSeat ? 120 : 40)}
+            />
+          ))}
         </div>
       </div>
     </div>
@@ -237,6 +263,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
             tableSeat
             showMeta={false}
             className="min-w-[154px] max-w-[154px]"
+            handNumber={game?.hand_number || 1}
             {...opponent}
           />
         ))}
@@ -261,6 +288,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                     "pointer-events-auto absolute !w-[142px]",
                     seatPosition,
                   ].join(" ")}
+                  handNumber={game?.hand_number || 1}
                   {...opponent}
                 />
               </React.Fragment>
@@ -273,6 +301,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
             tableSeat
             showMeta={false}
             className="pointer-events-auto absolute bottom-4 left-1/2 !w-[150px] -translate-x-1/2"
+            handNumber={game?.hand_number || 1}
             {...me}
           />
         </div>
@@ -295,6 +324,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 key={`${game?.hand_number || 1}-${idx}-${game?.community_cards?.[idx] || "empty"}`}
                 card={game?.community_cards?.[idx]}
                 animate={Boolean(game?.community_cards?.[idx])}
+                dealVariant="community"
                 delay={idx * 90}
               />
             ))}
@@ -327,6 +357,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
           tableSeat
           showMeta={false}
           className="!w-[164px]"
+          handNumber={game?.hand_number || 1}
           {...me}
         />
       </div>
