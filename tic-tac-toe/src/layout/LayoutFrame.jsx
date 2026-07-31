@@ -1,5 +1,6 @@
 // # Filename: src/layout/LayoutFrame.jsx
 import React from "react";
+import { useLocation } from "react-router-dom";
 import { useUI } from "../context/uiContext";
 
 export default function LayoutFrame({
@@ -11,9 +12,13 @@ export default function LayoutFrame({
   contentClassName = "",
   fullBleed = false,
 }) {
+  const location = useLocation();
   const hasSidebar = Boolean(sidebar);
   const { isSidebarCollapsed } = useUI() || {};
   const sidebarWidth = isSidebarCollapsed ? "72px" : "280px";
+  const isFocusedFlow =
+    /^\/games\/poker\/.+/.test(location.pathname) ||
+    location.pathname.startsWith("/lobby/");
 
   return (
     <div className="h-[100dvh] w-full overflow-hidden bg-background-app md:flex md:items-center md:justify-center md:py-10" style={{ "--sidebar-w": sidebarWidth }}>
@@ -35,7 +40,9 @@ export default function LayoutFrame({
               className={[
                 "h-full min-h-0 overflow-y-auto lol-scrollbar px-2.5 sm:px-5 md:px-8",
                 "py-4 sm:py-6 md:py-10",
-                "pb-[calc(92px+env(safe-area-inset-bottom))] lg:pb-[calc(24px+env(safe-area-inset-bottom))]",
+                isFocusedFlow
+                  ? "pb-3 lg:pb-[calc(24px+env(safe-area-inset-bottom))]"
+                  : "pb-[calc(92px+env(safe-area-inset-bottom))] lg:pb-[calc(24px+env(safe-area-inset-bottom))]",
                 fullBleed ? "" : "flex justify-center",
                 contentClassName,
               ].join(" ")}

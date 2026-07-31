@@ -140,3 +140,148 @@ Then, with two separate logged-in browser sessions (two accounts, or one + incog
 - `src/layout/LayoutFrame.jsx` was just adjusted to vertically center the app shell
   (previously pinned near the top via a fixed `mt-16` with no bottom counterbalance,
   which read as "too high" on tall viewports). Confirmed visually fixed in-browser.
+
+### 3. Poker / flagship game work (latest in-flight state)
+
+Poker has been added and iterated heavily as the platform's intended flagship game. The
+current implementation is no longer just a prototype UI:
+- Backend app: `backend/poker/` with `PokerGame`, Hold'em hand evaluation, betting
+  actions, table seats, configurable starting chips/blinds/timers/max players, side-pot
+  distribution, turn timeout behavior, AI game support, and websocket updates.
+- Migrations added through `backend/poker/migrations/0006_pokergame_max_players_nine.py`.
+  Run `python manage.py migrate` locally if the DB has not picked these up.
+- Poker is wired into the generic invite/lobby pipeline using `game_type="poker"` and
+  routes to `/lobby/poker/:id` before starting the table.
+- Frontend app files live under `tic-tac-toe/src/components/poker/` with REST helper
+  `tic-tac-toe/src/api/pokerApi.js`.
+- Poker routes include AI and multiplayer table pages; lobby setup lets the host configure
+  starting stack, blinds, turn timer, and max players. Max players is currently 9.
+
+Poker gameplay behavior:
+- Backend already auto-advances streets after betting rounds close: preflop → flop → turn
+  → river → showdown/completed.
+- Turn timers are server-side: timeout auto-checks if checking is valid, otherwise
+  auto-folds when the player is facing a bet.
+- After a completed multiplayer hand, `backend/poker/consumers.py` schedules a server-side
+  auto-deal after ~5 seconds and broadcasts the next hand to the table. Because production
+  in-process timers can be fragile across workers/restarts, `usePokerGame.js` also has a
+  production-safe client fallback: each connected multiplayer client sends
+  `{ type: "next_hand", auto: true }` after the result delay. The backend suppresses
+  harmless duplicate auto-next attempts by syncing state instead of surfacing an error.
+  The small `Deal Now` button remains as a manual fallback.
+- Manual deal/start controls should not be reintroduced into the production table UI
+  unless explicitly requested; they make the game feel like a dev tool.
+
+Current poker UI decisions from the last iteration:
+- Player seats should be compact square/rectangular plates, not rounded pills.
+- Seat plates should show only the player's name, stack, hole cards, and active-turn dot.
+- Bets should appear above the relevant player chip when that player has an active bet.
+  They should not live inside the player chip and should not overlap the community cards.
+- Dealer `D` should be a separate table marker near the player chip, not part of the chip
+  contents.
+- Pot/phase/blinds/timer rail must sit above the community cards with visible breathing
+  room. It was last moved upward after it overlapped the card display.
+- Mobile layout matters: remove unnecessary headers on small screens and keep the table
+  compact enough that player chips, card row, status, and actions do not cause awkward
+  vertical overflow.
+- Cards now deal in instead of appearing instantly. `src/components/poker/PokerCard.jsx`
+  accepts `dealVariant="community" | "hole"`; `PokerTable.jsx` has a staged reveal layer
+  that shows hole cards one at a time in seat order and reveals flop/turn/river cards
+  sequentially as the websocket state changes. `src/index.css` owns the `pokerCardDeal` /
+  `pokerCardDealHole` animations with shorter mobile durations and a
+  `prefers-reduced-motion` opt-out.
+
+Recent verification that passed:
+```
+npm run build
+backend\ttt_venv\Scripts\python.exe backend\manage.py check
+backend\ttt_venv\Scripts\python.exe backend\manage.py test poker.tests -v 2
+```
+
+Suggested next verification when resuming:
+1. Start Redis/Memurai and the ASGI backend (`uvicorn ttt_core.asgi:application --host
+   0.0.0.0 --port 8000 --reload` from `backend/`).
+2. In two browser sessions, create a poker lobby, invite/join a second user, start the
+   table, and play through at least one hand.
+3. Confirm active bets sit above the correct player chip, dealer button is outside the
+   chip, pot/phase/timer does not overlap community cards, and auto-next-hand fires once
+   after the result window.
+4. Re-check mobile specifically; the user cares about fitting perfectly on mobile and
+   removing unnecessary headers there.
+
+### 4. Mobile-readiness pass (latest UI sweep)
+
+The app just got a broad mobile pass across the main surfaces:
+- `src/layout/LayoutFrame.jsx` now removes the desktop shell border/shadow on mobile,
+  uses tighter mobile content padding, and reserves safe-area bottom padding for the
+  bottom tab bar.
+- Home, leaderboard, Sudoku, Tic-Tac-Toe, Connect Four, Checkers, and Poker pages now use
+  smaller mobile top padding, responsive min-heights, tighter gaps, and fewer mobile-only
+  headers/eyebrows.
+- Poker table mobile controls now use a fixed grid instead of unpredictable wrapping.
+  Player seat chips remain compact/square with amount-only bet markers above the chip.
+- Lobby mobile panels are denser: compact header/tabs, bounded player/chat panels,
+  shorter poker player rows for 9-seat tables, and the poker setup modal behaves as a
+  bottom sheet on mobile.
+- Result modals and result slots were reduced on mobile so they do not cause large board
+  shifts or consume excessive viewport height.
+
+Verification run after this pass:
+```
+npm run build
+```
+
+Still worth live-checking on actual mobile widths before shipping:
+1. Home hub at 360px and 390px widths.
+2. Poker lobby with 2, 6, and 9 players.
+3. Poker table with active bets, dealer marker, raise controls, and showdown/auto-next-hand.
+4. Tic-Tac-Toe / Connect Four / Checkers result modal positions.
+5. Sudoku difficulty switching/loading to ensure the board container no longer visibly
+   shrinks and expands.
+
+### 5. Collapsible desktop social sidebar
+
+The desktop social sidebar was converted from a permanently wide panel into a collapsible
+app rail:
+- `src/context/uiContext.jsx` owns `isSidebarCollapsed` and persists explicit user choice
+  only for the current browser tab in `sessionStorage` under
+  `ui:sidebarCollapsed:session:v1`.
+- With no saved preference, the sidebar defaults collapsed everywhere after login.
+- `src/layout/LayoutFrame.jsx` drives the desktop aside width via `--sidebar-w`: `72px`
+  collapsed, `280px` expanded. Mobile overlay behavior is unchanged.
+- `src/components/friends/FriendsSidebar.jsx` renders a compact desktop rail when
+  collapsed: expand, avatar initial, Home, Friends, Chat, and Ranks, with unread/request
+  badges still visible. Expanded mode keeps the full social panel and has a collapse
+  button in the desktop header.
+
+Verification run after this pass:
+```
+npm run build
+```
+
+### 6. Poker tournaments v1
+
+Poker now has a scheduled single-table tournament workflow, scoped intentionally as v1:
+- Backend models live in `backend/poker/models.py`: `PokerTournament` and
+  `PokerTournamentRegistration`, with migration
+  `backend/poker/migrations/0007_pokertournament_pokertournamentregistration.py`.
+- REST endpoints live under `/api/poker/tournaments/`: list/create/detail/register/
+  withdraw/remove registration/start.
+- Visibility is friends-only plus self: users see tournaments created by accepted friends
+  or tournaments they are registered in. The creator sees the full roster; non-creators do
+  not.
+- Registration closes automatically when registered players hit `max_players` and reopens
+  if the creator removes someone or a non-creator withdraws before start.
+- Creator-only start is guarded by scheduled time and requires at least 2 registered
+  players. Starting creates a real `PokerGame`, calls `initialize_table(users)`, deals the
+  first hand, marks the tournament `in_progress`, and returns `/games/poker/:gameId`.
+- Frontend page is `src/components/poker/PokerTournamentsPage.jsx`, reachable at
+  `/tournaments`. The collapsed sidebar has a Tournaments rail button.
+
+Verification run after this pass:
+```
+backend\ttt_venv\Scripts\python.exe backend\manage.py check
+backend\ttt_venv\Scripts\python.exe backend\manage.py test poker.tests -v 2
+npm run build
+backend\ttt_venv\Scripts\python.exe backend\manage.py migrate poker
+```

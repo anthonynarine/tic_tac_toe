@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { LuBadgeDollarSign, LuCircleDollarSign, LuCopy, LuRefreshCw } from "react-icons/lu";
+import { LuBadgeDollarSign, LuCircleDollarSign, LuCopy, LuRefreshCw, LuUsers, LuX } from "react-icons/lu";
 import { CiHome } from "react-icons/ci";
 import { useNavigate } from "react-router-dom";
 
@@ -139,14 +139,204 @@ function PlayerPanel({
   );
 }
 
+function MobileOpponentTile({ player, active, dealer, handNumber, tileRef }) {
+  return (
+    <div
+      ref={tileRef}
+      className={[
+        "relative flex h-[74px] w-[138px] shrink-0 items-center justify-between gap-2 rounded-lg border px-2 py-2",
+        "bg-slate-950/88 shadow-[0_10px_24px_rgba(0,0,0,0.28)] backdrop-blur",
+        active
+          ? "border-emerald-300/45 shadow-[0_0_22px_rgba(16,185,129,0.2),0_10px_24px_rgba(0,0,0,0.28)]"
+          : "border-white/[0.07]",
+        player.folded ? "opacity-55" : "",
+      ].join(" ")}
+    >
+      {player.bet ? (
+        <BetMarker
+          amount={player.bet}
+          name={player.name}
+          className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[68%] scale-75"
+        />
+      ) : null}
+      {dealer ? (
+        <span className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-amber-200 text-[10px] font-black text-slate-950">
+          D
+        </span>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {active ? <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.85)]" /> : null}
+          <div className="truncate text-[12px] font-semibold text-text-primary">
+            {player.name || "Player"}
+          </div>
+        </div>
+        <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-amber-100">
+          <LuBadgeDollarSign size={10} />
+          <span>{player.chips}</span>
+        </div>
+        <div className="mt-0.5 truncate text-[9px] uppercase tracking-[0.12em] text-text-faint">
+          {active ? "To act" : player.folded ? "Folded" : player.allIn ? "All-in" : "In hand"}
+        </div>
+      </div>
+      <div className="flex shrink-0 gap-0.5">
+        {(player.cards || []).map((card, idx) => (
+          <PokerCard
+            key={`${handNumber}-${player.seat || player.name || "mobile"}-${idx}-${card}`}
+            card={card}
+            mini
+            animate={Boolean(card)}
+            dealVariant="hole"
+            delay={idx * 90 + 80}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SeatStatusSheet({ open, players, currentTurn, dealerSeat, mySeat, onClose }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:hidden">
+      <button
+        type="button"
+        className="absolute inset-0"
+        aria-label="Close seats"
+        onClick={onClose}
+      />
+      <div className="relative w-full rounded-t-2xl border border-emerald-300/15 bg-background-app-panel shadow-[0_-24px_80px_rgba(0,0,0,0.62)]">
+        <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-text-muted">Table</div>
+            <div className="text-sm font-semibold text-text-primary">{players.length}/9 seats</div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 place-items-center rounded-lg border border-white/[0.08] bg-surface text-text-secondary"
+            aria-label="Close seats"
+          >
+            <LuX size={17} />
+          </button>
+        </div>
+        <div className="max-h-[62dvh] overflow-y-auto p-3 tron-scrollbar-dark">
+          <div className="space-y-2">
+            {players.map((player) => {
+              const active = Number(currentTurn) === Number(player.seat);
+              const dealer = Number(dealerSeat) === Number(player.seat);
+              const isMe = Number(mySeat) === Number(player.seat);
+              return (
+                <div
+                  key={player.seat}
+                  className={[
+                    "flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5",
+                    active
+                      ? "border-emerald-300/35 bg-emerald-300/10"
+                      : "border-white/[0.07] bg-slate-950/45",
+                    player.folded ? "opacity-60" : "",
+                  ].join(" ")}
+                >
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {active ? <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.85)]" /> : null}
+                      <span className="truncate text-sm font-semibold text-text-primary">
+                        {player.name || "Player"}{isMe ? " (You)" : ""}
+                      </span>
+                      {dealer ? <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[9px] font-black text-slate-950">D</span> : null}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-text-secondary">
+                      <span className="text-amber-100">{player.chips} chips</span>
+                      {player.bet ? <span className="text-cyan-100">Bet {player.bet}</span> : null}
+                      {player.folded ? <span>Folded</span> : null}
+                      {player.allIn ? <span className="text-rose-200">All-in</span> : null}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-0.5">
+                    {(player.cards || []).map((card, idx) => (
+                      <PokerCard key={`${player.seat}-sheet-${idx}-${card}`} card={card} mini />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const MOBILE_SEAT_POSITIONS = [
+  "left-[3%] top-[36%]",
+  "left-[13%] top-[14%]",
+  "left-[38%] top-[7%]",
+  "right-[38%] top-[7%]",
+  "right-[13%] top-[14%]",
+  "right-[3%] top-[36%]",
+  "right-[12%] bottom-[12%]",
+  "left-[12%] bottom-[12%]",
+];
+
+function MobileTableSeatMarkers({ opponents, currentTurn, dealerSeat }) {
+  if (!opponents.length) return null;
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20 sm:hidden">
+      {opponents.slice(0, 8).map((player, idx) => {
+        const active = Number(currentTurn) === Number(player.seat);
+        const dealer = Number(dealerSeat) === Number(player.seat);
+        return (
+          <div
+            key={player.seat}
+            className={[
+              "absolute w-[76px] -translate-x-1/2 rounded-md border px-1.5 py-1",
+              MOBILE_SEAT_POSITIONS[idx] || MOBILE_SEAT_POSITIONS[0],
+              active
+                ? "border-emerald-300/45 bg-emerald-950/80 shadow-[0_0_18px_rgba(16,185,129,0.28)]"
+                : "border-white/[0.08] bg-slate-950/72",
+              player.folded ? "opacity-50" : "",
+            ].join(" ")}
+          >
+            {dealer ? (
+              <span className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center rounded-full bg-amber-200 text-[8px] font-black text-slate-950">
+                D
+              </span>
+            ) : null}
+            {player.bet ? (
+              <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[82%] rounded bg-cyan-100 px-1.5 py-0.5 text-[9px] font-black text-slate-950">
+                {player.bet}
+              </span>
+            ) : null}
+            <div className="flex items-center gap-1">
+              {active ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" /> : null}
+              <span className="truncate text-[10px] font-semibold text-text-primary">
+                {player.name || "Player"}
+              </span>
+            </div>
+            <div className="mt-0.5 truncate text-[9px] font-semibold text-amber-100">
+              {player.chips}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPlayAgain }) {
   const navigate = useNavigate();
   const [raiseTo, setRaiseTo] = useState(0);
+  const [raisePanelOpen, setRaisePanelOpen] = useState(false);
+  const [seatsOpen, setSeatsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [clientNow, setClientNow] = useState(Date.now());
   const [visibleHoleCards, setVisibleHoleCards] = useState(Number.POSITIVE_INFINITY);
   const [visibleCommunityCards, setVisibleCommunityCards] = useState(Number.POSITIVE_INFINITY);
   const dealStateRef = useRef({ handNumber: null, communityCount: 0 });
+  const opponentRailRef = useRef(null);
+  const opponentTileRefs = useRef({});
   const mySeat = game?.my_seat;
   const handNumber = game?.hand_number || 1;
   const communityCount = game?.community_cards?.length || 0;
@@ -239,6 +429,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
     ? 0
     : Math.max(0, Math.min(100, (timerRemaining / Math.max(1, game?.turn_timer_seconds || 1)) * 100));
   const timerUrgent = timerRemaining != null && timerRemaining <= 8;
+  const canRaiseOrAllIn = can("raise") || can("all_in");
   const raisePresets = useMemo(() => {
     if (!minRaiseTo || !maxRaiseTo) return [];
     const halfPot = Math.ceil(((game?.pot || 0) / 2 + (game?.current_bet || 0)) / 10) * 10;
@@ -251,6 +442,12 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
   useEffect(() => {
     if (minRaiseTo) setRaiseTo(minRaiseTo);
   }, [minRaiseTo, game?.hand_number, game?.phase, game?.current_bet]);
+
+  useEffect(() => {
+    if (!game?.legal_actions?.includes("raise") && !game?.legal_actions?.includes("all_in")) {
+      setRaisePanelOpen(false);
+    }
+  }, [game?.legal_actions]);
 
   useEffect(() => {
     const interval = window.setInterval(() => setClientNow(Date.now()), 250);
@@ -309,6 +506,13 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [communityCount, game?.id, game?.is_completed, handNumber]);
 
+  useEffect(() => {
+    if (!game?.current_turn || Number(game.current_turn) === Number(mySeat)) return;
+    const tile = opponentTileRefs.current[String(game.current_turn)];
+    if (!tile) return;
+    tile.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [game?.current_turn, mySeat]);
+
   const handleCopyTableLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -321,7 +525,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
   };
 
   return (
-    <div className="w-full max-w-6xl min-h-0 flex flex-col gap-2 sm:gap-4 lg:min-h-[720px]">
+    <div className="w-full max-w-6xl min-h-0 flex flex-col gap-2 pb-[calc(env(safe-area-inset-bottom)+150px)] sm:gap-4 sm:pb-0 lg:min-h-[720px]">
       <div className="hidden flex-col gap-3 px-1 sm:flex sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-[11px] uppercase tracking-[0.28em] text-amber-200/75">No-limit Texas Hold'em</div>
@@ -345,25 +549,64 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 pt-5 lg:hidden">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 sm:hidden">
+        <div className="min-w-0">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.22em] text-amber-200/75">Texas Hold'em</div>
+          <div className="truncate text-sm font-semibold text-text-primary">Hand {game?.hand_number || 1}</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {wsStatus ? (
+            <span className="rounded-full bg-emerald-300/10 px-2 py-1 text-[10px] font-semibold text-emerald-200">
+              {wsStatus === "connected" ? "Live" : wsStatus}
+            </span>
+          ) : null}
+          <Tooltip content="Seats">
+            <button
+              type="button"
+              onClick={() => setSeatsOpen(true)}
+              className="grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-slate-950/75 text-text-primary"
+              aria-label="Show seats"
+            >
+              <LuUsers size={15} />
+            </button>
+          </Tooltip>
+          <Tooltip content="Copy table link">
+            <button
+              type="button"
+              onClick={handleCopyTableLink}
+              className="grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-slate-950/75 text-text-primary"
+              aria-label="Copy table link"
+            >
+              <LuCopy size={15} />
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+
+      <div ref={opponentRailRef} className="flex gap-2 overflow-x-auto pb-1 pt-4 lg:hidden tron-scrollbar-dark">
         {opponents.map((opponent) => (
-          <PlayerPanel
+          <MobileOpponentTile
             key={opponent.seat}
-            label=""
+            player={opponent}
             active={Number(game?.current_turn) === Number(opponent.seat) && !game?.is_completed}
             dealer={Number(game?.dealer) === Number(opponent.seat)}
-            tableSeat
-            showMeta={false}
-            className="min-w-[154px] max-w-[154px]"
             handNumber={game?.hand_number || 1}
-            {...opponent}
+            tileRef={(node) => {
+              if (node) opponentTileRefs.current[String(opponent.seat)] = node;
+            }}
           />
         ))}
       </div>
 
-      <div className="relative min-h-[300px] rounded-[22px] border border-emerald-200/15 bg-[#07110f] shadow-[0_28px_90px_rgba(0,0,0,0.5)] overflow-hidden sm:min-h-[360px] sm:rounded-[32px] lg:min-h-[560px]">
+      <div className="relative min-h-[250px] rounded-[20px] border border-emerald-200/15 bg-[#07110f] shadow-[0_28px_90px_rgba(0,0,0,0.5)] overflow-hidden sm:min-h-[360px] sm:rounded-[32px] lg:min-h-[560px]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(22,101,52,0.96),rgba(6,78,59,0.76)_48%,rgba(2,6,23,0.98)_82%)]" />
-        <div className="absolute inset-x-2 inset-y-4 rounded-[34px] border-[6px] border-[#24170f] shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2),inset_0_20px_58px_rgba(0,0,0,0.48)] sm:inset-x-3 sm:inset-y-7 sm:rounded-[54px] sm:border-[10px] lg:inset-x-8 lg:inset-y-10 lg:rounded-[118px]" />
+        <div className="absolute inset-x-2 inset-y-4 rounded-[30px] border-[5px] border-[#24170f] shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2),inset_0_20px_58px_rgba(0,0,0,0.48)] sm:inset-x-3 sm:inset-y-7 sm:rounded-[54px] sm:border-[10px] lg:inset-x-8 lg:inset-y-10 lg:rounded-[118px]" />
+
+        <MobileTableSeatMarkers
+          opponents={opponents}
+          currentTurn={game?.current_turn}
+          dealerSeat={game?.dealer}
+        />
 
         <div className="pointer-events-none absolute inset-0 z-20 hidden lg:block">
           {opponents.slice(0, 8).map((opponent, idx) => {
@@ -398,7 +641,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
           />
         </div>
 
-        <div className="relative z-10 h-full min-h-[300px] flex flex-col items-center justify-center gap-2 px-2 pb-5 pt-24 sm:min-h-[360px] sm:gap-4 sm:px-4 sm:pb-10 sm:pt-28 lg:min-h-[560px] lg:px-28 lg:pb-28 lg:pt-28">
+        <div className="relative z-10 h-full min-h-[250px] flex flex-col items-center justify-center gap-2 px-2 pb-4 pt-20 sm:min-h-[360px] sm:gap-4 sm:px-4 sm:pb-10 sm:pt-28 lg:min-h-[560px] lg:px-28 lg:pb-28 lg:pt-28">
           <div className="absolute left-1/2 top-4 z-30 flex w-[min(94%,620px)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 px-1.5 py-1 text-[10px] font-semibold text-text-muted sm:top-6 sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[11px] lg:top-[22%]">
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/35 px-2 py-0.5 text-emerald-100/80">
               <LuCircleDollarSign size={12} />
@@ -410,7 +653,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
               {timerRemaining == null ? "--" : `${timerRemaining}s`}
             </span>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-1.5 min-h-[72px] px-2 py-2 sm:gap-2 sm:min-h-[96px] sm:px-4 sm:py-3 lg:min-h-[112px] lg:pt-16">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 min-h-[70px] px-1 py-2 sm:gap-2 sm:min-h-[96px] sm:px-4 sm:py-3 lg:min-h-[112px] lg:pt-16">
             {Array.from({ length: 5 }).map((_, idx) => (
               <PokerCard
                 key={`${game?.hand_number || 1}-${idx}-${displayedCommunityCards?.[idx] || "empty"}`}
@@ -421,7 +664,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
               />
             ))}
           </div>
-          <div className="min-h-[40px] max-w-2xl text-center sm:min-h-[48px]">
+          <div className="min-h-[38px] max-w-2xl text-center sm:min-h-[48px]">
             <div className="text-sm font-semibold text-text-primary sm:text-base">{statusText}</div>
             <div className="mt-1 text-[10px] text-text-secondary uppercase tracking-[0.16em] sm:text-[11px] sm:tracking-[0.22em]">
               {game?.last_action || "Waiting for action"}
@@ -441,20 +684,29 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
         </div>
       </div>
 
-      <div className="flex justify-center pt-5 lg:hidden">
+      <div className="flex justify-center pt-2 lg:hidden">
         <PlayerPanel
           label=""
           active={isMyTurn}
           dealer={Number(game?.dealer) === Number(mySeat)}
           tableSeat
           showMeta={false}
-          className="!w-[164px]"
+          className="!w-[176px] border border-emerald-300/15"
           handNumber={game?.hand_number || 1}
           {...me}
         />
       </div>
 
-      <div className="min-h-0 flex flex-col items-center justify-center gap-2 rounded-lg border border-white/10 bg-black/20 px-2 py-2 sm:min-h-[150px] sm:gap-3 sm:px-3 sm:py-4">
+      <SeatStatusSheet
+        open={seatsOpen}
+        players={displayedTablePlayers}
+        currentTurn={game?.current_turn}
+        dealerSeat={game?.dealer}
+        mySeat={mySeat}
+        onClose={() => setSeatsOpen(false)}
+      />
+
+      <div className="fixed inset-x-0 bottom-0 z-40 min-h-0 flex flex-col items-center justify-center gap-2 border-t border-white/10 bg-[#030607]/95 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 shadow-[0_-18px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:static sm:rounded-lg sm:border sm:bg-black/20 sm:px-3 sm:py-4 sm:shadow-none sm:backdrop-blur-0 sm:min-h-[150px] sm:gap-3">
         {game?.is_completed ? (
           <div className="flex flex-col items-center justify-center gap-2 text-center">
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary">
@@ -484,12 +736,12 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
           </div>
         ) : (
           <>
-            <div className="grid w-full grid-cols-3 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-center sm:gap-2">
+            <div className="grid w-full grid-cols-4 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-center sm:gap-2">
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="px-2 sm:px-4"
+                className="h-11 px-1 text-xs sm:h-9 sm:px-4 sm:text-sm"
                 disabled={!can("check")}
                 onClick={() => onAction("check")}
               >
@@ -499,7 +751,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 type="button"
                 variant="secondary"
                 size="sm"
-                className="px-2 sm:px-4"
+                className="h-11 px-1 text-xs sm:h-9 sm:px-4 sm:text-sm"
                 disabled={!can("call")}
                 onClick={() => onAction("call")}
               >
@@ -509,7 +761,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 type="button"
                 variant="primary"
                 size="sm"
-                className="px-2 bg-amber-300 text-slate-950 shadow-[0_0_24px_rgba(251,191,36,0.25)] hover:bg-amber-200 sm:px-4"
+                className="hidden px-2 bg-amber-300 text-slate-950 shadow-[0_0_24px_rgba(251,191,36,0.25)] hover:bg-amber-200 sm:inline-flex sm:px-4"
                 disabled={!can("raise")}
                 onClick={() => onAction("raise", raiseTo)}
               >
@@ -517,9 +769,19 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
               </Button>
               <Button
                 type="button"
+                variant="primary"
+                size="sm"
+                className="h-11 bg-amber-300 px-1 text-xs text-slate-950 shadow-[0_0_24px_rgba(251,191,36,0.25)] hover:bg-amber-200 sm:hidden"
+                disabled={!canRaiseOrAllIn}
+                onClick={() => setRaisePanelOpen((open) => !open)}
+              >
+                Bet
+              </Button>
+              <Button
+                type="button"
                 variant="danger"
                 size="sm"
-                className="px-2 sm:px-4"
+                className="hidden px-2 sm:inline-flex sm:px-4"
                 disabled={!can("all_in")}
                 onClick={() => onAction("all_in")}
               >
@@ -529,7 +791,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 type="button"
                 variant="outline"
                 size="sm"
-                className="px-2 sm:px-4"
+                className="h-11 px-1 text-xs sm:h-9 sm:px-4 sm:text-sm"
                 disabled={!can("fold")}
                 onClick={() => onAction("fold")}
               >
@@ -539,7 +801,8 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
 
             <div className={[
               "w-full max-w-xl rounded-lg border border-amber-300/15 bg-slate-950/70 px-2 py-2 sm:px-3 sm:py-3",
-              can("raise") ? "opacity-100" : "opacity-45",
+              raisePanelOpen ? "block" : "hidden sm:block",
+              canRaiseOrAllIn ? "opacity-100" : "opacity-45",
             ].join(" ")}>
               <div className="flex items-center justify-between gap-3 text-[11px] text-text-secondary">
                 <span>Raise To</span>
@@ -567,6 +830,28 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                     {amount === maxRaiseTo ? "Max" : amount}
                   </button>
                 ))}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-1.5 sm:hidden">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  className="h-11 bg-amber-300 text-xs text-slate-950 hover:bg-amber-200"
+                  disabled={!can("raise")}
+                  onClick={() => onAction("raise", raiseTo)}
+                >
+                  Raise {raiseTo || ""}
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  className="h-11 text-xs"
+                  disabled={!can("all_in")}
+                  onClick={() => onAction("all_in")}
+                >
+                  All In
+                </Button>
               </div>
             </div>
           </>

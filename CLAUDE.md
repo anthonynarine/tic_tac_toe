@@ -38,6 +38,9 @@ daphne -b 0.0.0.0 -p 8000 ttt_core.asgi:application
 ```bash
 docker run -p 6379:6379 redis:7
 ```
+On Windows without Docker Desktop, Memurai can be used as the local Redis-compatible
+server. Confirm Redis/Memurai with `redis-cli ping` or `netstat -ano | Select-String
+":6379"`.
 
 ### Running Tests
 ```bash
@@ -114,6 +117,7 @@ UserProvider
 | `invites` | Game invites (v2 redesign), generic across game types via `game_type` |
 | `lobby` | Pre-game lobby WS (roster, chat, start-game handshake) — generic across game types via `utils/game_registry.py` |
 | `connect_four` | ConnectFourGame model, REST create/join/move, in-game WS (`ws/c4/<id>/`) |
+| `poker` | Texas Hold'em model/rules, table settings, AI and multiplayer REST, in-game WS (`ws/poker/<id>/`) |
 | `notifications` | Global notification socket, unread logic |
 | `ai_agent` | LangChain RAG agent, Trinity endpoint |
 
@@ -127,6 +131,12 @@ UserProvider
 /games/                   POST/GET  Create game, list games (protected)
 /games/<id>/move/         POST   Make move in game (protected)
 /games/<id>/complete/     POST   Mark game complete (protected)
+/poker/                   POST   Create poker game/table (protected)
+/poker/<id>/              GET    Poker table detail (protected)
+/poker/<id>/settings/     PATCH  Update poker table setup before start (host only)
+/poker/<id>/join/         POST   Join legacy heads-up poker game
+/poker/<id>/action/       POST   Poker action: check/call/raise/fold/all_in
+/poker/<id>/next-hand/    POST   Start next poker hand after completion
 /chat/conversations/<id>/messages/   GET  Message history (protected)
 /chat/conversation-with/<friend_id>/ GET  Get or create conversation (protected)
 /chat/conversations/<id>/mark-read/  POST Mark conversation as read (protected)
@@ -142,6 +152,7 @@ UserProvider
 /ws/chat/lobby/<lobby_name>/           Game lobby chat (frontend namespaces lobby_name as "<gameType>_<lobbyId>")
 /ws/game/<game_id>/                    Tic-Tac-Toe gameplay updates, move validation, rematch signals
 /ws/c4/<game_id>/                      Connect Four gameplay updates (no lobby/session gating - DB participant check only)
+/ws/poker/<game_id>/                   Poker gameplay updates, actions, turn timers, next-hand sync
 ```
 
 **Multi-game-type dispatch** (`utils/game_registry.py`):
@@ -197,6 +208,30 @@ UserProvider
 3. Backend validates, updates DB
 4. Game consumer broadcasts move to both players via `/ws/game/<game_id>/`
 5. Rematch: player sends `{type: "rematch_request"}` → consumer broadcasts → accept → new game created
+
+### Poker Flow
+1. Create table: `POST /api/poker/` with `{is_ai_game}`. Non-AI creation returns
+   `lobbyId` + `sessionKey` so the shared lobby can invite/start like other games.
+2. Lobby setup can configure starting chips, blinds, turn timer, and max players before
+   table start. Current max is 9 players.
+3. Start table from `/lobby/poker/<id>`; backend initializes `table_seats`, posts blinds,
+   deals hole cards, and sets `current_turn`.
+4. Gameplay uses `/ws/poker/<id>/`. Legal actions are server-derived; frontend sends
+   `{type: "action", action, amount?}`.
+5. The backend automatically advances streets when betting closes: preflop → flop → turn
+   → river → showdown/completed. Turn timers auto-check when checking is valid and
+   auto-fold when facing a bet.
+6. After a completed hand, the frontend queues `next_hand` after a short result window.
+   In multiplayer only the table owner sends that message to avoid duplicate starts;
+   the explicit Next Hand button remains as a fallback.
+
+Poker UI conventions:
+- Player seats are compact square/rectangular plates: name, chip stack, cards, active dot.
+- Bets appear above the player's seat plate when active, not inside the seat.
+- Dealer button is a separate table marker near the player seat, not inside the plate.
+- Pot/phase/blinds/timer rail should sit above the community cards with visible spacing;
+  do not let it overlap the card row.
+- On mobile, remove unnecessary headers and keep the table-first layout compact.
 
 ### Friend Invite → Lobby → Start (generic across game types)
 1. Trigger: a friend row's invite icon (pick a game from the small popover) or a game's
@@ -340,6 +375,10 @@ npm test -- --testNamePattern="should render login form"
 - `*/consumers.py` - WebSocket message handlers
 - `game/models.py` - TicTacToeGame model, move validation
 - `connect_four/models.py` - ConnectFourGame model, move/win validation
+- `poker/models.py` - PokerGame model, Hold'em rules, betting, side pots, timers
+- `poker/consumers.py` - Poker websocket actions, sync, turn timeout scheduler
+- `poker/serializers.py` - Poker payload masking, legal actions, timer metadata
+- `tic-tac-toe/src/components/poker/` - Poker table, lobby/game pages, hooks, cards
 - `utils/game_registry.py` - per-game-type dispatch (model, factory fn, seat→field mapping)
 - `utils/websockets/ws_groups.py` - `scoped_lobby_id()` + Channels group name builders
 - `utils/redis/redis_game_lobby_manager.py` - lobby roster/session/rematch Redis ops (keys are opaque strings — caller supplies scoping)

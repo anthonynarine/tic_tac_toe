@@ -10,6 +10,7 @@ const STATIC_TITLES = {
   "/games/connect-four/ai": "Connect Four",
   "/games/checkers/ai": "Checkers",
   "/games/poker/ai": "Poker",
+  "/tournaments": "Tournaments",
   "/technical-paper": "Tech Overview",
   "/recruiter-demo": "Demo",
 };
@@ -48,21 +49,21 @@ export default function Navbar() {
       {/* thin cyan line at top */}
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand-cyan/40 to-transparent" />
 
-      <div className="h-[60px] sm:h-[64px] px-4 grid grid-cols-3 items-center">
+      <div className="h-[60px] sm:h-[64px] px-3 sm:px-4 grid grid-cols-[minmax(0,1fr)_auto_minmax(44px,1fr)] items-center">
 
         {/* Left: home + wordmark */}
         <button
           type="button"
           onClick={() => navigate("/")}
           className={[
-            "group flex items-center gap-2 focus:outline-none w-fit",
+            "group flex min-w-0 items-center gap-2 focus:outline-none w-fit max-w-full",
             isHome ? "text-brand-cyan" : "text-text-secondary hover:text-brand-cyan",
           ].join(" ")}
           aria-label="Go to Game Hub"
           title="Game Hub"
         >
           <CiHome size={20} className="shrink-0 transition-colors duration-150" />
-          <span className="text-[12px] font-semibold tracking-[0.25em] uppercase transition-colors duration-150">
+          <span className="min-w-0 truncate text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors duration-150 sm:text-[12px] sm:tracking-[0.25em]">
             {pageTitle ?? "GAME HUB"}
           </span>
         </button>

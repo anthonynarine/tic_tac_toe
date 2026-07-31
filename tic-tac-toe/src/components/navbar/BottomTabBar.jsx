@@ -2,16 +2,18 @@
 import React, { useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CiHome, CiUser, CiChat1 } from "react-icons/ci";
-import { LuTrophy } from "react-icons/lu";
+import { LuCalendarClock, LuTrophy } from "react-icons/lu";
 
 import { useUI } from "../../context/uiContext";
 import { useFriends } from "../../context/friendsContext";
 import { useDirectMessage } from "../../context/directMessageContext";
+import { useInviteContext } from "../../context/inviteContext";
 
 const TABS = [
   { id: "home",        label: "Home",    Icon: CiHome },
   { id: "friends",     label: "Friends", Icon: CiUser },
   { id: "chat",        label: "Chat",    Icon: CiChat1 },
+  { id: "tournaments", label: "Events",  Icon: LuCalendarClock },
   { id: "leaderboard", label: "Ranks",   Icon: LuTrophy },
 ];
 
@@ -20,6 +22,7 @@ export default function BottomTabBar() {
   const location  = useLocation();
   const { setSidebarOpen, setDMOpen } = useUI();
   const { pending } = useFriends();
+  const { pendingInvites } = useInviteContext();
   const { unreadCounts, groupUnreadCounts } = useDirectMessage();
 
   const totalUnread = useMemo(
@@ -29,7 +32,12 @@ export default function BottomTabBar() {
     [unreadCounts, groupUnreadCounts]
   );
 
-  const pendingCount = pending?.received?.length ?? 0;
+  const pendingCount = (pending?.received?.length ?? 0) + (pendingInvites?.length ?? 0);
+  const isFocusedFlow =
+    /^\/games\/poker\/.+/.test(location.pathname) ||
+    location.pathname.startsWith("/lobby/");
+
+  if (isFocusedFlow) return null;
 
   const getBadge = (id) => {
     if (id === "friends") return pendingCount;
@@ -39,6 +47,7 @@ export default function BottomTabBar() {
 
   const isActive = (id) => {
     if (id === "home") return location.pathname === "/";
+    if (id === "tournaments") return location.pathname.startsWith("/tournaments");
     if (id === "leaderboard") return location.pathname.startsWith("/leaderboard");
     return false;
   };
@@ -47,6 +56,7 @@ export default function BottomTabBar() {
     if (id === "home")        navigate("/");
     if (id === "friends")     setSidebarOpen(true);
     if (id === "chat")        setDMOpen(true);
+    if (id === "tournaments") navigate("/tournaments");
     if (id === "leaderboard") navigate("/leaderboard");
   };
 
@@ -86,7 +96,7 @@ export default function BottomTabBar() {
                 )}
               </div>
 
-              <span className="text-[10px] font-semibold tracking-[0.1em] uppercase">
+              <span className="text-[9px] font-semibold tracking-[0.06em] uppercase sm:text-[10px] sm:tracking-[0.1em]">
                 {label}
               </span>
             </button>

@@ -185,7 +185,7 @@ export default function PokerTournamentsPage() {
   };
 
   return (
-    <div className="w-full px-1 pb-20 pt-1 sm:px-4 sm:pb-24 sm:pt-6">
+    <div className="w-full px-1 pb-4 pt-1 sm:px-4 sm:pb-24 sm:pt-6">
       <div className="mx-auto flex max-w-5xl flex-col gap-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -275,8 +275,8 @@ export default function PokerTournamentsPage() {
 
 function CreateTournamentModal({ form, saving, onChange, onSubmit, onClose }) {
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 px-3 py-6 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-lg border border-border-soft bg-background-app-panel shadow-[0_28px_90px_rgba(0,0,0,0.55)]">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 px-0 py-0 backdrop-blur-sm sm:items-center sm:px-3 sm:py-6">
+      <div className="w-full max-w-lg rounded-t-2xl border border-border-soft bg-background-app-panel shadow-[0_28px_90px_rgba(0,0,0,0.55)] sm:rounded-lg">
         <div className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-text-muted">
@@ -296,7 +296,7 @@ function CreateTournamentModal({ form, saving, onChange, onSubmit, onClose }) {
           </Tooltip>
         </div>
 
-        <form onSubmit={onSubmit} className="grid max-h-[72dvh] gap-3 overflow-y-auto p-4 tron-scrollbar-dark sm:grid-cols-2">
+        <form onSubmit={onSubmit} className="grid max-h-[78dvh] gap-3 overflow-y-auto p-4 tron-scrollbar-dark sm:max-h-[72dvh] sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Field label="Title">
               <input
@@ -376,11 +376,11 @@ function CreateTournamentModal({ form, saving, onChange, onSubmit, onClose }) {
             />
           </Field>
 
-          <div className="flex items-end justify-end gap-2 sm:col-span-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+          <div className="grid grid-cols-2 gap-2 sm:col-span-2 sm:flex sm:items-end sm:justify-end">
+            <Button type="button" variant="outline" size="sm" className="h-11 sm:h-9" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={saving}>
+            <Button type="submit" size="sm" className="h-11 sm:h-9" disabled={saving}>
               Post Tournament
             </Button>
           </div>
@@ -405,7 +405,7 @@ function TournamentCard({
   const canJoin = tournament.status === "in_progress" && tournament.game_id && tournament.is_registered;
 
   return (
-    <Card variant="glass" className="flex min-h-[260px] flex-col p-3 sm:p-4">
+    <Card variant="glass" className="flex min-h-0 flex-col p-3 sm:min-h-[260px] sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-base font-semibold text-text-primary">{tournament.title}</div>
@@ -435,29 +435,29 @@ function TournamentCard({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={onRoster}>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <Button type="button" variant="outline" size="sm" className="h-11 sm:h-9" onClick={onRoster}>
           <LuUsers size={15} />
           Roster
         </Button>
         {canRegister ? (
-          <Button type="button" size="sm" onClick={onRegister} disabled={busy}>
+          <Button type="button" size="sm" className="h-11 sm:h-9" onClick={onRegister} disabled={busy}>
             Register
           </Button>
         ) : null}
         {canWithdraw ? (
-          <Button type="button" variant="outline" size="sm" onClick={onWithdraw} disabled={busy}>
+          <Button type="button" variant="outline" size="sm" className="h-11 sm:h-9" onClick={onWithdraw} disabled={busy}>
             Withdraw
           </Button>
         ) : null}
         {canStart ? (
-          <Button type="button" variant="secondary" size="sm" onClick={onStart} disabled={busy}>
+          <Button type="button" variant="secondary" size="sm" className="h-11 sm:h-9" onClick={onStart} disabled={busy}>
             <LuPlay size={15} />
             Start
           </Button>
         ) : null}
         {canJoin ? (
-          <Button type="button" size="sm" onClick={onJoin}>
+          <Button type="button" size="sm" className="h-11 sm:h-9" onClick={onJoin}>
             Join Table
           </Button>
         ) : null}
@@ -471,8 +471,8 @@ function RosterModal({ tournament, busy, onClose, onRemove }) {
   const canManage = tournament.is_creator && ["open", "closed"].includes(tournament.status);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 px-3 py-6 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-lg border border-border-soft bg-background-app-panel shadow-[0_28px_90px_rgba(0,0,0,0.55)]">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 px-0 py-0 backdrop-blur-sm sm:items-center sm:px-3 sm:py-6">
+      <div className="w-full max-w-md rounded-t-2xl border border-border-soft bg-background-app-panel shadow-[0_28px_90px_rgba(0,0,0,0.55)] sm:rounded-lg">
         <div className="flex items-start justify-between gap-3 border-b border-border-soft px-4 py-3">
           <div className="min-w-0">
             <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-text-muted">

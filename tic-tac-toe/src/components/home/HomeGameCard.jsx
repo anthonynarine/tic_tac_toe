@@ -107,7 +107,7 @@ function ActionButton({ label, onClick, primary }) {
     <button
       type="button"
       onClick={() => onClick()}
-      className={`px-3 py-2 rounded-button text-[11px] sm:text-xs font-semibold uppercase tracking-wide transition-colors duration-150 border ${
+      className={`min-h-11 px-2 py-2 rounded-button text-[10px] sm:min-h-0 sm:px-3 sm:text-xs font-semibold uppercase tracking-[0.08em] sm:tracking-wide transition-colors duration-150 border ${
         primary
           ? "bg-brand-cyan/10 border-brand-cyan/40 text-brand-cyan hover:bg-brand-cyan/20 hover:border-brand-cyan/60"
           : "bg-surface border-border-soft text-text-secondary hover:bg-surface-elevated hover:text-text-primary"
