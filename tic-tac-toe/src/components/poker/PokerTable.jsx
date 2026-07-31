@@ -9,14 +9,14 @@ import { showToast } from "../../utils/toast/Toast";
 import Tooltip from "../ui/Tooltip";
 
 const SEAT_POSITIONS = [
-  "lg:left-[4%] lg:top-[42%]",
-  "lg:left-[14%] lg:top-[14%]",
-  "lg:left-[36%] lg:top-[5%]",
-  "lg:right-[36%] lg:top-[5%]",
-  "lg:right-[14%] lg:top-[14%]",
-  "lg:right-[4%] lg:top-[42%]",
-  "lg:right-[21%] lg:bottom-[9%]",
-  "lg:left-[21%] lg:bottom-[9%]",
+  "lg:left-[5%] lg:top-[40%]",
+  "lg:left-[14%] lg:top-[18%]",
+  "lg:left-[34%] lg:top-[7%]",
+  "lg:right-[34%] lg:top-[7%]",
+  "lg:right-[14%] lg:top-[18%]",
+  "lg:right-[5%] lg:top-[40%]",
+  "lg:right-[20%] lg:bottom-[9%]",
+  "lg:left-[20%] lg:bottom-[9%]",
 ];
 
 function BetMarker({ amount, name, className = "" }) {
@@ -133,6 +133,85 @@ function PlayerPanel({
               delay={idx * 110 + (tableSeat ? 120 : 40)}
             />
           ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function playerInitial(name) {
+  return (name || "P").trim().charAt(0).toUpperCase() || "P";
+}
+
+function CasinoSeatPod({
+  player,
+  active,
+  dealer,
+  isMe = false,
+  className = "",
+  handNumber = 1,
+}) {
+  return (
+    <div
+      className={[
+        "pointer-events-auto absolute flex w-[126px] -translate-x-1/2 flex-col items-center",
+        isMe ? "w-[150px]" : "",
+        className,
+      ].join(" ")}
+    >
+      <div
+        className={[
+          "relative grid h-11 w-11 place-items-center rounded-lg border text-sm font-black",
+          active
+            ? "border-emerald-200 bg-emerald-300 text-slate-950 shadow-[0_0_28px_rgba(16,185,129,0.36)]"
+            : "border-cyan-100/20 bg-slate-950/92 text-cyan-100",
+          player.folded ? "opacity-55" : "",
+        ].join(" ")}
+      >
+        {playerInitial(player.name)}
+        {dealer ? (
+          <span className="absolute -right-2 -bottom-1 grid h-5 w-5 place-items-center rounded-full bg-amber-200 text-[10px] font-black text-slate-950 shadow-[0_8px_16px_rgba(0,0,0,0.35)]">
+            D
+          </span>
+        ) : null}
+      </div>
+
+      <div
+        className={[
+          "relative mt-1 w-full rounded-md border px-2 py-1 text-center shadow-[0_10px_22px_rgba(0,0,0,0.32)]",
+          active
+            ? "border-emerald-300/45 bg-emerald-950/90"
+            : "border-white/[0.08] bg-slate-950/90",
+          player.folded ? "opacity-55" : "",
+        ].join(" ")}
+      >
+        {player.bet ? (
+          <BetMarker
+            amount={player.bet}
+            name={player.name}
+            className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[92%] scale-75"
+          />
+        ) : null}
+        <div className="truncate text-[10px] font-bold uppercase tracking-[0.08em] text-text-primary">
+          {isMe ? "You" : player.name || "Player"}
+        </div>
+        <div className="mt-0.5 truncate text-[10px] font-semibold text-amber-100">
+          {player.chips}
+        </div>
+        <div className="mt-1 flex justify-center gap-0.5">
+          {(player.cards || []).map((card, idx) => (
+            <PokerCard
+              key={`${handNumber}-${player.seat || player.name || "casino"}-${idx}-${card}`}
+              card={card}
+              mini
+              animate={Boolean(card)}
+              dealVariant="hole"
+              delay={idx * 90 + 80}
+            />
+          ))}
+        </div>
+        <div className="mt-1 h-3 text-[8px] font-black uppercase tracking-[0.12em] text-text-faint">
+          {active ? "To act" : player.folded ? "Fold" : player.allIn ? "All in" : player.best || ""}
         </div>
       </div>
     </div>
@@ -291,7 +370,7 @@ function MobileTableSeatMarkers({ opponents, currentTurn, dealerSeat }) {
           <div
             key={player.seat}
             className={[
-              "absolute w-[76px] -translate-x-1/2 rounded-md border px-1.5 py-1",
+              "absolute w-[82px] -translate-x-1/2 rounded-md border px-1.5 py-1",
               MOBILE_SEAT_POSITIONS[idx] || MOBILE_SEAT_POSITIONS[0],
               active
                 ? "border-emerald-300/45 bg-emerald-950/80 shadow-[0_0_18px_rgba(16,185,129,0.28)]"
@@ -315,8 +394,14 @@ function MobileTableSeatMarkers({ opponents, currentTurn, dealerSeat }) {
                 {player.name || "Player"}
               </span>
             </div>
-            <div className="mt-0.5 truncate text-[9px] font-semibold text-amber-100">
-              {player.chips}
+            <div className="mt-0.5 flex items-center justify-between gap-1">
+              <span className="truncate text-[9px] font-semibold text-amber-100">
+                {player.chips}
+              </span>
+              <span className="flex shrink-0 gap-0.5">
+                <span className="h-3.5 w-2.5 rounded-[2px] border border-white/20 bg-[linear-gradient(135deg,#ef4444,#7f1d1d)]" />
+                <span className="h-3.5 w-2.5 rounded-[2px] border border-white/20 bg-[linear-gradient(135deg,#ef4444,#7f1d1d)]" />
+              </span>
             </div>
           </div>
         );
@@ -583,7 +668,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
         </div>
       </div>
 
-      <div ref={opponentRailRef} className="flex gap-2 overflow-x-auto pb-1 pt-4 lg:hidden tron-scrollbar-dark">
+      <div ref={opponentRailRef} className="hidden gap-2 overflow-x-auto pb-1 pt-4 sm:flex lg:hidden tron-scrollbar-dark">
         {opponents.map((opponent) => (
           <MobileOpponentTile
             key={opponent.seat}
@@ -598,9 +683,9 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
         ))}
       </div>
 
-      <div className="relative min-h-[250px] rounded-[20px] border border-emerald-200/15 bg-[#07110f] shadow-[0_28px_90px_rgba(0,0,0,0.5)] overflow-hidden sm:min-h-[360px] sm:rounded-[32px] lg:min-h-[560px]">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(22,101,52,0.96),rgba(6,78,59,0.76)_48%,rgba(2,6,23,0.98)_82%)]" />
-        <div className="absolute inset-x-2 inset-y-4 rounded-[30px] border-[5px] border-[#24170f] shadow-[inset_0_0_0_1px_rgba(16,185,129,0.2),inset_0_20px_58px_rgba(0,0,0,0.48)] sm:inset-x-3 sm:inset-y-7 sm:rounded-[54px] sm:border-[10px] lg:inset-x-8 lg:inset-y-10 lg:rounded-[118px]" />
+      <div className="relative min-h-[420px] overflow-hidden rounded-[20px] border border-emerald-200/15 bg-[#1b1009] shadow-[0_28px_90px_rgba(0,0,0,0.5)] sm:min-h-[500px] sm:rounded-[32px] lg:min-h-[560px]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_24%,rgba(120,64,24,0.5),transparent_34%),linear-gradient(90deg,rgba(40,20,10,0.96),rgba(88,45,19,0.88),rgba(28,14,8,0.96))]" />
+        <div className="absolute inset-x-2 inset-y-5 rounded-[44%/50%] border-[8px] border-[#8a4b18] bg-[radial-gradient(ellipse_at_50%_48%,rgba(22,101,52,0.98),rgba(5,76,44,0.94)_52%,rgba(3,49,32,0.98)_100%)] shadow-[inset_0_0_0_2px_rgba(250,204,21,0.25),inset_0_0_0_8px_rgba(15,23,42,0.28),inset_0_24px_58px_rgba(0,0,0,0.4),0_18px_38px_rgba(0,0,0,0.5)] sm:inset-x-6 sm:inset-y-10 sm:border-[10px] lg:inset-x-16 lg:inset-y-12 lg:rounded-[42%/48%]" />
 
         <MobileTableSeatMarkers
           opponents={opponents}
@@ -613,36 +698,30 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
             const seatPosition = SEAT_POSITIONS[idx] || SEAT_POSITIONS[0];
             return (
               <React.Fragment key={opponent.seat}>
-                <PlayerPanel
-                  label="Player"
+                <CasinoSeatPod
+                  player={opponent}
                   active={Number(game?.current_turn) === Number(opponent.seat) && !game?.is_completed}
                   dealer={Number(game?.dealer) === Number(opponent.seat)}
-                  tableSeat
-                  showMeta={false}
                   className={[
-                    "pointer-events-auto absolute !w-[142px]",
                     seatPosition,
                   ].join(" ")}
                   handNumber={game?.hand_number || 1}
-                  {...opponent}
                 />
               </React.Fragment>
             );
           })}
-          <PlayerPanel
-            label="You"
+          <CasinoSeatPod
+            player={me}
             active={isMyTurn}
             dealer={Number(game?.dealer) === Number(mySeat)}
-            tableSeat
-            showMeta={false}
-            className="pointer-events-auto absolute bottom-4 left-1/2 !w-[150px] -translate-x-1/2"
+            isMe
+            className="bottom-4 left-1/2"
             handNumber={game?.hand_number || 1}
-            {...me}
           />
         </div>
 
-        <div className="relative z-10 h-full min-h-[250px] flex flex-col items-center justify-center gap-2 px-2 pb-4 pt-20 sm:min-h-[360px] sm:gap-4 sm:px-4 sm:pb-10 sm:pt-28 lg:min-h-[560px] lg:px-28 lg:pb-28 lg:pt-28">
-          <div className="absolute left-1/2 top-4 z-30 flex w-[min(94%,620px)] -translate-x-1/2 flex-wrap items-center justify-center gap-1 px-1.5 py-1 text-[10px] font-semibold text-text-muted sm:top-6 sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[11px] lg:top-[22%]">
+        <div className="relative z-10 h-full min-h-[420px] flex flex-col items-center justify-center gap-2 px-2 pb-16 pt-28 sm:min-h-[500px] sm:gap-4 sm:px-4 sm:pb-20 sm:pt-32 lg:min-h-[560px] lg:px-28 lg:pb-28 lg:pt-28">
+          <div className="absolute left-1/2 top-[38%] z-30 flex w-[min(88%,520px)] -translate-x-1/2 -translate-y-1/2 flex-wrap items-center justify-center gap-1 px-1.5 py-1 text-[10px] font-semibold text-text-muted sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[11px] lg:top-[45%]">
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950/35 px-2 py-0.5 text-emerald-100/80">
               <LuCircleDollarSign size={12} />
               Pot {game?.pot || 0}
@@ -653,7 +732,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
               {timerRemaining == null ? "--" : `${timerRemaining}s`}
             </span>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-1.5 min-h-[70px] px-1 py-2 sm:gap-2 sm:min-h-[96px] sm:px-4 sm:py-3 lg:min-h-[112px] lg:pt-16">
+          <div className="flex flex-wrap items-center justify-center gap-1.5 min-h-[70px] px-1 py-2 sm:gap-2 sm:min-h-[96px] sm:px-4 sm:py-3 lg:min-h-[112px]">
             {Array.from({ length: 5 }).map((_, idx) => (
               <PokerCard
                 key={`${game?.hand_number || 1}-${idx}-${displayedCommunityCards?.[idx] || "empty"}`}
