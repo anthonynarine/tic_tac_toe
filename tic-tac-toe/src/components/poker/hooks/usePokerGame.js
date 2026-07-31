@@ -119,10 +119,11 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
     [gameId, multiplayer]
   );
 
-  const nextHand = useCallback(async () => {
+  const nextHand = useCallback(async (options = {}) => {
     if (!gameId) return;
+    const isAuto = options?.auto === true;
     if (multiplayer && wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: "next_hand" }));
+      wsRef.current.send(JSON.stringify({ type: "next_hand", auto: isAuto }));
       return;
     }
     try {
@@ -133,29 +134,29 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
     }
   }, [gameId, multiplayer]);
 
+  const autoDealGameId = state.game?.id;
+  const autoDealHandNumber = state.game?.hand_number || 1;
+  const autoDealCompleted = Boolean(state.game?.is_completed);
+
   useEffect(() => {
-    const game = state.game;
-    if (!game?.is_completed || !gameId) return undefined;
+    if (!autoDealCompleted || !gameId || !autoDealGameId) return undefined;
 
-    const handKey = `${game.id}-${game.hand_number || 1}`;
+    const handKey = `${autoDealGameId}-${autoDealHandNumber}`;
     if (autoNextHandRef.current === handKey) return undefined;
-
-    const myTableSeat = (game.players || []).find(
-      (player) => Number(player.seat) === Number(game.my_seat)
-    );
-    const isOwner =
-      !multiplayer ||
-      Number(game.my_seat) === 1 ||
-      String(myTableSeat?.user_id || "") === String(game.player_one_id || "");
-
-    if (!isOwner) return undefined;
 
     autoNextHandRef.current = handKey;
     const timer = window.setTimeout(() => {
-      nextHand();
-    }, 4500);
+      nextHand({ auto: true });
+    }, multiplayer ? 5200 : 4500);
     return () => window.clearTimeout(timer);
-  }, [gameId, multiplayer, nextHand, state.game]);
+  }, [
+    gameId,
+    multiplayer,
+    nextHand,
+    autoDealCompleted,
+    autoDealGameId,
+    autoDealHandNumber,
+  ]);
 
   const createAiRematch = useCallback(async () => {
     const game = await pokerApi.createGame(true);

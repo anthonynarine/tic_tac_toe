@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../ui/Button";
 import PokerCard from "./PokerCard";
 import { showToast } from "../../utils/toast/Toast";
+import Tooltip from "../ui/Tooltip";
 
 const SEAT_POSITIONS = [
   "lg:left-[4%] lg:top-[42%]",
@@ -21,16 +22,17 @@ const SEAT_POSITIONS = [
 function BetMarker({ amount, name, className = "" }) {
   if (!amount) return null;
   return (
-    <div
-      className={[
-        "inline-flex items-center gap-1.5 rounded-md bg-cyan-100 px-2 py-1 text-[11px] font-black text-slate-950 shadow-[0_8px_22px_rgba(0,0,0,0.3)]",
-        className,
-      ].join(" ")}
-      title={`${name || "Player"} bet ${amount}`}
-    >
-      <span className="h-3 w-3 rounded-full border border-cyan-900/40 bg-[radial-gradient(circle_at_35%_35%,#ffffff_0_18%,#67e8f9_20%_58%,#0e7490_60%)]" />
-      <span>{amount}</span>
-    </div>
+    <Tooltip content={`${name || "Player"} bet ${amount}`}>
+      <div
+        className={[
+          "inline-flex items-center gap-1.5 rounded-md bg-cyan-100 px-2 py-1 text-[11px] font-black text-slate-950 shadow-[0_8px_22px_rgba(0,0,0,0.3)]",
+          className,
+        ].join(" ")}
+      >
+        <span className="h-3 w-3 rounded-full border border-cyan-900/40 bg-[radial-gradient(circle_at_35%_35%,#ffffff_0_18%,#67e8f9_20%_58%,#0e7490_60%)]" />
+        <span>{amount}</span>
+      </div>
+    </Tooltip>
   );
 }
 
@@ -329,10 +331,12 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={handleCopyTableLink} title="Copy table link">
-            <LuCopy size={15} />
-            {copied ? "Copied" : "Table Link"}
-          </Button>
+          <Tooltip content="Copy table link">
+            <Button type="button" variant="outline" size="sm" onClick={handleCopyTableLink}>
+              <LuCopy size={15} />
+              {copied ? "Copied" : "Table Link"}
+            </Button>
+          </Tooltip>
           {wsStatus ? (
             <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">
               WS: {wsStatus === "connected" ? "LIVE" : wsStatus}
@@ -458,18 +462,24 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
             {onNextHand ? (
-              <Button type="button" variant="outline" size="sm" onClick={onNextHand} title="Deal next hand now">
-                Deal Now
-              </Button>
+              <Tooltip content="Deal next hand now">
+                <Button type="button" variant="outline" size="sm" onClick={onNextHand}>
+                  Deal Now
+                </Button>
+              </Tooltip>
             ) : null}
             {onPlayAgain ? (
-              <Button type="button" variant="secondary" size="sm" onClick={onPlayAgain} title="New table">
-                <LuRefreshCw size={16} />
-              </Button>
+              <Tooltip content="New table">
+                <Button type="button" variant="secondary" size="sm" onClick={onPlayAgain} aria-label="New table">
+                  <LuRefreshCw size={16} />
+                </Button>
+              </Tooltip>
             ) : null}
-            <Button type="button" variant="outline" size="sm" onClick={() => navigate("/")} title="Home">
-              <CiHome size={16} />
-            </Button>
+            <Tooltip content="Home">
+              <Button type="button" variant="outline" size="sm" onClick={() => navigate("/")} aria-label="Home">
+                <CiHome size={16} />
+              </Button>
+            </Tooltip>
             </div>
           </div>
         ) : (

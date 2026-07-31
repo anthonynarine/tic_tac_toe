@@ -3,6 +3,7 @@
 
 import React from "react";
 import { CiCircleCheck, CiCircleRemove } from "react-icons/ci";
+import Tooltip from "../ui/Tooltip";
 
 function resolveSenderName(invite) {
   const name =
@@ -39,25 +40,27 @@ export default function InviteCard({ invite, onAccept, onDecline }) {
 
       {/* Step 2: Actions stay compact */}
       <div className="flex items-center gap-1.5 shrink-0">
-        <button
-          type="button"
-          onClick={() => onAccept(invite)}
-          className="h-9 w-9 sm:h-9 sm:w-9 grid place-items-center text-brand-cyan/80 hover:text-brand-cyan focus:outline-none focus:ring-2 focus:ring-brand-cyan/35 rounded-md"
-          aria-label="Accept invite"
-          title="Accept"
-        >
-          <CiCircleCheck size={28} />
-        </button>
+        <Tooltip content="Accept">
+          <button
+            type="button"
+            onClick={() => onAccept(invite)}
+            className="h-9 w-9 sm:h-9 sm:w-9 grid place-items-center text-brand-cyan/80 hover:text-brand-cyan focus:outline-none focus:ring-2 focus:ring-brand-cyan/35 rounded-md"
+            aria-label="Accept invite"
+          >
+            <CiCircleCheck size={28} />
+          </button>
+        </Tooltip>
 
-        <button
-          type="button"
-          onClick={() => onDecline(invite)}
-          className="h-9 w-9 sm:h-9 sm:w-9 grid place-items-center text-brand-cyan/65 hover:text-brand-cyan focus:outline-none focus:ring-2 focus:ring-brand-cyan/35 rounded-md"
-          aria-label="Decline invite"
-          title="Decline"
-        >
-          <CiCircleRemove size={28} />
-        </button>
+        <Tooltip content="Decline">
+          <button
+            type="button"
+            onClick={() => onDecline(invite)}
+            className="h-9 w-9 sm:h-9 sm:w-9 grid place-items-center text-brand-cyan/65 hover:text-brand-cyan focus:outline-none focus:ring-2 focus:ring-brand-cyan/35 rounded-md"
+            aria-label="Decline invite"
+          >
+            <CiCircleRemove size={28} />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

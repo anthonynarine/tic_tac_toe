@@ -3,7 +3,7 @@ import React, { useEffect, useCallback, useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CiChat1, CiHome, CiMenuFries, CiUser } from "react-icons/ci";
 import { IoChevronForward, IoChevronBack } from "react-icons/io5";
-import { LuBellRing, LuTrophy } from "react-icons/lu";
+import { LuBellRing, LuCalendarClock, LuTrophy } from "react-icons/lu";
 
 import { useFriends } from "../../context/friendsContext";
 import { useDirectMessage } from "../../context/directMessageContext";
@@ -17,6 +17,7 @@ import SidebarQuickActions from "./SidebarQuickActions";
 import FriendsPanel from "./FriendsPanel";
 import PendingRequestsPanel from "./PendingRequestPanel";
 import InvitePanelContainer from "../notifications/InvitePanelContainer";
+import Tooltip from "../ui/Tooltip";
 
 import { createInvite } from "../../api/inviteApi";
 import { resolveRecipientUserId } from "../../invites/resolveRecipientUserId";
@@ -147,6 +148,7 @@ export default function FriendsSidebar() {
 
   const handleLogin       = useCallback(() => { navigate("/login");       if (isMobile) closeSidebar(); }, [navigate, isMobile, closeSidebar]);
   const handleLeaderboard = useCallback(() => { navigate("/leaderboard"); if (isMobile) closeSidebar(); }, [navigate, isMobile, closeSidebar]);
+  const handleTournaments = useCallback(() => { navigate("/tournaments"); if (isMobile) closeSidebar(); }, [navigate, isMobile, closeSidebar]);
   const handleHome = useCallback(() => { navigate("/"); if (isMobile) closeSidebar(); }, [navigate, isMobile, closeSidebar]);
 
   const overlayClassName = useMemo(() => {
@@ -197,6 +199,7 @@ export default function FriendsSidebar() {
             onFriends={() => setSidebarCollapsed(false)}
             onInvites={() => setSidebarCollapsed(false)}
             onChat={handleOpenChatInbox}
+            onTournaments={handleTournaments}
             onLeaderboard={handleLeaderboard}
           />
         ) : (
@@ -222,15 +225,16 @@ export default function FriendsSidebar() {
           <span className="text-[10px] tracking-[0.35em] font-semibold uppercase text-text-muted">
             Social
           </span>
-          <button
-            type="button"
-            onClick={() => setSidebarCollapsed(true)}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-border-soft bg-surface text-text-muted transition hover:bg-surface-elevated hover:text-brand-cyan"
-            aria-label="Collapse social sidebar"
-            title="Collapse"
-          >
-            <IoChevronBack size={15} />
-          </button>
+          <Tooltip content="Collapse">
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(true)}
+              className="grid h-8 w-8 place-items-center rounded-lg border border-border-soft bg-surface text-text-muted transition hover:bg-surface-elevated hover:text-brand-cyan"
+              aria-label="Collapse social sidebar"
+            >
+              <IoChevronBack size={15} />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Quick actions toolbar */}
@@ -286,33 +290,34 @@ export default function FriendsSidebar() {
 
 function RailButton({ icon, label, badge = 0, onClick, active = false, urgent = false }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={[
-        "relative grid h-11 w-11 place-items-center rounded-xl border transition",
-        active
-          ? "border-brand-cyan/30 bg-brand-cyan/10 text-brand-cyan"
-          : urgent
-            ? "border-amber-300/35 bg-amber-300/10 text-amber-100 shadow-[0_0_24px_rgba(251,191,36,0.18)] hover:bg-amber-300/15"
-            : "border-transparent text-text-muted hover:border-border-soft hover:bg-surface hover:text-brand-cyan",
-      ].join(" ")}
-      aria-label={label}
-      title={label}
-    >
-      {urgent ? (
-        <span className="absolute inset-0 rounded-xl border border-amber-200/30 animate-pulse" />
-      ) : null}
-      {icon}
-      {badge > 0 ? (
-        <span className={[
-          "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none text-background-app",
-          urgent ? "bg-amber-300" : "bg-brand-cyan",
-        ].join(" ")}>
-          {badge > 9 ? "9+" : badge}
-        </span>
-      ) : null}
-    </button>
+    <Tooltip content={label} position="right">
+      <button
+        type="button"
+        onClick={onClick}
+        className={[
+          "relative grid h-11 w-11 place-items-center rounded-xl border transition",
+          active
+            ? "border-brand-cyan/30 bg-brand-cyan/10 text-brand-cyan"
+            : urgent
+              ? "border-amber-300/35 bg-amber-300/10 text-amber-100 shadow-[0_0_24px_rgba(251,191,36,0.18)] hover:bg-amber-300/15"
+              : "border-transparent text-text-muted hover:border-border-soft hover:bg-surface hover:text-brand-cyan",
+        ].join(" ")}
+        aria-label={label}
+      >
+        {urgent ? (
+          <span className="absolute inset-0 rounded-xl border border-amber-200/30 animate-pulse" />
+        ) : null}
+        {icon}
+        {badge > 0 ? (
+          <span className={[
+            "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none text-background-app",
+            urgent ? "bg-amber-300" : "bg-brand-cyan",
+          ].join(" ")}>
+            {badge > 9 ? "9+" : badge}
+          </span>
+        ) : null}
+      </button>
+    </Tooltip>
   );
 }
 
@@ -326,21 +331,23 @@ function DesktopRail({
   onFriends,
   onInvites,
   onChat,
+  onTournaments,
   onLeaderboard,
 }) {
   const initial = (user?.first_name || user?.email || "?").trim().charAt(0).toUpperCase() || "?";
   return (
     <div className="hidden h-full flex-col items-center justify-between py-3 lg:flex">
       <div className="flex flex-col items-center gap-3">
-        <button
-          type="button"
-          onClick={onExpand}
-          className="grid h-10 w-10 place-items-center rounded-xl border border-border-soft bg-surface text-text-secondary transition hover:bg-surface-elevated hover:text-brand-cyan"
-          aria-label="Expand social sidebar"
-          title="Expand"
-        >
-          <IoChevronForward size={16} />
-        </button>
+        <Tooltip content="Expand" position="right">
+          <button
+            type="button"
+            onClick={onExpand}
+            className="grid h-10 w-10 place-items-center rounded-xl border border-border-soft bg-surface text-text-secondary transition hover:bg-surface-elevated hover:text-brand-cyan"
+            aria-label="Expand social sidebar"
+          >
+            <IoChevronForward size={16} />
+          </button>
+        </Tooltip>
 
         <div className="grid h-10 w-10 place-items-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/10 text-sm font-bold text-brand-cyan">
           {initial}
@@ -352,6 +359,7 @@ function DesktopRail({
         <RailButton icon={<CiUser size={22} />} label="Friends" badge={pendingCount} onClick={onFriends} />
         <RailButton icon={<LuBellRing size={20} />} label="Invites" badge={inviteCount} urgent={inviteCount > 0} onClick={onInvites} />
         <RailButton icon={<CiChat1 size={22} />} label="Chat" badge={chatUnread} onClick={onChat} />
+        <RailButton icon={<LuCalendarClock size={20} />} label="Tournaments" onClick={onTournaments} />
         <RailButton icon={<LuTrophy size={20} />} label="Ranks" onClick={onLeaderboard} />
       </div>
 

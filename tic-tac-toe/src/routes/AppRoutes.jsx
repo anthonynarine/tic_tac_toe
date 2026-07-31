@@ -34,6 +34,7 @@ import CheckersAIPage from "../components/checkers/CheckersAIPage";
 import CheckersMPPage from "../components/checkers/CheckersMPPage";
 import PokerAIPage from "../components/poker/PokerAIPage";
 import PokerMPPage from "../components/poker/PokerMPPage";
+import PokerTournamentsPage from "../components/poker/PokerTournamentsPage";
 import LeaderboardPage from "../components/leaderboard/LeaderboardPage";
 
 
@@ -130,6 +131,7 @@ export default function AppRoutes() {
                 <Route path="/games/poker/ai" element={<PokerAIPage />} />
                 <Route path="/games/poker/ai/:id" element={<PokerAIPage />} />
                 <Route path="/games/poker/:id" element={<PokerMPPage />} />
+                <Route path="/tournaments" element={<PokerTournamentsPage />} />
                 <Route path="/recruiter-demo" element={<RecruiterDemoPage />} />
                 <Route path="/technical-paper" element={<TechnicalPaper />} />
               </Route>

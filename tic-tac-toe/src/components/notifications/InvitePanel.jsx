@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CiCircleChevDown, CiCircleChevUp, CiMail } from "react-icons/ci";
 import InviteCard from "./InviteCard";
+import Tooltip from "../ui/Tooltip";
 
 export default function InvitePanel({ invites = [], onAccept, onDecline }) {
   const inviteCount = invites.length;
@@ -64,18 +65,19 @@ export default function InvitePanel({ invites = [], onAccept, onDecline }) {
           </h3>
 
           {hasInvites && (
-            <span
-              className="
-                inline-flex items-center justify-center
-                px-2.5 py-[1px] text-xs font-semibold rounded-full
-                bg-brand-cyan/12 text-brand-cyan
-                border border-brand-cyan/30
-              "
-              aria-label={`${inviteCount} pending invites`}
-              title={`${inviteCount} pending invites`}
-            >
-              {inviteCount}
-            </span>
+            <Tooltip content={`${inviteCount} pending invites`}>
+              <span
+                className="
+                  inline-flex items-center justify-center
+                  px-2.5 py-[1px] text-xs font-semibold rounded-full
+                  bg-brand-cyan/12 text-brand-cyan
+                  border border-brand-cyan/30
+                "
+                aria-label={`${inviteCount} pending invites`}
+              >
+                {inviteCount}
+              </span>
+            </Tooltip>
           )}
         </div>
 

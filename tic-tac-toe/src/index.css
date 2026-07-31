@@ -115,6 +115,15 @@ button {
   }
 }
 
+@keyframes tooltipIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .poker-card-deal {
   animation: pokerCardDeal 520ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
   transform-origin: center center;
@@ -123,6 +132,34 @@ button {
 .poker-card-deal-hole {
   animation: pokerCardDealHole 440ms cubic-bezier(0.2, 0.85, 0.2, 1) both;
   transform-origin: center center;
+}
+
+.tournament-input {
+  color-scheme: dark;
+}
+
+.tournament-input[type="number"]::-webkit-inner-spin-button,
+.tournament-input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.28;
+  filter: invert(1) sepia(0.2) saturate(1.2) hue-rotate(135deg);
+}
+
+.tournament-input[type="number"]:hover::-webkit-inner-spin-button,
+.tournament-input[type="number"]:hover::-webkit-outer-spin-button,
+.tournament-input[type="number"]:focus::-webkit-inner-spin-button,
+.tournament-input[type="number"]:focus::-webkit-outer-spin-button {
+  opacity: 0.55;
+}
+
+.tournament-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0;
+  filter: invert(1) sepia(0.25) saturate(1.5) hue-rotate(130deg);
+}
+
+.tournament-input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator,
+.tournament-input[type="datetime-local"]:focus::-webkit-calendar-picker-indicator {
+  opacity: 0;
 }
 
 @media (max-width: 640px) {
