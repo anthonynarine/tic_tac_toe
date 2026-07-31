@@ -1,6 +1,9 @@
 // # Filename: src/components/friends/FriendsSidebar.jsx
 import React, { useEffect, useCallback, useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { CiChat1, CiHome, CiMenuFries, CiUser } from "react-icons/ci";
+import { IoChevronForward, IoChevronBack } from "react-icons/io5";
+import { LuTrophy } from "react-icons/lu";
 
 import { useFriends } from "../../context/friendsContext";
 import { useDirectMessage } from "../../context/directMessageContext";
@@ -25,7 +28,14 @@ export default function FriendsSidebar() {
   const location = useLocation();
   const { lobbyId: activeLobbyId, gameType: activeLobbyGameType } = useActiveLobbyId();
 
-  const { isSidebarOpen, setSidebarOpen, setDMOpen, isDMOpen } = useUI();
+  const {
+    isSidebarOpen,
+    setSidebarOpen,
+    setDMOpen,
+    isDMOpen,
+    isSidebarCollapsed,
+    setSidebarCollapsed,
+  } = useUI();
   const { friends, pending, acceptRequest, declineRequest, refreshFriends } = useFriends();
   const { openChat, unreadCounts, groupUnreadCounts } = useDirectMessage();
   const { isLoggedIn, user } = useUserContext();
@@ -135,6 +145,7 @@ export default function FriendsSidebar() {
 
   const handleLogin       = useCallback(() => { navigate("/login");       if (isMobile) closeSidebar(); }, [navigate, isMobile, closeSidebar]);
   const handleLeaderboard = useCallback(() => { navigate("/leaderboard"); if (isMobile) closeSidebar(); }, [navigate, isMobile, closeSidebar]);
+  const handleHome = useCallback(() => { navigate("/"); if (isMobile) closeSidebar(); }, [navigate, isMobile, closeSidebar]);
 
   const overlayClassName = useMemo(() => {
     if (!isMobile) return "hidden";
@@ -161,6 +172,8 @@ export default function FriendsSidebar() {
     ].join(" ");
   }, [isSidebarOpen]);
 
+  const collapsedRail = !isMobile && isSidebarCollapsed;
+
   return (
     <>
       <button type="button" aria-label="Close sidebar" onClick={closeSidebar} className={overlayClassName} />
@@ -171,6 +184,19 @@ export default function FriendsSidebar() {
         aria-modal={isMobile ? "true" : undefined}
         aria-label="Social sidebar"
       >
+        {collapsedRail ? (
+          <DesktopRail
+            user={user}
+            pendingCount={pendingReceived.length}
+            chatUnread={totalChatUnread}
+            onExpand={() => setSidebarCollapsed(false)}
+            onHome={handleHome}
+            onFriends={() => setSidebarCollapsed(false)}
+            onChat={handleOpenChatInbox}
+            onLeaderboard={handleLeaderboard}
+          />
+        ) : (
+          <>
         {/* Mobile header */}
         <div className="lg:hidden sticky top-0 z-10 bg-background-app-panel border-b border-border-soft">
           <div className="flex items-center justify-between px-4 py-3">
@@ -188,10 +214,19 @@ export default function FriendsSidebar() {
         </div>
 
         {/* Desktop label */}
-        <div className="hidden lg:flex items-center px-4 pt-5 pb-3 border-b border-border-soft">
+        <div className="hidden lg:flex items-center justify-between gap-2 px-4 pt-5 pb-3 border-b border-border-soft">
           <span className="text-[10px] tracking-[0.35em] font-semibold uppercase text-text-muted">
             Social
           </span>
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(true)}
+            className="grid h-8 w-8 place-items-center rounded-lg border border-border-soft bg-surface text-text-muted transition hover:bg-surface-elevated hover:text-brand-cyan"
+            aria-label="Collapse social sidebar"
+            title="Collapse"
+          >
+            <IoChevronBack size={15} />
+          </button>
         </div>
 
         {/* Quick actions toolbar */}
@@ -238,7 +273,74 @@ export default function FriendsSidebar() {
             onLogout={logout}
           />
         </div>
+          </>
+        )}
       </aside>
     </>
+  );
+}
+
+function RailButton({ icon, label, badge = 0, onClick, active = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "relative grid h-11 w-11 place-items-center rounded-xl border transition",
+        active
+          ? "border-brand-cyan/30 bg-brand-cyan/10 text-brand-cyan"
+          : "border-transparent text-text-muted hover:border-border-soft hover:bg-surface hover:text-brand-cyan",
+      ].join(" ")}
+      aria-label={label}
+      title={label}
+    >
+      {icon}
+      {badge > 0 ? (
+        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-cyan px-1 text-[9px] font-bold leading-none text-background-app">
+          {badge > 9 ? "9+" : badge}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function DesktopRail({
+  user,
+  pendingCount,
+  chatUnread,
+  onExpand,
+  onHome,
+  onFriends,
+  onChat,
+  onLeaderboard,
+}) {
+  const initial = (user?.first_name || user?.email || "?").trim().charAt(0).toUpperCase() || "?";
+  return (
+    <div className="hidden h-full flex-col items-center justify-between py-3 lg:flex">
+      <div className="flex flex-col items-center gap-3">
+        <button
+          type="button"
+          onClick={onExpand}
+          className="grid h-10 w-10 place-items-center rounded-xl border border-border-soft bg-surface text-text-secondary transition hover:bg-surface-elevated hover:text-brand-cyan"
+          aria-label="Expand social sidebar"
+          title="Expand"
+        >
+          <IoChevronForward size={16} />
+        </button>
+
+        <div className="grid h-10 w-10 place-items-center rounded-xl border border-brand-cyan/20 bg-brand-cyan/10 text-sm font-bold text-brand-cyan">
+          {initial}
+        </div>
+
+        <div className="h-px w-10 bg-border-soft" />
+
+        <RailButton icon={<CiHome size={22} />} label="Home" onClick={onHome} />
+        <RailButton icon={<CiUser size={22} />} label="Friends" badge={pendingCount} onClick={onFriends} />
+        <RailButton icon={<CiChat1 size={22} />} label="Chat" badge={chatUnread} onClick={onChat} />
+        <RailButton icon={<LuTrophy size={20} />} label="Ranks" onClick={onLeaderboard} />
+      </div>
+
+      <RailButton icon={<CiMenuFries size={22} />} label="Expand menu" onClick={onExpand} />
+    </div>
   );
 }

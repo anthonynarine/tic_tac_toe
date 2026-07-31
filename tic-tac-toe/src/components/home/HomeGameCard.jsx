@@ -17,9 +17,9 @@ function StandardCard({ game, onComingSoon }) {
   const isLive = game.statusText === "Live";
 
   return (
-    <Card variant="glass" interactive className="relative p-5">
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-brand-cyan/10 border border-brand-cyan/25">
+    <Card variant="glass" interactive className="relative p-3.5 sm:p-5">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg sm:rounded-xl bg-brand-cyan/10 border border-brand-cyan/25">
           <Icon size={20} className="text-brand-cyan" />
         </div>
         {isLive && <LivePip />}
@@ -28,11 +28,11 @@ function StandardCard({ game, onComingSoon }) {
       <h3 className="text-base font-semibold tracking-tight mb-1 text-text-primary">
         {game.title}
       </h3>
-      <p className="text-[12px] mb-5 leading-relaxed text-text-secondary">
+      <p className="text-[12px] mb-3.5 sm:mb-5 leading-relaxed text-text-secondary">
         {tagline}
       </p>
 
-      <div className="flex gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex">
         {game.actions ? (
           game.actions.map((action, i) => (
             <ActionButton key={action.id} label={action.label} onClick={action.onClick} primary={i === 0} />
@@ -55,25 +55,25 @@ function FeaturedCard({ game, onComingSoon }) {
       {/* Subtle cyan top sheen */}
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand-cyan/40 to-transparent" />
 
-      <div className="p-5 sm:flex sm:items-center sm:gap-6">
+      <div className="p-3.5 sm:flex sm:items-center sm:gap-6 sm:p-5">
         {/* Icon */}
-        <div className="w-14 h-14 flex items-center justify-center shrink-0 mb-4 sm:mb-0 rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
+        <div className="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center shrink-0 mb-3 sm:mb-0 rounded-lg sm:rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
           <Icon size={28} className="text-brand-cyan" />
         </div>
 
         {/* Title + tagline */}
         <div className="flex-1 min-w-0 mb-4 sm:mb-0">
           <div className="flex items-center gap-3 mb-1">
-            <h3 className="text-xl font-semibold tracking-tight text-text-primary">
+            <h3 className="text-lg sm:text-xl font-semibold tracking-tight text-text-primary">
               {game.title}
             </h3>
             {isLive && <LivePip />}
           </div>
-          <p className="text-sm text-text-secondary">{tagline}</p>
+          <p className="text-xs sm:text-sm text-text-secondary">{tagline}</p>
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-2 sm:shrink-0">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0">
           {game.actions ? (
             game.actions.map((action, i) => (
               <ActionButton key={action.id} label={action.label} onClick={action.onClick} primary={i === 0} />
@@ -107,7 +107,7 @@ function ActionButton({ label, onClick, primary }) {
     <button
       type="button"
       onClick={() => onClick()}
-      className={`px-4 py-2 rounded-button text-xs font-semibold uppercase tracking-wide transition-colors duration-150 border ${
+      className={`px-3 py-2 rounded-button text-[11px] sm:text-xs font-semibold uppercase tracking-wide transition-colors duration-150 border ${
         primary
           ? "bg-brand-cyan/10 border-brand-cyan/40 text-brand-cyan hover:bg-brand-cyan/20 hover:border-brand-cyan/60"
           : "bg-surface border-border-soft text-text-secondary hover:bg-surface-elevated hover:text-text-primary"

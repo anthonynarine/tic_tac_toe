@@ -37,10 +37,10 @@ function BetMarker({ amount, name, className = "" }) {
 function PlayerPanel({ name, chips, bet, cards, active, label, dealer, best, folded, allIn, className = "", tableSeat = false, showMeta = true }) {
   return (
     <div className={[
-      "relative w-full overflow-visible transition duration-200",
+      "relative overflow-visible transition duration-200",
       tableSeat
-        ? "rounded-sm px-2 py-1.5 shadow-[0_12px_26px_rgba(0,0,0,0.32)]"
-        : "rounded-lg border px-3 py-2.5",
+        ? "w-[154px] rounded-sm px-2 py-1.5 shadow-[0_12px_26px_rgba(0,0,0,0.32)]"
+        : "w-full rounded-lg border px-3 py-2.5",
       "bg-slate-950/88 backdrop-blur",
       folded ? "opacity-60" : "opacity-100",
       tableSeat
@@ -67,7 +67,7 @@ function PlayerPanel({ name, chips, bet, cards, active, label, dealer, best, fol
         </>
       ) : null}
       <div className={tableSeat ? "flex items-center justify-between gap-2" : "flex items-center justify-between gap-3"}>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {showMeta ? (
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.22em] text-text-muted">
               {active ? (
@@ -258,7 +258,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                   tableSeat
                   showMeta={false}
                   className={[
-                    "pointer-events-auto absolute w-[142px]",
+                    "pointer-events-auto absolute !w-[142px]",
                     seatPosition,
                   ].join(" ")}
                   {...opponent}
@@ -272,7 +272,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
             dealer={Number(game?.dealer) === Number(mySeat)}
             tableSeat
             showMeta={false}
-            className="pointer-events-auto absolute bottom-4 left-1/2 w-[150px] -translate-x-1/2"
+            className="pointer-events-auto absolute bottom-4 left-1/2 !w-[150px] -translate-x-1/2"
             {...me}
           />
         </div>
@@ -326,7 +326,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
           dealer={Number(game?.dealer) === Number(mySeat)}
           tableSeat
           showMeta={false}
-          className="w-[164px]"
+          className="!w-[164px]"
           {...me}
         />
       </div>

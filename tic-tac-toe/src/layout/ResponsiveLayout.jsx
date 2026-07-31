@@ -36,11 +36,8 @@ export default function ResponsiveLayout() {
     return <PublicAuthLayout />;
   }
 
-  // Step 3: Authed users get the full app shell (sidebar + drawers)
-  const SIDEBAR_WIDTH = "360px";
-
   return (
-    <div style={{ "--sidebar-w": SIDEBAR_WIDTH }}>
+    <div>
       <LayoutFrame
         header={<Navbar />}
         sidebar={<FriendsSidebar />}

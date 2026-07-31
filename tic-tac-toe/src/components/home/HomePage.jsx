@@ -182,7 +182,7 @@ export default function HomePage() {
   const [featuredGame, ...secondaryGames] = games;
 
   return (
-    <div className="w-full px-1 sm:px-4 pt-1 pb-24 sm:pb-28">
+    <div className="w-full px-1 sm:px-4 pt-1 pb-4 sm:pb-8">
       <div className="mx-auto max-w-3xl">
 
         {/* ── HERO ─────────────────────────────── */}
@@ -226,9 +226,9 @@ export default function HomePage() {
         {/* ── GAMES ────────────────────────────── */}
         <div className="mb-7 sm:mb-10">
           <SectionDivider label="Games" />
-          <div className="mt-5 space-y-3">
+          <div className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3">
             <HomeGameCard game={featuredGame} featured onComingSoon={handleComingSoon} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
               {secondaryGames.map((game) => (
                 <HomeGameCard key={game.id} game={game} onComingSoon={handleComingSoon} />
               ))}
