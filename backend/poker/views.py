@@ -1,3 +1,5 @@
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -15,6 +17,7 @@ from .models import PokerGame, PokerTournament, PokerTournamentRegistration
 from .serializers import PokerTournamentSerializer, poker_payload
 
 User = get_user_model()
+POKER_GROUP = "poker_{game_id}"
 
 
 def _ai_user():
@@ -27,21 +30,36 @@ def _ai_user():
 
 def _resolve_ai_turn(game):
     guard = 0
-    while game.is_ai_game and game.current_turn == 2 and not game.is_completed and guard < 8:
+    while game.is_ai_game and game._current_turn_is_ai() and not game.is_completed and guard < 32:
         game.apply_ai_action()
         guard += 1
+
+
+def _broadcast_poker_update(game_id):
+    try:
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            return
+        async_to_sync(channel_layer.group_send)(
+            POKER_GROUP.format(game_id=game_id),
+            {"type": "poker_update", "game_id": str(game_id)},
+        )
+    except Exception:
+        return
 
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_game(request):
     is_ai = bool(request.data.get("is_ai_game", False))
+    ai_player_count = request.data.get("ai_player_count", 1)
     game = PokerGame.objects.create(
         player_one=request.user,
         player_two=_ai_user() if is_ai else None,
         is_ai_game=is_ai,
     )
     if is_ai:
+        game.initialize_ai_table(request.user, ai_player_count)
         game.ensure_dealt()
         _resolve_ai_turn(game)
 
@@ -64,6 +82,7 @@ def game_detail(request, game_id):
         with transaction.atomic():
             game = PokerGame.objects.select_for_update().get(pk=game_id)
             game.enforce_turn_timeout()
+            _resolve_ai_turn(game)
     except PokerGame.DoesNotExist:
         return Response({"error": "Game not found."}, status=404)
     return Response(poker_payload(game, request.user))
@@ -119,6 +138,8 @@ def action(request, game_id):
         return Response({"error": "Game not found."}, status=404)
     except ValidationError as exc:
         return Response({"error": str(exc)}, status=400)
+    if not game.is_ai_game:
+        _broadcast_poker_update(game.id)
     return Response(poker_payload(game, request.user))
 
 

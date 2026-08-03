@@ -127,6 +127,7 @@ class PokerGame(models.Model):
     actions_since_raise = models.IntegerField(default=0)
     winner = models.IntegerField(null=True, blank=True)
     winning_label = models.CharField(max_length=64, blank=True, default="")
+    shown_cards = models.JSONField(default=list)
     is_completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -175,6 +176,50 @@ class PokerGame(models.Model):
         ]
         self.player_one = clean_users[0]
         self.player_two = clean_users[1]
+        self.dealer = random.choice([seat["seat"] for seat in self.table_seats])
+        self.save()
+
+    def initialize_ai_table(self, user, ai_count=1):
+        if self.table_seats:
+            return
+        try:
+            ai_count = int(ai_count)
+        except (TypeError, ValueError):
+            ai_count = 1
+        ai_count = max(1, min(ai_count, self.max_players - 1))
+        seats = [
+            {
+                "seat": 1,
+                "user_id": user.id,
+                "name": user.first_name or user.email,
+                "chips": self.starting_chips,
+                "cards": [],
+                "bet": 0,
+                "contribution": 0,
+                "folded": False,
+                "all_in": False,
+                "best": None,
+                "is_ai": False,
+            }
+        ]
+        seats.extend(
+            {
+                "seat": idx + 2,
+                "user_id": None,
+                "name": f"AI {idx + 1}",
+                "chips": self.starting_chips,
+                "cards": [],
+                "bet": 0,
+                "contribution": 0,
+                "folded": False,
+                "all_in": False,
+                "best": None,
+                "is_ai": True,
+            }
+            for idx in range(ai_count)
+        )
+        self.table_seats = seats
+        self.player_one = user
         self.dealer = random.choice([seat["seat"] for seat in self.table_seats])
         self.save()
 
@@ -254,6 +299,39 @@ class PokerGame(models.Model):
         self.refresh_turn_timer()
         self.save()
 
+    def completed_by_showdown(self):
+        return bool(self.is_completed and self.winning_label not in {"Fold", "Timeout"})
+
+    def show_cards(self, user):
+        seat_no = self.piece_for_user(user)
+        if seat_no is None:
+            raise ValidationError("You are not a participant in this game.")
+        if not self.is_completed or self.phase != "completed":
+            raise ValidationError("Hand is not over.")
+        if self.completed_by_showdown():
+            raise ValidationError("Cards are already revealed after showdown.")
+        if self.winning_label != "Fold":
+            raise ValidationError("Cards can only be shown after winning by fold.")
+        if self.winner in (None, 0) or int(self.winner) != int(seat_no):
+            raise ValidationError("Only the hand winner can show cards.")
+
+        if self.table_seats:
+            seat = self._seat_by_number(seat_no)
+            if not seat or not seat.get("cards") or seat.get("is_ai"):
+                raise ValidationError("Only a human winner can show cards.")
+            player_name = seat.get("name") or "Player"
+        else:
+            cards = self.player_one_cards if int(seat_no) == 1 else self.player_two_cards
+            if not cards:
+                raise ValidationError("No cards are available to show.")
+            player_name = self._legacy_player_name(seat_no)
+
+        shown = {int(seat) for seat in self.shown_cards or []}
+        shown.add(int(seat_no))
+        self.shown_cards = sorted(shown)
+        self.last_action = f"{player_name} showed cards"
+        self.save(update_fields=["shown_cards", "last_action", "updated_at"])
+
     def enforce_turn_timeout(self):
         deadline = self.current_turn_deadline_at()
         if not deadline or timezone.now() < deadline:
@@ -328,7 +406,15 @@ class PokerGame(models.Model):
         self.actions_since_raise = 0
         self.winner = None
         self.winning_label = ""
+        self.shown_cards = []
         self.is_completed = False
+        for seat in self.table_seats:
+            seat["cards"] = []
+            seat["bet"] = 0
+            seat["contribution"] = 0
+            seat["folded"] = False
+            seat["all_in"] = False
+            seat["best"] = None
         self.ensure_dealt()
 
     def _start_next_table_hand(self, user):
@@ -353,7 +439,15 @@ class PokerGame(models.Model):
         self.actions_since_raise = 0
         self.winner = None
         self.winning_label = ""
+        self.shown_cards = []
         self.is_completed = False
+        for seat in self.table_seats:
+            seat["cards"] = []
+            seat["bet"] = 0
+            seat["contribution"] = 0
+            seat["folded"] = False
+            seat["all_in"] = False
+            seat["best"] = None
         self.ensure_dealt()
 
     def _post_blinds(self):
@@ -395,6 +489,10 @@ class PokerGame(models.Model):
         return actions
 
     def apply_action(self, action, user, amount=None):
+        action = str(action or "").lower()
+        if action == "show_cards":
+            self.show_cards(user)
+            return
         if self.table_seats:
             self._apply_table_action(action, user, amount)
             return
@@ -408,24 +506,24 @@ class PokerGame(models.Model):
         if player != self.current_turn:
             raise ValidationError("It is not your turn.")
 
-        action = str(action or "").lower()
+        player_name = self._legacy_player_name(player)
         if action == "fold":
             self._award(2 if player == 1 else 1, "Fold")
-            self.last_action = f"Player {player} folded"
+            self.last_action = f"{player_name} folded"
             self._save_after_action()
             return
         if action == "check":
             if self._bet(player) != self.current_bet:
                 raise ValidationError("Call is required.")
             self.actions_since_raise += 1
-            self.last_action = f"Player {player} checked"
+            self.last_action = f"{player_name} checked"
         elif action == "call":
             diff = self.current_bet - self._bet(player)
             if diff <= 0:
                 raise ValidationError("Check is available.")
             self._charge(player, diff)
             self.actions_since_raise += 1
-            self.last_action = f"Player {player} called"
+            self.last_action = f"{player_name} called"
         elif action == "raise":
             try:
                 raise_to = int(amount) if amount is not None else self.current_bet + MIN_RAISE
@@ -440,7 +538,7 @@ class PokerGame(models.Model):
             self._charge(player, raise_to - self._bet(player))
             self.current_bet = raise_to
             self.actions_since_raise = 1
-            self.last_action = f"Player {player} raised to {self.current_bet}"
+            self.last_action = f"{player_name} raised to {self.current_bet}"
         elif action == "all_in":
             target = self._bet(player) + self._chips(player)
             self._charge(player, self._chips(player))
@@ -449,7 +547,7 @@ class PokerGame(models.Model):
                 self.actions_since_raise = 1
             else:
                 self.actions_since_raise += 1
-            self.last_action = f"Player {player} moved all-in"
+            self.last_action = f"{player_name} moved all-in"
         else:
             raise ValidationError("Unknown poker action.")
 
@@ -463,6 +561,9 @@ class PokerGame(models.Model):
         seat = self._seat_for_user(user)
         if not seat:
             raise ValidationError("You are not a participant in this game.")
+        self._apply_table_action_for_seat(seat, action, amount)
+
+    def _apply_table_action_for_seat(self, seat, action, amount=None):
         if self.is_completed:
             raise ValidationError("Hand is already over.")
         if int(seat["seat"]) != int(self.current_turn):
@@ -527,16 +628,17 @@ class PokerGame(models.Model):
             self._save_after_action()
             return False
         player = int(self.current_turn)
+        player_name = self._legacy_player_name(player)
         if self._bet(player) == self.current_bet:
             self.actions_since_raise += 1
-            self.last_action = f"Player {player} checked (timeout)"
+            self.last_action = f"{player_name} checked (timeout)"
             if self._betting_round_closed():
                 self._advance_phase()
             else:
                 self.current_turn = 2 if player == 1 else 1
         else:
             self._award(2 if player == 1 else 1, "Timeout")
-            self.last_action = f"Player {player} folded on timeout"
+            self.last_action = f"{player_name} folded on timeout"
         self._save_after_action()
         return True
 
@@ -570,6 +672,17 @@ class PokerGame(models.Model):
     def _bet(self, player):
         return self.player_one_bet if player == 1 else self.player_two_bet
 
+    def _legacy_player_name(self, player):
+        if int(player) == 1:
+            if self.player_one:
+                return self.player_one.first_name or self.player_one.email or "Player 1"
+            return "Player 1"
+        if self.is_ai_game:
+            return "AI"
+        if self.player_two:
+            return self.player_two.first_name or self.player_two.email or "Player 2"
+        return "Player 2"
+
     def _charge(self, player, amount):
         amount = max(0, min(int(amount), self._chips(player)))
         if player == 1:
@@ -586,6 +699,12 @@ class PokerGame(models.Model):
 
     def _seat_by_number(self, seat_no):
         return next((seat for seat in self.table_seats if int(seat.get("seat")) == int(seat_no)), None)
+
+    def _current_turn_is_ai(self):
+        if self.table_seats:
+            seat = self._seat_by_number(self.current_turn)
+            return bool(seat and seat.get("is_ai"))
+        return bool(self.is_ai_game and self.current_turn == 2)
 
     def _active_table_seats(self):
         return [seat for seat in self.table_seats if int(seat.get("chips", 0)) > 0 or int(seat.get("bet", 0)) > 0]
@@ -817,7 +936,23 @@ class PokerGame(models.Model):
         self.current_turn_started_at = None
 
     def apply_ai_action(self):
-        if not self.is_ai_game or self.current_turn != 2 or self.is_completed:
+        if not self.is_ai_game or self.is_completed:
+            return
+        if self.table_seats:
+            seat = self._seat_by_number(self.current_turn)
+            if not seat or not seat.get("is_ai"):
+                return
+            bet = int(seat.get("bet", 0))
+            chips = int(seat.get("chips", 0))
+            if bet < self.current_bet:
+                action = "call"
+            elif chips <= MIN_RAISE:
+                action = "check"
+            else:
+                action = random.choice(["check", "check", "check", "raise"])
+            self._apply_table_action_for_seat(seat, action)
+            return
+        if self.current_turn != 2:
             return
         bet = self.player_two_bet
         if bet < self.current_bet:

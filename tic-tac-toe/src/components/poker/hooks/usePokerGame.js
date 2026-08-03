@@ -32,6 +32,11 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
   const wsRef = useRef(null);
   const mountedRef = useRef(true);
   const autoNextHandRef = useRef(null);
+  const stateRef = useRef(INITIAL);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const load = useCallback(() => {
     if (!gameId) return;
@@ -106,7 +111,36 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
     async (action, amount = null) => {
       if (!gameId) return;
       if (multiplayer && wsRef.current?.readyState === WebSocket.OPEN) {
+        const before = stateRef.current.game;
         wsRef.current.send(JSON.stringify({ type: "action", action, amount }));
+        window.setTimeout(async () => {
+          const current = stateRef.current.game;
+          const stillWaitingForUpdate = (
+            mountedRef.current
+            && current
+            && before
+            && String(current.id) === String(gameId)
+            && Number(current.hand_number || 1) === Number(before.hand_number || 1)
+            && Number(current.current_turn) === Number(before.current_turn)
+            && String(current.phase || "") === String(before.phase || "")
+            && Number(current.pot || 0) === Number(before.pot || 0)
+            && String(current.last_action || "") === String(before.last_action || "")
+            && !current.is_completed
+          );
+          if (!stillWaitingForUpdate) return;
+
+          try {
+            const game = await pokerApi.action(gameId, action, amount);
+            if (mountedRef.current) dispatch({ type: "LOAD", game });
+          } catch (err) {
+            const message = err?.response?.data?.error || "";
+            if (String(message).toLowerCase().includes("not your turn")) {
+              load();
+              return;
+            }
+            showToast("error", message || "Action failed.");
+          }
+        }, 700);
         return;
       }
       try {
@@ -116,7 +150,7 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
         showToast("error", err?.response?.data?.error || "Action failed.");
       }
     },
-    [gameId, multiplayer]
+    [gameId, load, multiplayer]
   );
 
   const nextHand = useCallback(async (options = {}) => {
@@ -159,9 +193,13 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
   ]);
 
   const createAiRematch = useCallback(async () => {
-    const game = await pokerApi.createGame(true);
+    const aiPlayerCount = Math.max(
+      1,
+      (state.game?.players || state.game?.table_seats || []).filter((player) => player?.is_ai).length
+    );
+    const game = await pokerApi.createGame(true, { ai_player_count: aiPlayerCount });
     navigate(`/games/poker/ai/${game.id}`);
-  }, [navigate]);
+  }, [navigate, state.game?.players, state.game?.table_seats]);
 
   return { state, act, nextHand, createAiRematch, reload: load };
 }

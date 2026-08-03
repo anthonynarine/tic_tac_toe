@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -8,6 +9,7 @@ from rest_framework.test import APITestCase
 
 from friends.models import Friendship
 
+from .consumers import _prepare_game_for_realtime
 from .models import PokerGame, PokerTournament, PokerTournamentRegistration, evaluate_hand
 from .serializers import poker_payload
 
@@ -77,6 +79,24 @@ class PokerRulesTests(TestCase):
         self.assertEqual(game.player_two_chips, 790)
         self.assertEqual(game.current_turn, 2)
         self.assertFalse(game.is_completed)
+
+    def test_realtime_prepare_resolves_ai_first_action_before_timer(self):
+        p1 = User.objects.create_user(email="ai-first-human@example.com", password="pass")
+        ai = User.objects.create_user(email="ai-first-bot@example.com", password="pass", first_name="AI")
+        game = PokerGame.objects.create(
+            player_one=p1,
+            player_two=ai,
+            is_ai_game=True,
+            dealer=2,
+        )
+        game.ensure_dealt()
+
+        self.assertEqual(game.current_turn, 2)
+
+        _prepare_game_for_realtime(game)
+
+        self.assertNotEqual(game.current_turn, 2)
+        self.assertIsNotNone(game.current_turn_deadline_at())
 
     def test_custom_raise_and_invalid_raise_are_server_enforced(self):
         p1 = User.objects.create_user(email="raise-one@example.com", password="pass")
@@ -169,8 +189,34 @@ class PokerRulesTests(TestCase):
 
         self.assertTrue(changed)
         self.assertEqual(game.phase, "flop")
-        self.assertEqual(game.last_action, "Player 1 checked (timeout)")
+        self.assertEqual(game.last_action, "timeout-check-one@example.com checked (timeout)")
         self.assertIsNotNone(game.current_turn_started_at)
+
+    def test_legacy_action_labels_use_display_names_and_ai(self):
+        p1 = User.objects.create_user(email="ai-label@example.com", password="pass", first_name="Julia")
+        ai = User.objects.create_user(email="ai-label-bot@example.com", password="pass", first_name="AI")
+        game = PokerGame.objects.create(
+            player_one=p1,
+            player_two=ai,
+            is_ai_game=True,
+            player_one_cards=["Ah", "Ad"],
+            player_two_cards=["Kc", "Kd"],
+            deck=["2c", "3d", "4h", "5s", "6c"],
+            player_one_chips=980,
+            player_two_chips=980,
+            player_one_bet=20,
+            player_two_bet=20,
+            current_bet=20,
+            current_turn=1,
+        )
+
+        game.apply_action("check", p1)
+        self.assertEqual(game.last_action, "Julia checked")
+
+        game.current_turn = 2
+        game.save(update_fields=["current_turn"])
+        game.apply_ai_action()
+        self.assertNotIn("Player 2", game.last_action)
 
     def test_table_showdown_distributes_side_pots(self):
         users = [
@@ -234,6 +280,33 @@ class PokerRulesTests(TestCase):
         self.assertEqual(game.pot, 0)
         self.assertTrue(game.is_completed)
 
+    def test_next_table_hand_rebuilds_deck_before_flop(self):
+        users = [
+            User.objects.create_user(email=f"next-table-{idx}@example.com", password="pass", first_name=f"P{idx}")
+            for idx in range(1, 4)
+        ]
+        game = PokerGame.objects.create(player_one=users[0], is_ai_game=True)
+        game.initialize_table(users)
+        game.ensure_dealt()
+        game.is_completed = True
+        game.phase = "completed"
+
+        game.start_next_hand(users[0])
+
+        self.assertEqual(game.phase, "preflop")
+        self.assertGreaterEqual(len(game.deck), 52 - (len(game.table_seats) * 2))
+        self.assertTrue(all(len(seat.get("cards", [])) == 2 for seat in game.table_seats))
+
+        for seat in game.table_seats:
+            seat["bet"] = game.current_bet
+            seat["folded"] = False
+            seat["all_in"] = False
+        game.actions_since_raise = len(game.table_seats)
+        game._advance_table_phase()
+
+        self.assertEqual(game.phase, "flop")
+        self.assertEqual(len(game.community_cards), 3)
+
 
 class PokerApiTests(APITestCase):
     def setUp(self):
@@ -248,14 +321,61 @@ class PokerApiTests(APITestCase):
             first_name="Two",
         )
 
-    def test_create_multiplayer_returns_lobby_session(self):
+    @patch("poker.views.RedisGameLobbyManager")
+    def test_create_multiplayer_returns_lobby_session(self, manager_cls):
+        manager = manager_cls.return_value
+        manager.ensure_session_key.return_value = "test-session-key"
         self.client.force_authenticate(user=self.p1)
         response = self.client.post("/api/poker/", {"is_ai_game": False}, format="json")
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["my_seat"], 1)
         self.assertTrue(response.data["lobbyId"])
-        self.assertTrue(response.data["sessionKey"])
+        self.assertEqual(response.data["sessionKey"], "test-session-key")
+        manager.ensure_session_key.assert_called_once()
+        manager.add_user_to_session.assert_called_once()
+
+    def test_create_ai_game_can_include_multiple_ai_players(self):
+        self.client.force_authenticate(user=self.p1)
+
+        response = self.client.post(
+            "/api/poker/",
+            {"is_ai_game": True, "ai_player_count": 5},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["my_seat"], 1)
+        self.assertEqual(len(response.data["players"]), 6)
+        self.assertEqual(
+            len([seat for seat in response.data["players"] if seat.get("is_ai")]),
+            5,
+        )
+        current = next(
+            seat for seat in response.data["players"]
+            if int(seat["seat"]) == int(response.data["current_turn"])
+        )
+        self.assertFalse(current.get("is_ai"))
+
+    def test_ai_action_response_does_not_depend_on_channel_layer(self):
+        self.client.force_authenticate(user=self.p1)
+        game = PokerGame.objects.create(player_one=self.p1, is_ai_game=True)
+        game.initialize_ai_table(self.p1, 3)
+        game.ensure_dealt()
+        from .views import _resolve_ai_turn
+
+        _resolve_ai_turn(game)
+        action = "call" if "call" in game.legal_actions_for(self.p1) else "check"
+
+        with patch("poker.views.get_channel_layer", side_effect=RuntimeError("Redis down")):
+            response = self.client.post(
+                f"/api/poker/{game.id}/action/",
+                {"action": action},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("players", response.data)
 
     def test_payload_includes_turn_deadline(self):
         game = PokerGame.objects.create(player_one=self.p1, player_two=self.p2)
@@ -277,6 +397,59 @@ class PokerApiTests(APITestCase):
         self.assertEqual(p1_payload["player_two_cards"], ["??", "??"])
         self.assertEqual(p2_payload["player_one_cards"], ["??", "??"])
         self.assertNotEqual(p2_payload["player_two_cards"], ["??", "??"])
+
+    def test_payload_includes_only_requesting_players_current_best_hand(self):
+        game = PokerGame.objects.create(player_one=self.p1, player_two=self.p2)
+        game.initialize_table([self.p1, self.p2])
+        game.ensure_dealt()
+        for seat in game.table_seats:
+            if seat["user_id"] == self.p1.id:
+                seat["cards"] = ["Ah", "Kd"]
+            elif seat["user_id"] == self.p2.id:
+                seat["cards"] = ["2c", "3d"]
+        game.community_cards = []
+        game.phase = "preflop"
+        game.save(update_fields=["table_seats", "community_cards", "phase"])
+
+        preflop_payload = poker_payload(game, self.p1)
+        preflop_me = next(seat for seat in preflop_payload["players"] if seat["user_id"] == self.p1.id)
+        preflop_other = next(seat for seat in preflop_payload["players"] if seat["user_id"] == self.p2.id)
+        self.assertIsNone(preflop_payload["my_current_best_hand"])
+        self.assertIsNone(preflop_me["current_best_hand"])
+        self.assertIsNone(preflop_other["current_best_hand"])
+
+        game.community_cards = ["As", "Ad", "7c"]
+        game.phase = "flop"
+        game.save(update_fields=["community_cards", "phase"])
+        flop_payload = poker_payload(game, self.p1)
+        flop_me = next(seat for seat in flop_payload["players"] if seat["user_id"] == self.p1.id)
+        flop_other = next(seat for seat in flop_payload["players"] if seat["user_id"] == self.p2.id)
+        self.assertEqual(flop_payload["my_current_best_hand"], "Three of a kind")
+        self.assertEqual(flop_me["current_best_hand"], "Three of a kind")
+        self.assertIsNone(flop_other["current_best_hand"])
+
+        game.community_cards = ["As", "Ad", "7c", "Kc"]
+        game.phase = "turn"
+        game.save(update_fields=["community_cards", "phase"])
+        turn_payload = poker_payload(game, self.p1)
+        self.assertEqual(turn_payload["my_current_best_hand"], "Full house")
+
+        game.community_cards = ["As", "Ad", "7c", "Kc", "Ac"]
+        game.phase = "river"
+        game.save(update_fields=["community_cards", "phase"])
+        river_payload = poker_payload(game, self.p1)
+        river_me = next(seat for seat in river_payload["players"] if seat["user_id"] == self.p1.id)
+        river_other = next(seat for seat in river_payload["players"] if seat["user_id"] == self.p2.id)
+        self.assertEqual(river_payload["my_current_best_hand"], "Four of a kind")
+        self.assertEqual(river_me["current_best_hand"], "Four of a kind")
+        self.assertIsNone(river_other["current_best_hand"])
+
+        p2_payload = poker_payload(game, self.p2)
+        p2_own_seat = next(seat for seat in p2_payload["players"] if seat["user_id"] == self.p2.id)
+        p1_seat_for_p2 = next(seat for seat in p2_payload["players"] if seat["user_id"] == self.p1.id)
+        self.assertEqual(p2_payload["my_current_best_hand"], "Three of a kind")
+        self.assertEqual(p2_own_seat["current_best_hand"], "Three of a kind")
+        self.assertIsNone(p1_seat_for_p2["current_best_hand"])
 
     def test_host_can_update_table_settings_before_start(self):
         game = PokerGame.objects.create(player_one=self.p1)
@@ -347,6 +520,98 @@ class PokerApiTests(APITestCase):
 
         with self.assertRaisesMessage(ValidationError, "Poker supports up to 9 players."):
             game.initialize_table(users)
+
+    def test_winner_can_show_cards_after_fold_win(self):
+        game = PokerGame.objects.create(player_one=self.p1, player_two=self.p2)
+        game.initialize_table([self.p1, self.p2])
+        game.ensure_dealt()
+        winner_cards = list(
+            next(seat for seat in game.table_seats if seat["user_id"] == self.p1.id)["cards"]
+        )
+        game.current_turn = 2
+        game.save(update_fields=["current_turn"])
+        game.apply_action("fold", self.p2)
+
+        before_show = poker_payload(game, self.p2)
+        before_winner = next(seat for seat in before_show["players"] if seat["user_id"] == self.p1.id)
+        self.assertEqual(before_winner["cards"], ["??", "??"])
+
+        self.client.force_authenticate(user=self.p1)
+        response = self.client.post(
+            f"/api/poker/{game.id}/action/",
+            {"action": "show_cards"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["shown_cards"], [1])
+        response_winner = next(seat for seat in response.data["players"] if seat["user_id"] == self.p1.id)
+        self.assertEqual(response_winner["cards"], winner_cards)
+        game.refresh_from_db()
+        other_payload_winner = next(
+            seat for seat in poker_payload(game, self.p2)["players"] if seat["user_id"] == self.p1.id
+        )
+        self.assertEqual(other_payload_winner["cards"], winner_cards)
+
+    def test_show_cards_rejected_after_real_showdown(self):
+        game = PokerGame.objects.create(
+            player_one=self.p1,
+            player_two=self.p2,
+            player_one_cards=["Ah", "Ad"],
+            player_two_cards=["Kc", "Kd"],
+            community_cards=["2h", "7s", "9c", "Td", "3h"],
+            pot=100,
+            phase="river",
+        )
+        game._showdown()
+        game.save()
+
+        self.client.force_authenticate(user=self.p1)
+        response = self.client.post(
+            f"/api/poker/{game.id}/action/",
+            {"action": "show_cards"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("already revealed", response.data["error"])
+
+    def test_show_cards_rejected_for_non_winner(self):
+        game = PokerGame.objects.create(player_one=self.p1, player_two=self.p2)
+        game.initialize_table([self.p1, self.p2])
+        game.ensure_dealt()
+        game.current_turn = 2
+        game.save(update_fields=["current_turn"])
+        game.apply_action("fold", self.p2)
+
+        self.client.force_authenticate(user=self.p2)
+        response = self.client.post(
+            f"/api/poker/{game.id}/action/",
+            {"action": "show_cards"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Only the hand winner", response.data["error"])
+
+    def test_show_cards_rejected_after_next_hand_started(self):
+        game = PokerGame.objects.create(player_one=self.p1, player_two=self.p2)
+        game.initialize_table([self.p1, self.p2])
+        game.ensure_dealt()
+        game.current_turn = 2
+        game.save(update_fields=["current_turn"])
+        game.apply_action("fold", self.p2)
+        game.start_next_hand(self.p1)
+
+        self.client.force_authenticate(user=self.p1)
+        response = self.client.post(
+            f"/api/poker/{game.id}/action/",
+            {"action": "show_cards"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Hand is not over", response.data["error"])
 
 
 class PokerTournamentApiTests(APITestCase):

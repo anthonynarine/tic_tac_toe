@@ -21,9 +21,18 @@ AUTO_NEXT_HAND_DELAY_SECONDS = 5.0
 
 def _resolve_ai_turn(game):
     guard = 0
-    while game.is_ai_game and game.current_turn == 2 and not game.is_completed and guard < 8:
+    while game.is_ai_game and game._current_turn_is_ai() and not game.is_completed and guard < 32:
         game.apply_ai_action()
         guard += 1
+
+
+def _prepare_game_for_realtime(game):
+    game.enforce_turn_timeout()
+    _resolve_ai_turn(game)
+    if not game.current_turn_started_at and game._current_turn_can_act():
+        game.refresh_turn_timer()
+        game.save(update_fields=["current_turn_started_at", "updated_at"])
+    return game
 
 
 def _cancel_turn_timer(game_id):
@@ -96,6 +105,7 @@ def _fire_turn_timeout(game_id, started_at):
             if current_started_at != started_at:
                 return
             changed = game.enforce_turn_timeout()
+            _resolve_ai_turn(game)
             if not changed:
                 _schedule_turn_timer(game)
                 return
@@ -155,11 +165,7 @@ class PokerConsumer(JsonWebsocketConsumer):
         try:
             with transaction.atomic():
                 game = PokerGame.objects.select_for_update().get(pk=self.game_id)
-                if game.enforce_turn_timeout():
-                    pass
-                elif not game.current_turn_started_at and game._current_turn_can_act():
-                    game.refresh_turn_timer()
-                    game.save(update_fields=["current_turn_started_at", "updated_at"])
+                _prepare_game_for_realtime(game)
         except PokerGame.DoesNotExist:
             self._accept_and_close(4004)
             return
@@ -186,7 +192,7 @@ class PokerConsumer(JsonWebsocketConsumer):
         try:
             with transaction.atomic():
                 game = PokerGame.objects.select_for_update().get(pk=self.game_id)
-                game.enforce_turn_timeout()
+                _prepare_game_for_realtime(game)
             self._send_state(game)
         except PokerGame.DoesNotExist:
             self.send_json({"type": "error", "message": "Game not found."})
@@ -240,7 +246,7 @@ class PokerConsumer(JsonWebsocketConsumer):
         try:
             with transaction.atomic():
                 game = PokerGame.objects.select_for_update().get(pk=event["game_id"])
-                game.enforce_turn_timeout()
+                _prepare_game_for_realtime(game)
         except PokerGame.DoesNotExist:
             self.send_json({"type": "error", "message": "Game not found."})
             return

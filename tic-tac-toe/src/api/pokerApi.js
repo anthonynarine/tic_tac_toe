@@ -1,8 +1,8 @@
 import authAxios from "../auth/authAxios";
 
 export const pokerApi = {
-  createGame: (isAiGame = false) =>
-    authAxios.post("poker/", { is_ai_game: isAiGame }).then((r) => r.data),
+  createGame: (isAiGame = false, options = {}) =>
+    authAxios.post("poker/", { is_ai_game: isAiGame, ...options }).then((r) => r.data),
 
   getGame: (gameId) =>
     authAxios.get(`poker/${gameId}/`).then((r) => r.data),

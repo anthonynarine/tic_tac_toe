@@ -9,10 +9,10 @@ export default function PokerMPPage() {
   const { state, act, nextHand } = usePokerGame(gameId, { multiplayer: true });
 
   return (
-    <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 md:pt-10 pb-20 sm:pb-24">
-      <div className="mx-auto max-w-3xl">
-        {state.status === "loading" && <div className="min-h-[calc(100dvh-180px)] sm:min-h-[640px] grid place-items-center text-sm text-text-secondary">Loading poker...</div>}
-        {state.status === "error" && <div className="min-h-[calc(100dvh-180px)] sm:min-h-[640px] grid place-items-center text-sm text-brand-rose">{state.error}</div>}
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1680px] flex-col">
+        {state.status === "loading" && <div className="grid min-h-[calc(100dvh-120px)] place-items-center text-sm text-text-secondary">Loading poker...</div>}
+        {state.status === "error" && <div className="grid min-h-[calc(100dvh-120px)] place-items-center text-sm text-brand-rose">{state.error}</div>}
         {state.game && state.status !== "error" ? (
           <PokerTable game={state.game} wsStatus={state.wsStatus} onAction={act} onNextHand={nextHand} />
         ) : null}

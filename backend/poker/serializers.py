@@ -42,6 +42,7 @@ class PokerGameSerializer(serializers.ModelSerializer):
             "last_action",
             "winner",
             "winning_label",
+            "shown_cards",
             "is_completed",
             "created_at",
             "updated_at",
@@ -62,13 +63,23 @@ def poker_payload(game, user):
     data["turn_deadline_at"] = deadline.isoformat() if deadline else None
     data["server_now"] = timezone.now().isoformat()
     my_seat = game.piece_for_user(user)
+    shown_cards = {int(seat) for seat in game.shown_cards or []}
+    reveal_all = game.completed_by_showdown()
+    data["my_current_best_hand"] = None
     if game.table_seats:
-        reveal = game.is_completed
         safe_seats = []
         for seat in game.table_seats:
             is_me = str(seat.get("user_id")) == str(getattr(user, "id", None))
+            seat_no = int(seat.get("seat"))
             safe = dict(seat)
-            if not reveal and not is_me:
+            safe["current_best_hand"] = None
+            if is_me:
+                safe["current_best_hand"] = _current_best_hand_label(
+                    seat.get("cards", []),
+                    game.community_cards,
+                )
+                data["my_current_best_hand"] = safe["current_best_hand"]
+            if not is_me and not reveal_all and seat_no not in shown_cards:
                 safe["cards"] = ["??", "??"] if safe.get("cards") else []
             safe_seats.append(safe)
         data["table_seats"] = safe_seats
@@ -89,10 +100,9 @@ def poker_payload(game, user):
             data["max_raise_to"] = my_bet + my_chips
         return data
 
-    reveal = game.is_completed
-    if my_seat != 1 and not reveal:
+    if my_seat != 1 and not reveal_all and 1 not in shown_cards:
         data["player_one_cards"] = ["??", "??"] if game.player_one_cards else []
-    if my_seat != 2 and not reveal:
+    if my_seat != 2 and not reveal_all and 2 not in shown_cards:
         data["player_two_cards"] = ["??", "??"] if game.player_two_cards else []
     data["my_seat"] = my_seat
     data["legal_actions"] = game.legal_actions_for(user)
@@ -103,6 +113,10 @@ def poker_payload(game, user):
     data["can_update_settings"] = int(getattr(user, "id", 0)) == int(game.player_one_id) and not game.player_one_cards
     data["player_one_best"] = None
     data["player_two_best"] = None
+    if my_seat == 1:
+        data["my_current_best_hand"] = _current_best_hand_label(game.player_one_cards, game.community_cards)
+    elif my_seat == 2:
+        data["my_current_best_hand"] = _current_best_hand_label(game.player_two_cards, game.community_cards)
     if my_seat in (1, 2):
         my_bet = game.player_one_bet if my_seat == 1 else game.player_two_bet
         my_chips = game.player_one_chips if my_seat == 1 else game.player_two_chips
@@ -113,6 +127,15 @@ def poker_payload(game, user):
         data["player_one_best"] = evaluate_hand(game.player_one_cards + game.community_cards)["label"]
         data["player_two_best"] = evaluate_hand(game.player_two_cards + game.community_cards)["label"]
     return data
+
+
+def _current_best_hand_label(hole_cards, community_cards):
+    if len(community_cards or []) < 3:
+        return None
+    cards = list(hole_cards or []) + list(community_cards or [])
+    if len(cards) < 5:
+        return None
+    return evaluate_hand(cards)["label"]
 
 
 class PokerTournamentRegistrationSerializer(serializers.ModelSerializer):
