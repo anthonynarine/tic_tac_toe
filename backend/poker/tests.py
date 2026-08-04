@@ -41,6 +41,23 @@ class PokerRulesTests(TestCase):
         self.assertEqual(game.winner, 1)
         self.assertEqual(game.player_one_chips, 1100)
         self.assertTrue(game.is_completed)
+        self.assertEqual(
+            game.last_hand_result,
+            {
+                "hand_number": 1,
+                "winners": [
+                    {
+                        "seat": 1,
+                        "user_id": p1.id,
+                        "name": "p1poker@example.com",
+                        "amount": 100,
+                    }
+                ],
+                "is_split": False,
+                "label": "Pair",
+                "resolution": "showdown",
+            },
+        )
 
     def test_deal_posts_heads_up_blinds(self):
         p1 = User.objects.create_user(email="blind-one@example.com", password="pass")
@@ -54,6 +71,7 @@ class PokerRulesTests(TestCase):
         self.assertEqual(game.current_bet, 20)
         self.assertEqual(game.pot, 30)
         self.assertEqual(game.current_turn, 1)
+        self.assertIsNone(game.last_hand_result)
 
     def test_next_hand_rotates_dealer_and_keeps_stacks(self):
         p1 = User.objects.create_user(email="next-one@example.com", password="pass")
@@ -78,6 +96,7 @@ class PokerRulesTests(TestCase):
         self.assertEqual(game.player_one_chips, 1180)
         self.assertEqual(game.player_two_chips, 790)
         self.assertEqual(game.current_turn, 2)
+        self.assertIsNone(game.last_hand_result)
         self.assertFalse(game.is_completed)
 
     def test_realtime_prepare_resolves_ai_first_action_before_timer(self):
@@ -138,6 +157,16 @@ class PokerRulesTests(TestCase):
         self.assertEqual(game.pot, 0)
         self.assertEqual(game.player_two_chips, 1400)
         self.assertTrue(game.is_completed)
+        self.assertEqual(
+            game.last_hand_result["winners"],
+            [
+                {"seat": 1, "user_id": p1.id, "name": "short-one@example.com", "amount": 100},
+                {"seat": 2, "user_id": p2.id, "name": "short-two@example.com", "amount": 100},
+            ],
+        )
+        self.assertTrue(game.last_hand_result["is_split"])
+        self.assertEqual(game.last_hand_result["label"], "Split pot")
+        self.assertEqual(game.last_hand_result["resolution"], "showdown")
 
     def test_timeout_auto_folds_player_facing_bet(self):
         p1 = User.objects.create_user(email="timeout-one@example.com", password="pass")
@@ -162,6 +191,9 @@ class PokerRulesTests(TestCase):
         self.assertTrue(game.is_completed)
         self.assertEqual(game.winner, 2)
         self.assertEqual(game.player_two_chips, 1010)
+        self.assertEqual(game.last_hand_result["winners"], [{"seat": 2, "user_id": p2.id, "name": "timeout-two@example.com", "amount": 30}])
+        self.assertEqual(game.last_hand_result["label"], "Timeout")
+        self.assertEqual(game.last_hand_result["resolution"], "non_showdown")
         self.assertIsNone(game.current_turn_started_at)
 
     def test_timeout_auto_checks_when_check_is_available(self):
@@ -279,6 +311,106 @@ class PokerRulesTests(TestCase):
         self.assertEqual(seat_three["chips"], 400)
         self.assertEqual(game.pot, 0)
         self.assertTrue(game.is_completed)
+        self.assertEqual(
+            game.last_hand_result,
+            {
+                "hand_number": 1,
+                "winners": [
+                    {"seat": 1, "user_id": users[0].id, "name": "P1", "amount": 300},
+                    {"seat": 3, "user_id": users[2].id, "name": "P3", "amount": 400},
+                ],
+                "is_split": True,
+                "label": "Split pot",
+                "resolution": "showdown",
+            },
+        )
+
+    def test_last_hand_result_records_table_fold_win(self):
+        p1 = User.objects.create_user(email="fold-result-one@example.com", password="pass", first_name="FoldOne")
+        p2 = User.objects.create_user(email="fold-result-two@example.com", password="pass", first_name="FoldTwo")
+        game = PokerGame.objects.create(
+            player_one=p1,
+            player_two=p2,
+            pot=120,
+            current_turn=2,
+            table_seats=[
+                {
+                    "seat": 1,
+                    "user_id": p1.id,
+                    "name": "FoldOne",
+                    "chips": 900,
+                    "cards": ["Ah", "Ad"],
+                    "bet": 0,
+                    "contribution": 60,
+                    "folded": False,
+                    "all_in": False,
+                    "best": None,
+                },
+                {
+                    "seat": 2,
+                    "user_id": p2.id,
+                    "name": "FoldTwo",
+                    "chips": 880,
+                    "cards": ["Kc", "Kd"],
+                    "bet": 0,
+                    "contribution": 60,
+                    "folded": False,
+                    "all_in": False,
+                    "best": None,
+                },
+            ],
+        )
+
+        game.apply_action("fold", p2)
+
+        self.assertTrue(game.is_completed)
+        self.assertEqual(game.winner, 1)
+        self.assertEqual(game._seat_by_number(1)["chips"], 1020)
+        self.assertEqual(
+            game.last_hand_result,
+            {
+                "hand_number": 1,
+                "winners": [
+                    {"seat": 1, "user_id": p1.id, "name": "FoldOne", "amount": 120},
+                ],
+                "is_split": False,
+                "label": "Fold",
+                "resolution": "non_showdown",
+            },
+        )
+
+    def test_last_hand_result_records_legacy_split_pot(self):
+        p1 = User.objects.create_user(email="split-one@example.com", password="pass")
+        p2 = User.objects.create_user(email="split-two@example.com", password="pass")
+        game = PokerGame.objects.create(
+            player_one=p1,
+            player_two=p2,
+            player_one_cards=["2c", "3d"],
+            player_two_cards=["4h", "5s"],
+            community_cards=["Ah", "Kh", "Qd", "Jc", "Ts"],
+            pot=101,
+            phase="river",
+        )
+
+        game._showdown()
+
+        self.assertTrue(game.is_completed)
+        self.assertEqual(game.winner, 0)
+        self.assertEqual(game.player_one_chips, 1050)
+        self.assertEqual(game.player_two_chips, 1051)
+        self.assertEqual(
+            game.last_hand_result,
+            {
+                "hand_number": 1,
+                "winners": [
+                    {"seat": 1, "user_id": p1.id, "name": "split-one@example.com", "amount": 50},
+                    {"seat": 2, "user_id": p2.id, "name": "split-two@example.com", "amount": 51},
+                ],
+                "is_split": True,
+                "label": "Split pot",
+                "resolution": "showdown",
+            },
+        )
 
     def test_next_table_hand_rebuilds_deck_before_flop(self):
         users = [
@@ -510,6 +642,7 @@ class PokerApiTests(APITestCase):
         hidden = next(seat for seat in payload["players"] if seat["user_id"] == users[0].id)
         self.assertNotEqual(visible["cards"], ["??", "??"])
         self.assertEqual(hidden["cards"], ["??", "??"])
+        self.assertIsNone(payload["last_hand_result"])
 
     def test_initialize_table_rejects_more_than_nine_players(self):
         users = [

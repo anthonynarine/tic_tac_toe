@@ -128,6 +128,7 @@ class PokerGame(models.Model):
     winner = models.IntegerField(null=True, blank=True)
     winning_label = models.CharField(max_length=64, blank=True, default="")
     shown_cards = models.JSONField(default=list)
+    last_hand_result = models.JSONField(null=True, blank=True)
     is_completed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -302,6 +303,34 @@ class PokerGame(models.Model):
     def completed_by_showdown(self):
         return bool(self.is_completed and self.winning_label not in {"Fold", "Timeout"})
 
+    def _record_last_hand_result(self, payouts, label, resolution=None):
+        resolution = resolution or ("non_showdown" if label in {"Fold", "Timeout"} else "showdown")
+        winners = []
+        for seat_no, amount in sorted(payouts.items(), key=lambda item: int(item[0])):
+            amount = int(amount)
+            if amount <= 0:
+                continue
+            winner = {"seat": int(seat_no), "amount": amount}
+            if self.table_seats:
+                seat = self._seat_by_number(seat_no)
+                if seat:
+                    winner["user_id"] = seat.get("user_id")
+                    winner["name"] = seat.get("name")
+            elif int(seat_no) == 1:
+                winner["user_id"] = self.player_one_id
+                winner["name"] = self._legacy_player_name(1)
+            elif int(seat_no) == 2:
+                winner["user_id"] = self.player_two_id
+                winner["name"] = self._legacy_player_name(2)
+            winners.append(winner)
+        self.last_hand_result = {
+            "hand_number": int(self.hand_number or 1),
+            "winners": winners,
+            "is_split": len(winners) > 1,
+            "label": label,
+            "resolution": resolution,
+        }
+
     def show_cards(self, user):
         seat_no = self.piece_for_user(user)
         if seat_no is None:
@@ -407,6 +436,7 @@ class PokerGame(models.Model):
         self.winner = None
         self.winning_label = ""
         self.shown_cards = []
+        self.last_hand_result = None
         self.is_completed = False
         for seat in self.table_seats:
             seat["cards"] = []
@@ -440,6 +470,7 @@ class PokerGame(models.Model):
         self.winner = None
         self.winning_label = ""
         self.shown_cards = []
+        self.last_hand_result = None
         self.is_completed = False
         for seat in self.table_seats:
             seat["cards"] = []
@@ -852,11 +883,13 @@ class PokerGame(models.Model):
             self._award(2, two["label"])
         else:
             split = self.pot // 2
+            payouts = {1: split, 2: self.pot - split}
             self.player_one_chips += split
             self.player_two_chips += self.pot - split
             self.pot = 0
             self.winner = 0
             self.winning_label = "Split pot"
+            self._record_last_hand_result(payouts, self.winning_label, "showdown")
             self.phase = "completed"
             self.is_completed = True
             self.current_turn_started_at = None
@@ -881,6 +914,7 @@ class PokerGame(models.Model):
         self.winner = winning_seats[0] if len(winning_seats) == 1 else 0
         scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
         self.winning_label = scored[0][2].get("best") if len(winning_seats) == 1 else "Split pot"
+        self._record_last_hand_result(payouts, self.winning_label, "showdown")
         self.phase = "completed"
         self.is_completed = True
         self.current_turn_started_at = None
@@ -915,15 +949,18 @@ class PokerGame(models.Model):
 
     def _award_table(self, seat_no, label):
         seat = self._seat_by_number(seat_no)
+        payout = self.pot
         seat["chips"] = int(seat.get("chips", 0)) + self.pot
         self.pot = 0
         self.winner = seat_no
         self.winning_label = label
+        self._record_last_hand_result({seat_no: payout}, label)
         self.phase = "completed"
         self.is_completed = True
         self.current_turn_started_at = None
 
     def _award(self, player, label):
+        payout = self.pot
         if player == 1:
             self.player_one_chips += self.pot
         else:
@@ -931,6 +968,7 @@ class PokerGame(models.Model):
         self.pot = 0
         self.winner = player
         self.winning_label = label
+        self._record_last_hand_result({player: payout}, label)
         self.phase = "completed"
         self.is_completed = True
         self.current_turn_started_at = None

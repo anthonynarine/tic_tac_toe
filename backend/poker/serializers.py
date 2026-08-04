@@ -43,6 +43,7 @@ class PokerGameSerializer(serializers.ModelSerializer):
             "winner",
             "winning_label",
             "shown_cards",
+            "last_hand_result",
             "is_completed",
             "created_at",
             "updated_at",

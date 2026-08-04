@@ -14,7 +14,13 @@ export default function PokerMPPage() {
         {state.status === "loading" && <div className="grid min-h-[calc(100dvh-120px)] place-items-center text-sm text-text-secondary">Loading poker...</div>}
         {state.status === "error" && <div className="grid min-h-[calc(100dvh-120px)] place-items-center text-sm text-brand-rose">{state.error}</div>}
         {state.game && state.status !== "error" ? (
-          <PokerTable game={state.game} wsStatus={state.wsStatus} onAction={act} onNextHand={nextHand} />
+          <PokerTable
+            game={state.game}
+            handResultAnimation={state.handResultAnimation}
+            wsStatus={state.wsStatus}
+            onAction={act}
+            onNextHand={nextHand}
+          />
         ) : null}
       </div>
     </div>

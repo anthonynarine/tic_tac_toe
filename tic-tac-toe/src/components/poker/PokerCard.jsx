@@ -9,6 +9,8 @@ const SUITS = {
 
 export default function PokerCard({
   card,
+  micro = false,
+  mobileHero = false,
   small = false,
   mini = false,
   compact = false,
@@ -26,11 +28,12 @@ export default function PokerCard({
       ? "poker-card-deal-hole"
       : "poker-card-deal"
     : "";
+  const compactContent = micro || mobileHero;
   return (
     <div
       className={[
-        "relative rounded-md border shadow-[0_12px_28px_rgba(0,0,0,0.28)]",
-        mini ? "h-12 w-8" : compact ? "h-14 w-10 sm:h-16 sm:w-11" : small ? "h-16 w-11" : "h-16 w-11 sm:h-24 sm:w-16",
+        "relative overflow-hidden rounded-md border shadow-[0_12px_28px_rgba(0,0,0,0.28)]",
+        mobileHero ? "h-10 w-7" : micro ? "h-9 w-6" : mini ? "h-12 w-8" : compact ? "h-14 w-10 sm:h-16 sm:w-11" : small ? "h-16 w-11" : "h-16 w-11 sm:h-24 sm:w-16",
         animationClass,
         faceDown
           ? "border-cyan-100/45 bg-[#111827]"
@@ -50,12 +53,12 @@ export default function PokerCard({
       ) : hidden ? (
         <div className="absolute inset-1 rounded border border-white/10 bg-[radial-gradient(circle_at_50%_50%,rgba(34,211,238,0.3),transparent_55%)]" />
       ) : (
-        <div className={`h-full flex flex-col justify-between p-1.5 font-black ${suit.cls}`}>
-          <span className={mini ? "text-xs leading-none" : compact ? "text-sm leading-none" : small ? "text-base leading-none" : "text-base leading-none sm:text-lg"}>{rank}</span>
-          <span className={mini ? "text-base leading-none self-center" : compact ? "text-lg leading-none self-center" : small ? "text-xl leading-none self-center" : "text-xl leading-none self-center sm:text-2xl"}>
+        <div className={`h-full min-h-0 flex flex-col justify-between ${compactContent ? "p-1" : "p-1.5"} font-black ${suit.cls}`}>
+          <span className={compactContent ? "text-[10px] leading-none" : mini ? "text-xs leading-none" : compact ? "text-sm leading-none" : small ? "text-base leading-none" : "text-base leading-none sm:text-lg"}>{rank}</span>
+          <span className={compactContent ? "text-sm leading-none self-center" : mini ? "text-base leading-none self-center" : compact ? "text-lg leading-none self-center" : small ? "text-xl leading-none self-center" : "text-xl leading-none self-center sm:text-2xl"}>
             {suit.symbol}
           </span>
-          <span className={`${mini ? "text-xs" : compact ? "text-sm" : small ? "text-base" : "text-base sm:text-lg"} leading-none self-end rotate-180`}>{rank}</span>
+          <span className={`${compactContent ? "text-[10px]" : mini ? "text-xs" : compact ? "text-sm" : small ? "text-base" : "text-base sm:text-lg"} inline-block leading-none self-end rotate-180`}>{rank}</span>
         </div>
       )}
     </div>

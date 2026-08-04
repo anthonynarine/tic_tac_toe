@@ -11,12 +11,19 @@ const INITIAL = {
   status: "loading",
   error: null,
   wsStatus: "disconnected",
+  handResultAnimation: null,
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case "LOAD":
-      return { ...state, game: action.game, status: "ready", error: null };
+      return {
+        ...state,
+        game: action.game,
+        status: "ready",
+        error: null,
+        handResultAnimation: action.handResultAnimation || state.handResultAnimation,
+      };
     case "ERROR":
       return { ...state, status: "error", error: action.error || "Failed to load poker." };
     case "WS_STATUS":
@@ -33,19 +40,42 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
   const mountedRef = useRef(true);
   const autoNextHandRef = useRef(null);
   const stateRef = useRef(INITIAL);
+  const seenHandResultRef = useRef(null);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
+  const commitGame = useCallback((game) => {
+    if (!mountedRef.current) return;
+    const result = game?.last_hand_result;
+    const handNumber = result?.hand_number;
+    const resultKey = game?.id && handNumber != null ? `${game.id}-${handNumber}` : null;
+    const previousGame = stateRef.current.game;
+    let handResultAnimation = null;
+
+    if (resultKey && seenHandResultRef.current !== resultKey) {
+      if (previousGame && String(previousGame.id) === String(game.id)) {
+        handResultAnimation = {
+          key: resultKey,
+          result,
+          previousGame,
+        };
+      }
+      seenHandResultRef.current = resultKey;
+    }
+
+    dispatch({ type: "LOAD", game, handResultAnimation });
+  }, []);
+
   const load = useCallback(() => {
     if (!gameId) return;
     pokerApi.getGame(gameId)
       .then((game) => {
-        if (mountedRef.current) dispatch({ type: "LOAD", game });
+        commitGame(game);
       })
       .catch(() => dispatch({ type: "ERROR", error: "Failed to load poker." }));
-  }, [gameId]);
+  }, [commitGame, gameId]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -76,7 +106,7 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
         try {
           const data = JSON.parse(evt.data);
           if (data.type === "game_state" || data.type === "game_update") {
-            dispatch({ type: "LOAD", game: data.game });
+            commitGame(data.game);
           } else if (data.type === "error") {
             showToast("error", data.message || "Action failed.");
           }
@@ -91,7 +121,7 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
       mountedRef.current = false;
       if (ws && ws.readyState === WebSocket.OPEN) ws.close();
     };
-  }, [gameId, multiplayer]);
+  }, [commitGame, gameId, multiplayer]);
 
   useEffect(() => {
     const deadline = state.game?.turn_deadline_at;
@@ -131,7 +161,7 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
 
           try {
             const game = await pokerApi.action(gameId, action, amount);
-            if (mountedRef.current) dispatch({ type: "LOAD", game });
+            commitGame(game);
           } catch (err) {
             const message = err?.response?.data?.error || "";
             if (String(message).toLowerCase().includes("not your turn")) {
@@ -145,12 +175,12 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
       }
       try {
         const game = await pokerApi.action(gameId, action, amount);
-        dispatch({ type: "LOAD", game });
+        commitGame(game);
       } catch (err) {
         showToast("error", err?.response?.data?.error || "Action failed.");
       }
     },
-    [gameId, load, multiplayer]
+    [commitGame, gameId, load, multiplayer]
   );
 
   const nextHand = useCallback(async (options = {}) => {
@@ -162,11 +192,11 @@ export function usePokerGame(gameId, { multiplayer = false } = {}) {
     }
     try {
       const game = await pokerApi.nextHand(gameId);
-      dispatch({ type: "LOAD", game });
+      commitGame(game);
     } catch (err) {
       showToast("error", err?.response?.data?.error || "Could not start next hand.");
     }
-  }, [gameId, multiplayer]);
+  }, [commitGame, gameId, multiplayer]);
 
   const autoDealGameId = state.game?.id;
   const autoDealHandNumber = state.game?.hand_number || 1;

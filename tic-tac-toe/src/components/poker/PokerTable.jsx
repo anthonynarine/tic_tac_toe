@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { LuBadgeDollarSign, LuCopy, LuRefreshCw, LuUsers, LuX } from "react-icons/lu";
+import { LuBadgeDollarSign, LuCopy, LuRefreshCw } from "react-icons/lu";
 import { CiHome } from "react-icons/ci";
 import { useNavigate } from "react-router-dom";
 
@@ -21,21 +21,29 @@ const TABLE_FELT_HALF_HEIGHT_PCT = TABLE_CONTAINER_HALF_HEIGHT_PCT - TABLE_FELT_
 const STADIUM_FELT_STRAIGHT_HALF_PCT = TABLE_FELT_HALF_WIDTH_PCT - TABLE_FELT_HALF_HEIGHT_PCT;
 const CARD_RING_RADIUS_PCT = TABLE_FELT_HALF_HEIGHT_PCT - 6;
 const CHIP_RING_RADIUS_PCT = TABLE_FELT_HALF_HEIGHT_PCT + 9;
-const CARD_RING_STRAIGHT_HALF_PCT = STADIUM_FELT_STRAIGHT_HALF_PCT;
+const CARD_RING_INSET_FROM_FELT_PCT = TABLE_FELT_HALF_HEIGHT_PCT - CARD_RING_RADIUS_PCT;
 const CHIP_RING_STRAIGHT_HALF_PCT = STADIUM_FELT_STRAIGHT_HALF_PCT;
 const CHIP_RING_OFFSET_FROM_FELT_PCT = CHIP_RING_RADIUS_PCT - TABLE_FELT_HALF_HEIGHT_PCT;
 const CHIP_RING_CAP_MAX_HORIZONTAL_OFFSET_PCT = 5.8;
+const DESKTOP_TABLE_MEDIA_QUERY = "(min-width: 768px)";
+const DESKTOP_TABLE_ASPECT_RATIO = 2.37;
+const DESKTOP_TABLE_VERTICAL_RESERVE_PX = 364;
+const DESKTOP_TABLE_WIDTH = `min(100%, clamp(760px, 92vw, 1280px), calc((100dvh - ${DESKTOP_TABLE_VERTICAL_RESERVE_PX}px) * ${DESKTOP_TABLE_ASPECT_RATIO}))`;
+const DESKTOP_ACTION_PANEL_HEIGHT = "clamp(160px,15.5vw,190px)";
 const STADIUM_HERO_FRACTION = stadiumHeroFraction(
   STADIUM_FELT_STRAIGHT_HALF_PCT,
   TABLE_FELT_HALF_HEIGHT_PCT
 );
-const CARD_RING_HERO_FRACTION = stadiumHeroFraction(
-  CARD_RING_STRAIGHT_HALF_PCT,
-  CARD_RING_RADIUS_PCT
-);
-const BET_MARKER_OFFSET_X_PX = 52;
-const BET_MARKER_OFFSET_Y_PX = 44;
-const DEALER_MIN_OPPONENTS = 4;
+const BET_MARKER_OFFSET_X_CLAMP = { minPx: 36, preferredCqw: 4.4, maxPx: 52 };
+const BET_MARKER_OFFSET_Y_CLAMP = { minPx: 30, preferredCqw: 3.7, maxPx: 44 };
+const ROLE_CHIP_OFFSET_X_CLAMP = { minPx: 8, preferredCqw: 0.95, maxPx: 12 };
+const ROLE_CHIP_OFFSET_Y_CLAMP = { minPx: 5, preferredCqw: 0.63, maxPx: 8 };
+const CHIP_TRANSFER_CHIP_DURATION_SECONDS = 1.15;
+const CHIP_TRANSFER_STACK_DURATION_MS = 1950;
+const CHIP_TRANSFER_POT_DURATION_MS = 980;
+const CHIP_TRANSFER_STREAM_CHIPS = 5;
+const CHIP_TRANSFER_STAGGER_SECONDS = 0.2;
+const CHIP_TRANSFER_START_POINT = { xPct: 50, yPct: 56 };
 
 function stadiumPerimeter(straightHalfPct, radiusPct) {
   return 4 * straightHalfPct + 2 * Math.PI * radiusPct;
@@ -106,6 +114,13 @@ function stadiumPositionStyle(point) {
   };
 }
 
+function signedClampLength(value, { minPx, preferredCqw, maxPx }) {
+  const magnitude = Math.abs(Number(value) || 0);
+  if (magnitude < 0.001) return "0px";
+  const clampValue = `clamp(${(minPx * magnitude).toFixed(2)}px, ${(preferredCqw * magnitude).toFixed(3)}cqw, ${(maxPx * magnitude).toFixed(2)}px)`;
+  return value < 0 ? `calc(0px - ${clampValue})` : clampValue;
+}
+
 function stadiumPointAtPerpendicularOffset(fraction, straightHalfPct, radiusPct, offsetPct, maxHorizontalOffsetPct = null) {
   const point = stadiumPointAtFraction(fraction, straightHalfPct, radiusPct);
   const outwardX = -point.inwardX * offsetPct;
@@ -132,30 +147,52 @@ function desktopSeatPosition(index, count) {
   );
 }
 
-function desktopFeltCardPoint(index, count) {
-  return stadiumPointAtFraction(
+function desktopSeatPoint(index, count) {
+  return stadiumPointAtPerpendicularOffset(
     opponentSeatFraction(index, count),
-    CARD_RING_STRAIGHT_HALF_PCT,
-    CARD_RING_RADIUS_PCT
+    CHIP_RING_STRAIGHT_HALF_PCT,
+    TABLE_FELT_HALF_HEIGHT_PCT,
+    CHIP_RING_OFFSET_FROM_FELT_PCT,
+    CHIP_RING_CAP_MAX_HORIZONTAL_OFFSET_PCT
+  );
+}
+
+function desktopFeltCardPoint(index, count) {
+  return stadiumPointAtPerpendicularOffset(
+    opponentSeatFraction(index, count),
+    STADIUM_FELT_STRAIGHT_HALF_PCT,
+    TABLE_FELT_HALF_HEIGHT_PCT,
+    -CARD_RING_INSET_FROM_FELT_PCT
   );
 }
 
 function desktopHeroFeltCardPoint() {
-  return stadiumPointAtFraction(
-    CARD_RING_HERO_FRACTION,
-    CARD_RING_STRAIGHT_HALF_PCT,
-    CARD_RING_RADIUS_PCT
+  return stadiumPointAtPerpendicularOffset(
+    STADIUM_HERO_FRACTION,
+    STADIUM_FELT_STRAIGHT_HALF_PCT,
+    TABLE_FELT_HALF_HEIGHT_PCT,
+    -CARD_RING_INSET_FROM_FELT_PCT
   );
 }
 
 function betMarkerStyleForStadiumPoint(point) {
+  const offsetX = signedClampLength(point.inwardX, BET_MARKER_OFFSET_X_CLAMP);
+  const offsetY = signedClampLength(point.inwardY, BET_MARKER_OFFSET_Y_CLAMP);
   return {
-    transform: `translate(calc(-50% + ${point.inwardX * BET_MARKER_OFFSET_X_PX}px), calc(-50% + ${point.inwardY * BET_MARKER_OFFSET_Y_PX}px))`,
+    transform: `translate(calc(-50% + ${offsetX}), calc(-50% + ${offsetY}))`,
   };
 }
 
-function roleChipClassForStadiumPoint(point) {
-  return point?.xPct > 0 ? "-right-3 -bottom-2" : "-left-3 -bottom-2";
+function roleChipStyleForStadiumPoint(point) {
+  return point?.xPct > 0
+    ? {
+        right: signedClampLength(-1, ROLE_CHIP_OFFSET_X_CLAMP),
+        bottom: signedClampLength(-1, ROLE_CHIP_OFFSET_Y_CLAMP),
+      }
+    : {
+        left: signedClampLength(-1, ROLE_CHIP_OFFSET_X_CLAMP),
+        bottom: signedClampLength(-1, ROLE_CHIP_OFFSET_Y_CLAMP),
+      };
 }
 
 function hasFaceUpCards(cards = []) {
@@ -172,24 +209,125 @@ function isEliminatedPlayer(player) {
   );
 }
 
+function playersFromGame(game) {
+  if (!game) return [];
+  if (game.players?.length) {
+    return game.players.map((seat) => ({
+      seat: seat.seat,
+      name: seat.name || "Player",
+      chips: seat.chips,
+      bet: seat.bet,
+      cards: seat.cards || [],
+      best: seat.best,
+      folded: seat.folded,
+      allIn: seat.all_in,
+    }));
+  }
+  return [
+    {
+      seat: 1,
+      name: game.player_one_name || "Player 1",
+      chips: game.player_one_chips,
+      bet: game.player_one_bet,
+      cards: game.player_one_cards || [],
+      best: game.player_one_best,
+      folded: game.player_one_folded,
+      allIn: game.player_one_all_in,
+    },
+    {
+      seat: 2,
+      name: game.player_two_name || "Player 2",
+      chips: game.player_two_chips,
+      bet: game.player_two_bet,
+      cards: game.player_two_cards || [],
+      best: game.player_two_best,
+      folded: game.player_two_folded,
+      allIn: game.player_two_all_in,
+    },
+  ];
+}
+
+function chipValueForSeat(game, seat) {
+  const seatNumber = Number(seat);
+  return Number(playersFromGame(game).find((player) => Number(player.seat) === seatNumber)?.chips || 0);
+}
+
+function pointToPercent(point) {
+  return {
+    xPct: 50 + point.xPct,
+    yPct: 50 + point.yPct,
+  };
+}
+
 function BetMarker({ amount, name, className = "", style = undefined }) {
   if (!amount) return null;
   return (
     <Tooltip content={`${name || "Player"} bet ${amount}`}>
       <div
         className={[
-          "inline-flex flex-col items-center gap-0.5 text-[10px] font-black text-cyan-50 shadow-[0_10px_24px_rgba(0,0,0,0.34)]",
+          "inline-flex flex-col items-center gap-0.5 text-[clamp(7px,0.78cqw,10px)] font-black text-cyan-50 shadow-[0_10px_24px_rgba(0,0,0,0.34)]",
           className,
         ].join(" ")}
         style={style}
       >
-        <span className="grid h-5 w-5 place-items-center rounded-full border border-cyan-100/55 bg-[repeating-conic-gradient(from_8deg,#67e8f9_0deg_14deg,#0e7490_14deg_28deg)] p-[2px] shadow-[inset_0_0_0_1px_rgba(8,47,73,0.42),inset_0_4px_10px_rgba(255,255,255,0.2)]">
-          <span className="grid h-full w-full place-items-center rounded-full border border-cyan-950/45 bg-[radial-gradient(circle_at_35%_30%,#ecfeff_0_11%,#67e8f9_12%_45%,#0891b2_46%_100%)] text-[7px] font-black leading-none text-slate-950">
+        <span className="grid h-[clamp(14px,1.55cqw,20px)] w-[clamp(14px,1.55cqw,20px)] place-items-center rounded-full border border-cyan-100/55 bg-[repeating-conic-gradient(from_8deg,#67e8f9_0deg_14deg,#0e7490_14deg_28deg)] p-[clamp(1px,0.16cqw,2px)] shadow-[inset_0_0_0_1px_rgba(8,47,73,0.42),inset_0_4px_10px_rgba(255,255,255,0.2)]">
+          <span className="grid h-full w-full place-items-center rounded-full border border-cyan-950/45 bg-[radial-gradient(circle_at_35%_30%,#ecfeff_0_11%,#67e8f9_12%_45%,#0891b2_46%_100%)] text-[clamp(5px,0.55cqw,7px)] font-black leading-none text-slate-950">
             {amount}
           </span>
         </span>
       </div>
     </Tooltip>
+  );
+}
+
+function TravelingChip({ stream, chipIndex }) {
+  const start = CHIP_TRANSFER_START_POINT;
+  const end = stream.end;
+  const mid = {
+    xPct: (start.xPct + end.xPct) / 2,
+    yPct: Math.min(start.yPct, end.yPct) - 10 - chipIndex * 0.8,
+  };
+
+  return (
+    <motion.div
+      className="absolute z-50 grid h-[clamp(15px,1.55cqw,20px)] w-[clamp(15px,1.55cqw,20px)] place-items-center rounded-full border border-cyan-100/55 bg-[repeating-conic-gradient(from_8deg,#67e8f9_0deg_14deg,#0e7490_14deg_28deg)] p-[clamp(1px,0.16cqw,2px)] shadow-[0_10px_24px_rgba(0,0,0,0.34),inset_0_0_0_1px_rgba(8,47,73,0.42),inset_0_4px_10px_rgba(255,255,255,0.2)]"
+      style={{ left: `${start.xPct}%`, top: `${start.yPct}%`, translateX: "-50%", translateY: "-50%" }}
+      initial={{ opacity: 0, scale: 0.72, rotate: -18 }}
+      animate={{
+        left: [`${start.xPct}%`, `${mid.xPct}%`, `${end.xPct}%`, `${end.xPct}%`],
+        top: [`${start.yPct}%`, `${mid.yPct}%`, `${end.yPct}%`, `${end.yPct}%`],
+        opacity: [0, 1, 1, 0],
+        scale: [0.72, 1.04, 0.9, 1.08],
+        rotate: [-18, 18, 0, 0],
+      }}
+      transition={{
+        duration: CHIP_TRANSFER_CHIP_DURATION_SECONDS,
+        delay: chipIndex * CHIP_TRANSFER_STAGGER_SECONDS,
+        ease: [0.22, 0.78, 0.26, 1],
+        times: [0, 0.54, 0.82, 1],
+      }}
+    >
+      <span className="grid h-full w-full place-items-center rounded-full border border-cyan-950/45 bg-[radial-gradient(circle_at_35%_30%,#ecfeff_0_11%,#67e8f9_12%_45%,#0891b2_46%_100%)] text-[clamp(5px,0.55cqw,7px)] font-black leading-none text-slate-950">
+        {stream.amount}
+      </span>
+    </motion.div>
+  );
+}
+
+function ChipTransferOverlay({ streams }) {
+  if (!streams.length) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-50">
+      {streams.flatMap((stream) => (
+        Array.from({ length: CHIP_TRANSFER_STREAM_CHIPS }).map((_, chipIndex) => (
+          <TravelingChip
+            key={`${stream.key}-${chipIndex}`}
+            stream={stream}
+            chipIndex={chipIndex}
+          />
+        ))
+      ))}
+    </div>
   );
 }
 
@@ -329,6 +467,13 @@ const HERO_AVATAR_COLORS = {
   trim: "#fde68a",
 };
 
+const HERO_MOBILE_AVATAR_COLORS = {
+  visor: "#0f766e",
+  band: "#fde68a",
+  vest: "#78350f",
+  trim: "#fef3c7",
+};
+
 const PLAYER_AVATAR_FACE = {
   eyeY: 26.2,
   eyeHighlightY: 25.8,
@@ -343,13 +488,14 @@ function avatarColorsForSeat(seat, isMe = false) {
   return PLAYER_AVATAR_PALETTE[(seatNumber - 1) % PLAYER_AVATAR_PALETTE.length];
 }
 
-function PlayerAvatarFace({ seat, isMe = false }) {
-  const colors = avatarColorsForSeat(seat, isMe);
+function PlayerAvatarFace({ seat, isMe = false, size = "default" }) {
+  const colors = isMe && size === "mobile" ? HERO_MOBILE_AVATAR_COLORS : avatarColorsForSeat(seat, isMe);
+  const sizeClassName = size === "mobile" ? "h-[30px] w-[30px]" : "h-[clamp(30px,3.6cqw,46px)] w-[clamp(30px,3.6cqw,46px)]";
   return (
     <svg
       viewBox="0 0 52 52"
       aria-hidden="true"
-      className="h-[46px] w-[46px] shrink-0 drop-shadow-[0_7px_12px_rgba(0,0,0,0.28)]"
+      className={[sizeClassName, "shrink-0 drop-shadow-[0_7px_12px_rgba(0,0,0,0.28)]"].join(" ")}
     >
       <circle cx="26" cy="26" r="23" fill="rgba(2,6,23,0.78)" stroke={colors.trim} strokeWidth="1.6" />
       <path d="M12 46C13 36 18 31 26 31C34 31 39 36 40 46Z" fill={colors.vest} />
@@ -390,6 +536,9 @@ function CasinoSeatPod({
   timerPercent = 0,
   timerUrgent = false,
   style = undefined,
+  displayChips = null,
+  payoutPulse = false,
+  stackAmountRef = null,
 }) {
   const showTimer = active && timerRemaining != null;
   const statusText = moveLabel || (active ? "To act" : player.folded ? "Fold" : player.allIn ? "All in" : player.best || "Waiting");
@@ -397,28 +546,30 @@ function CasinoSeatPod({
   return (
     <div
       className={[
-        "pointer-events-auto absolute flex w-[142px] -translate-x-1/2 flex-col items-center",
+        "pointer-events-auto absolute flex w-[clamp(96px,11.1cqw,142px)] -translate-x-1/2 flex-col items-center",
         className,
       ].join(" ")}
       style={style}
     >
       <div
         className={[
-          "relative flex h-[58px] w-full items-center gap-1.5 rounded-sm border px-1.5 py-1 text-left shadow-[0_10px_22px_rgba(0,0,0,0.32)]",
+          "relative flex h-[clamp(40px,4.55cqw,58px)] w-full items-center gap-[clamp(4px,0.47cqw,6px)] rounded-sm border px-[clamp(4px,0.47cqw,6px)] py-[clamp(3px,0.31cqw,4px)] text-left shadow-[0_10px_22px_rgba(0,0,0,0.32)]",
           active
             ? "border-emerald-200/45 bg-[linear-gradient(180deg,rgba(16,185,129,0.26),rgba(6,78,59,0.96))] shadow-[0_0_24px_rgba(16,185,129,0.22),0_10px_22px_rgba(0,0,0,0.32)]"
+            : payoutPulse
+              ? "border-amber-200/60 bg-[linear-gradient(180deg,rgba(251,191,36,0.22),rgba(69,26,3,0.96))] shadow-[0_0_30px_rgba(251,191,36,0.38),0_10px_22px_rgba(0,0,0,0.32)]"
             : "border-emerald-200/[0.12] bg-[linear-gradient(180deg,rgba(8,47,37,0.94),rgba(12,28,24,0.98))]",
           player.folded ? "opacity-55" : "",
         ].join(" ")}
       >
         <PlayerAvatarFace seat={player.seat} isMe={isMe} />
         <div className="flex min-w-0 flex-1 flex-col justify-center">
-          <div className="truncate text-[9px] font-black uppercase tracking-[0.06em] text-emerald-50/90">
+          <div className="truncate text-[clamp(6px,0.7cqw,9px)] font-black uppercase tracking-[0.06em] text-emerald-50/90">
             {isMe ? "You" : player.name || "Player"}
           </div>
-          <div className="mt-0.5 flex items-center gap-1 truncate text-[9px] font-bold text-amber-100">
-            <LuBadgeDollarSign size={9} className="shrink-0 text-amber-200/80" />
-            <span className="truncate">{player.chips}</span>
+          <div className="mt-0.5 flex items-center gap-1 truncate text-[clamp(7px,0.78cqw,10px)] font-black text-amber-50">
+            <LuBadgeDollarSign size="clamp(7px,0.78cqw,10px)" className="shrink-0 text-amber-100" />
+            <span ref={stackAmountRef} className="truncate">{displayChips ?? player.chips}</span>
           </div>
           {showCards ? (
             <div className="mt-0.5 flex justify-start gap-0.5">
@@ -434,7 +585,7 @@ function CasinoSeatPod({
               ))}
             </div>
           ) : null}
-          <div className={["mt-0.5 h-3.5 truncate rounded-sm px-1 py-0.5 text-[7px] font-black uppercase leading-none tracking-[0.08em]", actionLabelClass(statusText, active)].join(" ")}>
+          <div className={["mt-0.5 h-[clamp(10px,1.1cqw,14px)] truncate rounded-sm px-[clamp(3px,0.31cqw,4px)] py-0.5 text-[clamp(5px,0.55cqw,7px)] font-black uppercase leading-none tracking-[0.08em]", actionLabelClass(statusText, active)].join(" ")}>
             {statusText}
           </div>
           {showTimer ? (
@@ -451,105 +602,25 @@ function CasinoSeatPod({
   );
 }
 
-function CasinoDealer({ activeOpponentCount = 0 }) {
-  if (activeOpponentCount < DEALER_MIN_OPPONENTS) return null;
-
-  return (
-    <div className="pointer-events-none absolute left-1/2 top-6 z-10 hidden h-[92px] w-[104px] -translate-x-1/2 lg:block xl:top-8 xl:h-[104px] xl:w-[118px]">
-      <svg
-        viewBox="0 0 140 132"
-        role="img"
-        aria-label="Casino dealer"
-        className="h-full w-full drop-shadow-[0_12px_22px_rgba(0,0,0,0.36)]"
-      >
-        <ellipse cx="70" cy="123" rx="47" ry="7" fill="rgba(0,0,0,0.28)" />
-        <motion.g
-          animate={{ y: [0, 2, 0] }}
-          transition={{ duration: 4.8, ease: "easeInOut", repeat: Infinity }}
-          style={{ transformOrigin: "70px 82px" }}
-        >
-          <g className="dealerTorso">
-            <path
-              d="M34 122C36 94 49 80 70 80C91 80 104 94 106 122Z"
-              fill="#0f211b"
-              stroke="rgba(16,185,129,0.28)"
-              strokeWidth="2"
-            />
-            <path d="M52 84L70 116L88 84C83 81 77 80 70 80C63 80 57 81 52 84Z" fill="#f8fafc" />
-            <path d="M55 86L70 98L62 104Z" fill="#e2e8f0" />
-            <path d="M85 86L70 98L78 104Z" fill="#e2e8f0" />
-            <path d="M58 86L69 121H37C40 103 47 92 58 86Z" fill="#13251f" />
-            <path d="M82 86L71 121H103C100 103 93 92 82 86Z" fill="#13251f" />
-            <path d="M62 99L70 94L78 99L70 105Z" fill="#020617" />
-            <circle cx="70" cy="109" r="1.7" fill="#fbbf24" />
-            <circle cx="70" cy="116" r="1.7" fill="#fbbf24" />
-          </g>
-          <g className="dealerHead">
-            <circle cx="70" cy="49" r="27" fill="#d6a57a" />
-            <path d="M47 45C50 28 59 20 70 20C82 20 92 29 94 45C83 40 60 40 47 45Z" fill="#111827" />
-            <path d="M46 43H94V52C84 55 56 55 46 52Z" fill="#0f172a" />
-            <path d="M49 41C54 30 61 25 70 25C80 25 88 31 92 41Z" fill="#164e3d" />
-            <motion.g
-              animate={{ scaleY: [1, 1, 0.08, 1, 1] }}
-              transition={{ duration: 6.8, ease: "easeInOut", times: [0, 0.91, 0.925, 0.94, 1], repeat: Infinity }}
-              style={{ transformBox: "fill-box", transformOrigin: "center" }}
-            >
-              <rect x="59" y="55" width="5.8" height="2.8" rx="1.4" fill="#0f172a" />
-              <rect x="75.2" y="55" width="5.8" height="2.8" rx="1.4" fill="#0f172a" />
-            </motion.g>
-            <path d="M64 65C68 68 73 68 77 65" fill="none" stroke="#7f3f1d" strokeWidth="2" strokeLinecap="round" />
-          </g>
-          <g className="dealerArmResting">
-            <path
-              d="M39 94C29 98 24 106 24 118"
-              fill="none"
-              stroke="#d6a57a"
-              strokeWidth="10"
-              strokeLinecap="round"
-            />
-            <circle cx="24" cy="118" r="5.5" fill="#d6a57a" />
-          </g>
-          <g className="dealerArmCards">
-            <path
-              d="M98 93C108 94 115 101 119 111"
-              fill="none"
-              stroke="#d6a57a"
-              strokeWidth="10"
-              strokeLinecap="round"
-            />
-            <circle cx="119" cy="111" r="5.5" fill="#d6a57a" />
-          </g>
-          <motion.g
-            animate={{ rotate: [0, -1.4, 0] }}
-            transition={{ duration: 5.4, ease: "easeInOut", repeat: Infinity }}
-            style={{ transformOrigin: "103px 79px" }}
-          >
-            <rect x="91" y="76" width="17" height="24" rx="2" fill="#f8fafc" stroke="#67e8f9" strokeWidth="1.4" transform="rotate(-16 99.5 88)" />
-            <rect x="101" y="73" width="17" height="24" rx="2" fill="#f8fafc" stroke="#fbbf24" strokeWidth="1.4" transform="rotate(3 109.5 85)" />
-            <rect x="111" y="78" width="17" height="24" rx="2" fill="#f8fafc" stroke="#10b981" strokeWidth="1.4" transform="rotate(18 119.5 90)" />
-            <circle cx="109" cy="85" r="1.7" fill="#0891b2" />
-            <path d="M120 88L123 92L117 92Z" fill="#059669" />
-          </motion.g>
-        </motion.g>
-      </svg>
-    </div>
-  );
-}
-
-function SeatRoleChip({ label, className = "" }) {
+function SeatRoleChip({ label, className = "", style = undefined, elastic = false }) {
   if (!label) return null;
   const styles = {
     D: "bg-white text-slate-950",
     SB: "bg-sky-300 text-slate-950",
     BB: "bg-amber-300 text-slate-950",
   };
+  const sizeClassName = elastic
+    ? "h-[clamp(14px,1.55cqw,20px)] w-[clamp(14px,1.55cqw,20px)] min-w-0 px-0 text-[clamp(5px,0.63cqw,8px)]"
+    : "h-5 w-5 min-w-0 px-0 text-[8px]";
   return (
     <span
       className={[
-        "absolute z-30 grid h-5 min-w-5 place-items-center rounded-full border border-slate-950/55 px-1 text-[9px] font-black shadow-[0_0_0_2px_rgba(255,255,255,0.18),0_8px_16px_rgba(0,0,0,0.42)]",
+        "absolute z-30 grid place-items-center rounded-full border border-slate-950/55 font-black shadow-[0_0_0_2px_rgba(255,255,255,0.18),0_8px_16px_rgba(0,0,0,0.42)]",
+        sizeClassName,
         styles[label] || styles.D,
         className,
       ].join(" ")}
+      style={style}
     >
       {label}
     </span>
@@ -565,6 +636,8 @@ function FeltHoleCards({
   faceDown = false,
   betMarkerStyle = undefined,
   roleChipClassName = "-left-3 -bottom-2",
+  roleChipStyle = undefined,
+  elasticRoleChip = false,
 }) {
   if (!player) return null;
   const cards = player.cards?.length ? player.cards : ["??", "??"];
@@ -576,9 +649,9 @@ function FeltHoleCards({
       className={["pointer-events-none absolute z-20 flex -translate-x-1/2 items-center gap-0.5", className].join(" ")}
       style={style}
     >
-      <SeatRoleChip label={roleLabel} className={roleChipClassName} />
-      <div className="relative flex items-center gap-0.5">
-        <div className={["flex items-center gap-0.5", folded ? "opacity-55 saturate-50" : ""].join(" ")}>
+      <SeatRoleChip label={roleLabel} className={roleChipClassName} style={roleChipStyle} elastic={elasticRoleChip} />
+      <div className="relative flex items-center gap-[clamp(1px,0.16cqw,2px)]">
+        <div className={["flex items-center gap-[clamp(1px,0.16cqw,2px)] [&>div]:h-[clamp(34px,3.75cqw,48px)] [&>div]:w-[clamp(23px,2.5cqw,32px)]", folded ? "opacity-55 saturate-50" : ""].join(" ")}>
           {cards.map((card, idx) => (
             <PokerCard
               key={`${handNumber}-${player.seat || player.name || "felt"}-${idx}-${card}`}
@@ -592,7 +665,7 @@ function FeltHoleCards({
           ))}
         </div>
         {folded ? (
-          <span className="absolute left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 -rotate-12 rounded-sm border border-rose-200/35 bg-rose-950/82 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.16em] text-rose-100 shadow-[0_6px_18px_rgba(0,0,0,0.42)]">
+          <span className="absolute left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 -rotate-12 rounded-sm border border-rose-200/35 bg-rose-950/82 px-[clamp(6px,0.63cqw,8px)] py-0.5 text-[clamp(6px,0.63cqw,8px)] font-black uppercase tracking-[0.16em] text-rose-100 shadow-[0_6px_18px_rgba(0,0,0,0.42)]">
             Folded
           </span>
         ) : null}
@@ -607,175 +680,84 @@ function FeltHoleCards({
   );
 }
 
-function MobileOpponentTile({ player, active, dealer, handNumber, tileRef, pendingLabel = "", faceDown = false }) {
-  const statusText = pendingLabel || (active ? "To act" : player.folded ? "Folded" : player.allIn ? "All-in" : "In hand");
+const MOBILE_TABLE_STRAIGHT_HALF_PCT = 12;
+const MOBILE_TABLE_RADIUS_PCT = 30;
+const MOBILE_TABLE_HORIZONTAL_RADIUS_SCALE = 1.36;
+const MOBILE_TABLE_HERO_FRACTION = (2 * MOBILE_TABLE_STRAIGHT_HALF_PCT + (Math.PI * MOBILE_TABLE_RADIUS_PCT) / 2) /
+  stadiumPerimeter(MOBILE_TABLE_STRAIGHT_HALF_PCT, MOBILE_TABLE_RADIUS_PCT);
 
+function MobilePocketCards({ show, className = "" }) {
+  if (!show) return null;
   return (
-    <div
-      ref={tileRef}
-      className={[
-        "relative flex h-[74px] w-[138px] shrink-0 items-center justify-between gap-2 rounded-lg border px-2 py-2",
-        "bg-slate-950/88 shadow-[0_10px_24px_rgba(0,0,0,0.28)] backdrop-blur",
-        active
-          ? "border-emerald-300/45 shadow-[0_0_22px_rgba(16,185,129,0.2),0_10px_24px_rgba(0,0,0,0.28)]"
-          : "border-white/[0.07]",
-        player.folded ? "opacity-55" : "",
-      ].join(" ")}
-    >
-      {player.bet ? (
-        <BetMarker
-          amount={player.bet}
-          name={player.name}
-          className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[68%] scale-75"
-        />
-      ) : null}
-      {dealer ? (
-        <span className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-amber-200 text-[10px] font-black text-slate-950">
-          D
-        </span>
-      ) : null}
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          {active ? <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.85)]" /> : null}
-          <div className="truncate text-[12px] font-semibold text-text-primary">
-            {player.name || "Player"}
-          </div>
+    <div className={["pointer-events-none absolute z-10 flex gap-0.5", className].join(" ")}>
+      {[0, 1].map((idx) => (
+        <div key={idx} className={["origin-center", idx === 1 ? "-ml-3 rotate-6" : "-rotate-6"].join(" ")}>
+          <PokerCard card="??" micro faceDown />
         </div>
-        <div className="mt-1 flex items-center gap-1 text-[10px] font-semibold text-amber-100">
-          <LuBadgeDollarSign size={10} className="text-amber-200/80" />
-          <span>{player.chips}</span>
-        </div>
-        <div className={["mt-0.5 truncate rounded-sm px-1 py-0.5 text-[8px] font-black uppercase tracking-[0.1em]", actionLabelClass(statusText, active)].join(" ")}>
-          {statusText}
-        </div>
-      </div>
-      <div className="flex shrink-0 gap-0.5">
-        {(player.cards || []).map((card, idx) => (
-          <PokerCard
-            key={`${handNumber}-${player.seat || player.name || "mobile"}-${idx}-${card}`}
-            card={card}
-            mini
-            faceDown={faceDown && card === "??" && !player.folded}
-            animate={Boolean(card)}
-            dealVariant="hole"
-            delay={idx * 90 + 80}
-          />
-        ))}
-      </div>
+      ))}
     </div>
   );
 }
 
-function SeatStatusSheet({ open, players, currentTurn, dealerSeat, mySeat, onClose }) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:hidden">
-      <button
-        type="button"
-        className="absolute inset-0"
-        aria-label="Close seats"
-        onClick={onClose}
-      />
-      <div className="relative w-full rounded-t-2xl border border-emerald-300/15 bg-background-app-panel shadow-[0_-24px_80px_rgba(0,0,0,0.62)]">
-        <div className="flex items-center justify-between gap-3 border-b border-white/[0.07] px-4 py-3">
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-text-muted">Table</div>
-            <div className="text-sm font-semibold text-text-primary">{players.length}/9 seats</div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-lg border border-white/[0.08] bg-surface text-text-secondary"
-            aria-label="Close seats"
-          >
-            <LuX size={17} />
-          </button>
-        </div>
-        <div className="max-h-[62dvh] overflow-y-auto p-3 tron-scrollbar-dark">
-          <div className="space-y-2">
-            {players.map((player) => {
-              const eliminated = Boolean(player.eliminated);
-              const active = !eliminated && Number(currentTurn) === Number(player.seat);
-              const dealer = !eliminated && Number(dealerSeat) === Number(player.seat);
-              const isMe = Number(mySeat) === Number(player.seat);
-              return (
-                <div
-                  key={player.seat}
-                  className={[
-                    "flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5",
-                    active
-                      ? "border-emerald-300/35 bg-emerald-300/10"
-                      : "border-white/[0.07] bg-slate-950/45",
-                    player.folded || eliminated ? "opacity-60" : "",
-                  ].join(" ")}
-                >
-                  <div className="min-w-0">
-                    <div className="flex min-w-0 items-center gap-2">
-                      {active ? <span className="h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.85)]" /> : null}
-                      <span className="truncate text-sm font-semibold text-text-primary">
-                        {player.name || "Player"}{isMe ? " (You)" : ""}
-                      </span>
-                      {dealer ? <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[9px] font-black text-slate-950">D</span> : null}
-                      {eliminated ? <span className="rounded-full bg-slate-700 px-1.5 py-0.5 text-[9px] font-black text-slate-200">OUT</span> : null}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-text-secondary">
-                      <span className="text-amber-100">{player.chips} chips</span>
-                      {player.bet ? <span className="text-cyan-100">Bet {player.bet}</span> : null}
-                      {player.folded ? <span>Folded</span> : null}
-                      {player.allIn ? <span className="text-rose-200">All-in</span> : null}
-                      {eliminated ? <span>Out</span> : null}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 gap-0.5">
-                    {!eliminated && (player.cards || []).map((card, idx) => (
-                      <PokerCard
-                        key={`${player.seat}-sheet-${idx}-${card}`}
-                        card={card}
-                        mini
-                        faceDown={!isMe && card === "??" && !player.folded}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const MOBILE_SEAT_COORDS_BY_COUNT = {
-  1: [{ x: 50, top: 14 }],
-  2: [{ x: 25, top: 18 }, { x: 75, top: 18 }],
-  3: [{ x: 18, top: 32 }, { x: 50, top: 12 }, { x: 82, top: 32 }],
-  4: [{ x: 17, top: 34 }, { x: 35, top: 12 }, { x: 65, top: 12 }, { x: 83, top: 34 }],
-  5: [{ x: 15, top: 35 }, { x: 25, top: 17 }, { x: 50, top: 10 }, { x: 75, top: 17 }, { x: 85, top: 35 }],
-  6: [{ x: 15, top: 35 }, { x: 24, top: 18 }, { x: 50, top: 10 }, { x: 76, top: 18 }, { x: 85, top: 35 }, { x: 76, bottom: 18 }],
-  7: [{ x: 15, top: 35 }, { x: 23, top: 18 }, { x: 40, top: 10 }, { x: 60, top: 10 }, { x: 77, top: 18 }, { x: 85, top: 35 }, { x: 76, bottom: 18 }],
-  8: [{ x: 15, top: 35 }, { x: 22, top: 18 }, { x: 38, top: 10 }, { x: 62, top: 10 }, { x: 78, top: 18 }, { x: 85, top: 35 }, { x: 76, bottom: 18 }, { x: 24, bottom: 18 }],
-};
-
-function mobileSeatPositionStyle(index, count) {
-  const safeCount = Math.max(1, Math.min(8, Number(count) || 1));
-  const coords = MOBILE_SEAT_COORDS_BY_COUNT[safeCount] || MOBILE_SEAT_COORDS_BY_COUNT[8];
-  const coord = coords[index] || coords[0];
+function mobileStadiumPositionStyle(point) {
   return {
-    left: `${coord.x}%`,
-    ...(coord.bottom == null ? { top: `${coord.top}%` } : { bottom: `${coord.bottom}%` }),
+    left: `${50 + point.yPct * MOBILE_TABLE_HORIZONTAL_RADIUS_SCALE}%`,
+    top: `${50 + point.xPct}%`,
   };
 }
 
-function MobileTableSeatMarkers({ opponents, currentTurn, dealerSeat, smallBlindSeat, bigBlindSeat }) {
+function mobileStadiumPositionPoint(point) {
+  return {
+    xPct: 50 + point.yPct * MOBILE_TABLE_HORIZONTAL_RADIUS_SCALE,
+    yPct: 50 + point.xPct,
+  };
+}
+
+function mobileSeatPoint(index, count) {
+  const safeCount = Math.max(1, Math.min(8, Number(count) || 1));
+  const totalSeats = safeCount + 1;
+  const fraction = (MOBILE_TABLE_HERO_FRACTION + (index + 1) / totalSeats) % 1;
+  return stadiumPointAtFraction(
+    fraction,
+    MOBILE_TABLE_STRAIGHT_HALF_PCT,
+    MOBILE_TABLE_RADIUS_PCT
+  );
+}
+
+function mobileHeroSeatPositionStyle() {
+  return mobileStadiumPositionStyle(
+    stadiumPointAtFraction(
+      MOBILE_TABLE_HERO_FRACTION,
+      MOBILE_TABLE_STRAIGHT_HALF_PCT,
+      MOBILE_TABLE_RADIUS_PCT
+    )
+  );
+}
+
+function mobilePocketCardsClassForPoint(point) {
+  return point?.yPct > 12 ? "-left-9 top-1/2 -translate-y-1/2" : "-right-9 top-1/2 -translate-y-1/2";
+}
+
+function MobileTableSeatMarkers({
+  opponents,
+  currentTurn,
+  dealerSeat,
+  smallBlindSeat,
+  bigBlindSeat,
+  chipCountOverrides = {},
+  payoutPulseSeats = new Set(),
+  stackAmountRefForSeat = () => null,
+}) {
   if (!opponents.length) return null;
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 sm:hidden">
+    <div className="pointer-events-none absolute inset-0 z-20 md:hidden">
       {opponents.slice(0, 8).map((player, idx) => {
+        const seatPoint = mobileSeatPoint(idx, opponents.length);
         const active = Number(currentTurn) === Number(player.seat);
+        const stillInHand = !player.folded;
         const dealer = Number(dealerSeat) === Number(player.seat);
+        const payoutPulse = payoutPulseSeats.has(Number(player.seat));
         const roleLabel = dealer
           ? "D"
           : Number(player.seat) === Number(smallBlindSeat)
@@ -787,18 +769,22 @@ function MobileTableSeatMarkers({ opponents, currentTurn, dealerSeat, smallBlind
           <div
             key={player.seat}
             className={[
-              "absolute w-[74px] -translate-x-1/2 rounded-md border px-1.5 py-1",
+              "absolute flex h-[56px] w-[56px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border px-1 py-0.5 text-center",
               active
-                ? "border-emerald-300/45 bg-emerald-950/80 shadow-[0_0_18px_rgba(16,185,129,0.28)]"
-                : "border-white/[0.08] bg-slate-950/72",
+                ? "border-emerald-200/60 bg-emerald-950/90 shadow-[0_0_20px_rgba(16,185,129,0.32),0_8px_18px_rgba(0,0,0,0.34)]"
+                : payoutPulse
+                  ? "border-amber-200/60 bg-amber-950/88 shadow-[0_0_22px_rgba(251,191,36,0.4),0_8px_18px_rgba(0,0,0,0.34)]"
+                : stillInHand
+                  ? "border-cyan-200/28 bg-slate-950/82 shadow-[0_0_14px_rgba(34,211,238,0.18),0_8px_18px_rgba(0,0,0,0.3)]"
+                  : "border-slate-500/18 bg-slate-950/58 shadow-[0_8px_18px_rgba(0,0,0,0.24)]",
               player.folded ? "opacity-50" : "",
             ].join(" ")}
-            style={mobileSeatPositionStyle(idx, opponents.length)}
+            style={mobileStadiumPositionStyle(seatPoint)}
           >
             {roleLabel ? (
               <span
                 className={[
-                  "absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full border border-slate-950/55 px-0.5 text-[7px] font-black text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.18),0_6px_12px_rgba(0,0,0,0.38)]",
+                  "absolute -right-1 -top-1 z-40 grid h-4 min-w-4 place-items-center rounded-full border border-slate-950/55 px-0.5 text-[7px] font-black text-slate-950 shadow-[0_0_0_1px_rgba(255,255,255,0.18),0_6px_12px_rgba(0,0,0,0.38)]",
                   roleLabel === "D" ? "bg-white" : roleLabel === "SB" ? "bg-sky-300" : "bg-amber-300",
                 ].join(" ")}
               >
@@ -806,24 +792,34 @@ function MobileTableSeatMarkers({ opponents, currentTurn, dealerSeat, smallBlind
               </span>
             ) : null}
             {player.bet ? (
-              <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[82%] rounded bg-cyan-100 px-1.5 py-0.5 text-[9px] font-black text-slate-950">
+              <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[82%] rounded-full bg-cyan-100 px-1.5 py-0.5 text-[8px] font-black leading-none text-slate-950">
                 {player.bet}
               </span>
             ) : null}
-            <div className="flex items-center gap-1">
-              {active ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-300" /> : null}
-              <span className="truncate text-[10px] font-semibold text-text-primary">
-                {player.name || "Player"}
-              </span>
+            <div
+              className={[
+                "relative rounded-full p-[2px]",
+                active
+                  ? "animate-pulse bg-emerald-200 shadow-[0_0_16px_rgba(110,231,183,0.9)]"
+                  : stillInHand
+                    ? "bg-cyan-300/85 shadow-[0_0_10px_rgba(34,211,238,0.48)]"
+                    : "bg-slate-600/35 opacity-70 grayscale",
+              ].join(" ")}
+            >
+              <PlayerAvatarFace seat={player.seat} size="mobile" />
+              <MobilePocketCards show={stillInHand} className={mobilePocketCardsClassForPoint(seatPoint)} />
+              {active ? (
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-slate-950 bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" />
+              ) : null}
             </div>
-            <div className="mt-0.5 flex items-center justify-between gap-1">
-              <span className="truncate text-[9px] font-semibold text-amber-100">
-                {player.chips}
-              </span>
-              <span className="flex shrink-0 gap-0.5">
-                <span className="h-3.5 w-2.5 rounded-[2px] border border-white/20 bg-[linear-gradient(135deg,#ef4444,#7f1d1d)]" />
-                <span className="h-3.5 w-2.5 rounded-[2px] border border-white/20 bg-[linear-gradient(135deg,#ef4444,#7f1d1d)]" />
-              </span>
+            <div className="mt-0.5 w-full truncate text-[7px] font-black uppercase leading-none tracking-[0.02em] text-emerald-50">
+              {player.name || "Player"}
+            </div>
+            <div
+              ref={stackAmountRefForSeat(player.seat)}
+              className="mt-0.5 w-full truncate text-[7px] font-bold leading-none text-amber-100"
+            >
+              {chipCountOverrides[player.seat] ?? player.chips}
             </div>
           </div>
         );
@@ -832,12 +828,12 @@ function MobileTableSeatMarkers({ opponents, currentTurn, dealerSeat, smallBlind
   );
 }
 
-function FeltInfoPanel({ game }) {
+function FeltInfoPanel({ game, displayPot = null }) {
   return (
     <div className="z-30 flex items-center justify-center gap-1 px-2 text-center text-[10px] font-black uppercase tracking-[0.08em] text-emerald-50 sm:text-xs">
       <span>Pot Total:</span>
       <LuBadgeDollarSign size={12} className="shrink-0 text-amber-200/85" />
-      <span>{game?.pot || 0}</span>
+      <span>{displayPot ?? game?.pot ?? 0}</span>
     </div>
   );
 }
@@ -901,20 +897,35 @@ function getBlindSeats(game, players) {
   };
 }
 
-function MobileHeroSeatMarker({ player, active, handNumber, roleLabel, timerRemaining, timerPercent, timerUrgent, pendingLabel = "" }) {
+function MobileHeroSeatMarker({
+  player,
+  active,
+  handNumber,
+  roleLabel,
+  timerRemaining,
+  timerPercent,
+  timerUrgent,
+  pendingLabel = "",
+  displayChips = null,
+  payoutPulse = false,
+  stackAmountRef = null,
+}) {
   if (!player) return null;
   const showTimer = active && !pendingLabel && timerRemaining != null;
-  const statusText = pendingLabel || (active ? "Action" : player.folded ? "Fold" : player.allIn ? "All in" : player.best || "Waiting");
+  const stillInHand = !player.folded;
 
   return (
-    <div className="pointer-events-none absolute bottom-6 left-1/2 z-30 flex w-[132px] -translate-x-1/2 flex-col items-center sm:hidden">
+    <div
+      className="pointer-events-none absolute z-30 flex -translate-x-1/2 -translate-y-[58%] flex-col items-center md:hidden"
+      style={mobileHeroSeatPositionStyle()}
+    >
       <div className="relative flex justify-center gap-1">
-        <SeatRoleChip label={roleLabel} className="-left-6 top-1/2 -translate-y-1/2" />
+        <SeatRoleChip label={roleLabel} className="z-40 -left-6 top-1/2 -translate-y-1/2" />
         {(player.cards || []).map((card, idx) => (
           <PokerCard
             key={`${handNumber}-${player.seat || "me"}-hero-${idx}-${card}`}
             card={card}
-            small
+            mobileHero
             animate={Boolean(card)}
             dealVariant="hole"
             delay={idx * 110 + 40}
@@ -928,36 +939,52 @@ function MobileHeroSeatMarker({ player, active, handNumber, roleLabel, timerRema
       </div>
       <div
         className={[
-          "relative mt-3 w-full rounded-md border px-2 py-1 text-center shadow-[0_10px_22px_rgba(0,0,0,0.32)]",
+          "relative mt-2 flex h-[56px] w-[56px] flex-col items-center justify-center rounded-full border px-1 py-0.5 text-center shadow-[0_10px_22px_rgba(0,0,0,0.32)]",
           active
-            ? "border-emerald-300/45 bg-emerald-950/92"
-            : "border-white/[0.08] bg-slate-950/90",
+            ? "border-emerald-200/60 bg-emerald-950/90 shadow-[0_0_20px_rgba(16,185,129,0.32),0_8px_18px_rgba(0,0,0,0.34)]"
+            : payoutPulse
+              ? "border-amber-200/60 bg-amber-950/88 shadow-[0_0_22px_rgba(251,191,36,0.4),0_10px_22px_rgba(0,0,0,0.32)]"
+            : stillInHand
+              ? "border-cyan-200/28 bg-slate-950/82 shadow-[0_0_14px_rgba(34,211,238,0.18),0_8px_18px_rgba(0,0,0,0.3)]"
+              : "border-slate-500/18 bg-slate-950/58 opacity-50 shadow-[0_8px_18px_rgba(0,0,0,0.24)]",
         ].join(" ")}
       >
         {player.bet ? (
-          <span className="absolute right-2 top-0 -translate-y-[72%] rounded bg-cyan-100 px-1.5 py-0.5 text-[9px] font-black text-slate-950">
+          <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-[82%] rounded-full bg-cyan-100 px-1.5 py-0.5 text-[8px] font-black leading-none text-slate-950">
             {player.bet}
           </span>
         ) : null}
-        <div className="truncate text-[10px] font-bold uppercase tracking-[0.08em] text-text-primary">
+        <div
+          className={[
+            "relative rounded-full p-[2px]",
+            active
+              ? "animate-pulse bg-emerald-200 shadow-[0_0_16px_rgba(110,231,183,0.9)]"
+              : stillInHand
+                ? "bg-cyan-300/85 shadow-[0_0_10px_rgba(34,211,238,0.48)]"
+                : "bg-slate-600/35 opacity-70 grayscale",
+          ].join(" ")}
+        >
+          <PlayerAvatarFace seat={player.seat} isMe size="mobile" />
+          <MobilePocketCards show={stillInHand} className="-right-7 top-1/2 -translate-y-1/2" />
+          {active ? (
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-slate-950 bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,0.85)]" />
+          ) : null}
+        </div>
+        <div className="mt-0.5 w-full truncate text-[7px] font-black uppercase leading-none tracking-[0.02em] text-emerald-50">
           You
         </div>
-        <div className="mt-0.5 flex items-center justify-center gap-1 truncate text-[10px] font-semibold text-amber-100">
-          <LuBadgeDollarSign size={10} className="shrink-0 text-amber-200/80" />
-          <span className="truncate">{player.chips}</span>
+        <div ref={stackAmountRef} className="mt-0.5 w-full truncate text-[7px] font-bold leading-none text-amber-100">
+          {displayChips ?? player.chips}
         </div>
-        <div className={["mt-1 h-4 truncate rounded-sm px-1 py-0.5 text-[8px] font-black uppercase tracking-[0.1em]", actionLabelClass(statusText, active)].join(" ")}>
-          {statusText}
-        </div>
-        {showTimer ? (
-          <div className="mt-1 overflow-hidden rounded-full bg-black/35">
-            <div
-              className={[timerUrgent ? "bg-rose-300" : "bg-emerald-200", "h-1 rounded-full transition-[width] duration-200"].join(" ")}
-              style={{ width: `${timerPercent}%` }}
-            />
-          </div>
-        ) : null}
       </div>
+      {showTimer ? (
+        <div className="mt-1 w-10 overflow-hidden rounded-full bg-black/45">
+          <div
+            className={[timerUrgent ? "bg-rose-300" : "bg-emerald-200", "h-1 rounded-full transition-[width] duration-200"].join(" ")}
+            style={{ width: `${timerPercent}%` }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -980,7 +1007,7 @@ function useMediaQuery(query) {
 }
 
 function PokerTableChat({ gameId }) {
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isDesktop = useMediaQuery(DESKTOP_TABLE_MEDIA_QUERY);
   const [connected, setConnected] = useState(false);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
@@ -1047,7 +1074,10 @@ function PokerTableChat({ gameId }) {
   if (!isDesktop) return null;
 
   return (
-    <aside className="hidden min-h-[150px] w-[300px] shrink-0 self-stretch overflow-hidden rounded-lg border border-stone-200/[0.08] bg-[linear-gradient(180deg,rgba(18,15,12,0.84),rgba(8,7,6,0.96))] lg:flex lg:flex-col">
+    <aside
+      className="hidden h-[var(--desktop-action-panel-h)] w-[clamp(220px,23.4vw,300px)] shrink-0 self-start overflow-hidden rounded-lg border border-stone-200/[0.08] bg-[linear-gradient(180deg,rgba(18,15,12,0.84),rgba(8,7,6,0.96))] md:flex md:flex-col"
+      style={{ "--desktop-action-panel-h": DESKTOP_ACTION_PANEL_HEIGHT }}
+    >
       <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-2">
         <span className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-50/80">Table Chat</span>
         <span className={["text-[9px] font-bold uppercase tracking-[0.16em]", connected ? "text-emerald-200" : "text-text-faint"].join(" ")}>
@@ -1084,57 +1114,202 @@ function PokerTableChat({ gameId }) {
   );
 }
 
-export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPlayAgain }) {
+function PokerActionControls({
+  game,
+  raiseTo,
+  setRaiseTo,
+  raisePanelOpen,
+  setRaisePanelOpen,
+  raisePresets,
+  minRaiseTo,
+  maxRaiseTo,
+  can,
+  canRaiseOrAllIn,
+  handleAction,
+  onNextHand,
+  onPlayAgain,
+  navigate,
+}) {
+  return (
+    <section
+      className="flex min-w-0 flex-col items-center justify-center gap-2 sm:gap-3 md:h-[var(--desktop-action-panel-h)] md:w-[clamp(390px,42vw,540px)] md:rounded-lg md:border md:border-stone-200/[0.08] md:bg-[linear-gradient(180deg,rgba(18,15,12,0.86),rgba(7,6,5,0.96))] md:px-[clamp(8px,0.94vw,12px)] md:py-[clamp(10px,1.25vw,16px)]"
+      style={{ "--desktop-action-panel-h": DESKTOP_ACTION_PANEL_HEIGHT }}
+    >
+      {game?.is_completed ? (
+        <div className="flex flex-col items-center justify-center gap-2 text-center">
+          <div className="text-[clamp(9px,0.86vw,11px)] font-semibold uppercase tracking-[0.18em] text-text-secondary">
+            Next hand auto-deals shortly
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+          {onNextHand ? (
+            <Tooltip content="Deal next hand now">
+              <Button type="button" variant="outline" size="sm" onClick={onNextHand}>
+                Deal Now
+              </Button>
+            </Tooltip>
+          ) : null}
+          {onPlayAgain ? (
+            <Tooltip content="New table">
+              <Button type="button" variant="secondary" size="sm" onClick={onPlayAgain} aria-label="New table">
+                <LuRefreshCw size={16} />
+              </Button>
+            </Tooltip>
+          ) : null}
+          <Tooltip content="Home">
+            <Button type="button" variant="outline" size="sm" onClick={() => navigate("/")} aria-label="Home">
+              <CiHome size={16} />
+            </Button>
+          </Tooltip>
+          </div>
+        </div>
+      ) : (
+        <>
+        <div className="grid w-full grid-cols-4 gap-1.5 rounded-lg border border-white/[0.06] bg-black/24 p-1 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-center sm:gap-2 sm:bg-black/18 sm:p-1.5 md:gap-[clamp(5px,0.63vw,8px)] md:p-[clamp(4px,0.47vw,6px)]">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="h-11 border-emerald-200/10 bg-emerald-950/28 px-1 text-xs text-emerald-50 hover:border-emerald-200/24 hover:bg-emerald-900/45 sm:h-9 sm:px-4 sm:text-sm md:h-[clamp(30px,2.8vw,36px)] md:px-[clamp(10px,1.25vw,16px)] md:text-[clamp(11px,1.1vw,14px)]"
+            disabled={!can("check")}
+            onClick={() => handleAction("check")}
+          >
+            Check
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="h-11 border-cyan-200/10 bg-cyan-950/22 px-1 text-xs text-cyan-50 hover:border-cyan-200/24 hover:bg-cyan-900/34 sm:h-9 sm:px-4 sm:text-sm md:h-[clamp(30px,2.8vw,36px)] md:px-[clamp(10px,1.25vw,16px)] md:text-[clamp(11px,1.1vw,14px)]"
+            disabled={!can("call")}
+            onClick={() => handleAction("call")}
+          >
+            Call {game?.call_amount || ""}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            className="hidden border border-emerald-200/20 !bg-emerald-300/88 px-2 !text-slate-950 shadow-[0_8px_22px_rgba(16,185,129,0.14)] hover:!bg-emerald-200 sm:inline-flex sm:px-4 md:h-[clamp(30px,2.8vw,36px)] md:px-[clamp(10px,1.25vw,16px)] md:text-[clamp(11px,1.1vw,14px)]"
+            disabled={!can("raise")}
+            onClick={() => handleAction("raise", raiseTo)}
+          >
+            Raise {raiseTo || ""}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            className="h-11 border border-emerald-200/20 !bg-emerald-300/88 px-1 text-xs !text-slate-950 shadow-[0_8px_22px_rgba(16,185,129,0.14)] hover:!bg-emerald-200 sm:hidden"
+            disabled={!canRaiseOrAllIn}
+            onClick={() => setRaisePanelOpen((open) => !open)}
+          >
+            Bet
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="hidden border-fuchsia-300/22 !bg-fuchsia-500/16 px-2 !text-fuchsia-100 !shadow-none hover:border-fuchsia-200/32 hover:!bg-fuchsia-500/24 sm:inline-flex sm:px-4 md:h-[clamp(30px,2.8vw,36px)] md:px-[clamp(10px,1.25vw,16px)] md:text-[clamp(11px,1.1vw,14px)]"
+            disabled={!can("all_in")}
+            onClick={() => handleAction("all_in")}
+          >
+            All In
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-11 border-slate-300/10 bg-slate-950/28 px-1 text-xs text-slate-200 hover:border-slate-200/20 hover:bg-slate-800/40 sm:h-9 sm:px-4 sm:text-sm md:h-[clamp(30px,2.8vw,36px)] md:px-[clamp(10px,1.25vw,16px)] md:text-[clamp(11px,1.1vw,14px)]"
+            disabled={!can("fold")}
+            onClick={() => handleAction("fold")}
+          >
+            Fold
+          </Button>
+        </div>
+
+        <div className={[
+          "w-full max-w-md rounded-lg border border-stone-200/[0.08] bg-[linear-gradient(180deg,rgba(18,15,12,0.84),rgba(8,7,6,0.96))] px-2 py-2 sm:px-3 sm:py-3 md:max-w-[clamp(300px,35vw,448px)] md:px-[clamp(8px,0.94vw,12px)] md:py-[clamp(8px,0.94vw,12px)]",
+          raisePanelOpen ? "block" : "hidden sm:block",
+          canRaiseOrAllIn ? "opacity-100" : "opacity-45",
+        ].join(" ")}>
+          <div className="flex items-center justify-between gap-3 text-[clamp(8px,0.78vw,10px)] font-bold uppercase tracking-[0.16em] text-text-muted">
+            <span>Raise To</span>
+            <span className="rounded bg-emerald-300/12 px-2 py-0.5 text-emerald-100">{raiseTo || "-"}</span>
+          </div>
+          <input
+            type="range"
+            min={minRaiseTo || 0}
+            max={maxRaiseTo || minRaiseTo || 0}
+            step="10"
+            value={raiseTo || minRaiseTo || 0}
+            disabled={!can("raise")}
+            onChange={(e) => setRaiseTo(Number(e.target.value))}
+            className="mt-2 w-full accent-emerald-200"
+          />
+          <div className="mt-2 grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap">
+            {raisePresets.map((amount) => (
+              <button
+                key={amount}
+                type="button"
+                disabled={!can("raise")}
+                onClick={() => setRaiseTo(amount)}
+                className="rounded-md border border-emerald-200/14 bg-emerald-300/[0.07] px-2 py-1 text-[11px] font-bold text-emerald-100/90 transition hover:border-emerald-200/28 hover:bg-emerald-300/13 disabled:opacity-40 md:px-[clamp(6px,0.78vw,10px)] md:py-[clamp(3px,0.39vw,5px)] md:text-[clamp(9px,0.86vw,11px)]"
+              >
+                {amount === maxRaiseTo ? "Max" : amount}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-1.5 sm:hidden">
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              className="h-11 border border-emerald-200/20 !bg-emerald-300/88 text-xs !text-slate-950 shadow-[0_8px_22px_rgba(16,185,129,0.14)] hover:!bg-emerald-200"
+              disabled={!can("raise")}
+              onClick={() => handleAction("raise", raiseTo)}
+            >
+              Raise {raiseTo || ""}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-11 border-fuchsia-300/22 !bg-fuchsia-500/16 text-xs !text-fuchsia-100 !shadow-none hover:border-fuchsia-200/32 hover:!bg-fuchsia-500/24"
+              disabled={!can("all_in")}
+              onClick={() => handleAction("all_in")}
+            >
+              All In
+            </Button>
+          </div>
+        </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+export default function PokerTable({ game, handResultAnimation = null, wsStatus, onAction, onNextHand, onPlayAgain }) {
   const navigate = useNavigate();
+  const isDesktop = useMediaQuery(DESKTOP_TABLE_MEDIA_QUERY);
   const [raiseTo, setRaiseTo] = useState(0);
   const [raisePanelOpen, setRaisePanelOpen] = useState(false);
-  const [seatsOpen, setSeatsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [clientNow, setClientNow] = useState(Date.now());
   const [visibleHoleCards, setVisibleHoleCards] = useState(Number.POSITIVE_INFINITY);
   const [visibleCommunityCards, setVisibleCommunityCards] = useState(Number.POSITIVE_INFINITY);
   const [pendingSeatActions, setPendingSeatActions] = useState({});
+  const [chipCountOverrides, setChipCountOverrides] = useState({});
+  const [potCountOverride, setPotCountOverride] = useState(null);
+  const [activeChipTransfer, setActiveChipTransfer] = useState(null);
+  const [measuredChipTargets, setMeasuredChipTargets] = useState({});
   const dealStateRef = useRef({ handNumber: null, communityCount: 0 });
-  const opponentRailRef = useRef(null);
-  const opponentTileRefs = useRef({});
+  const tableRef = useRef(null);
+  const stackAmountRefs = useRef({});
   const mySeat = game?.my_seat;
   const handNumber = game?.hand_number || 1;
   const communityCount = game?.community_cards?.length || 0;
   const tablePlayers = useMemo(() => {
-    if (game?.players?.length) {
-      return game.players.map((seat) => ({
-        seat: seat.seat,
-        name: seat.name || "Player",
-        chips: seat.chips,
-        bet: seat.bet,
-        cards: seat.cards || [],
-        best: seat.best,
-        folded: seat.folded,
-        allIn: seat.all_in,
-      }));
-    }
-    return [
-      {
-        seat: 1,
-        name: game?.player_one_name || "Player 1",
-        chips: game?.player_one_chips,
-        bet: game?.player_one_bet,
-        cards: game?.player_one_cards || [],
-        best: game?.player_one_best,
-        folded: game?.player_one_folded,
-        allIn: game?.player_one_all_in,
-      },
-      {
-        seat: 2,
-        name: game?.player_two_name || "Player 2",
-        chips: game?.player_two_chips,
-        bet: game?.player_two_bet,
-        cards: game?.player_two_cards || [],
-        best: game?.player_two_best,
-        folded: game?.player_two_folded,
-        allIn: game?.player_two_all_in,
-      },
-    ];
+    return playersFromGame(game);
   }, [game]);
   const totalHoleCards = useMemo(
     () => tablePlayers.reduce((total, player) => total + (player.cards?.length || 0), 0),
@@ -1185,6 +1360,88 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
     ? { ...me, cards: rawMe.cards, folded: rawMe.folded }
     : me;
   const opponents = activeDisplayedTablePlayers.filter((player) => Number(player.seat) !== Number(mySeat));
+  const stackTargetKey = useCallback((seat) => `${isDesktop ? "desktop" : "mobile"}-${Number(seat)}`, [isDesktop]);
+  const registerStackAmountRef = useCallback((key) => (node) => {
+    if (node) {
+      stackAmountRefs.current[key] = node;
+    } else {
+      delete stackAmountRefs.current[key];
+    }
+  }, []);
+  const stackAmountRefForSeat = useCallback((seat, mode = isDesktop ? "desktop" : "mobile") => (
+    registerStackAmountRef(`${mode}-${Number(seat)}`)
+  ), [isDesktop, registerStackAmountRef]);
+
+  useLayoutEffect(() => {
+    const winners = activeChipTransfer?.result?.winners || [];
+    const tableNode = tableRef.current;
+    if (!winners.length || !tableNode) {
+      setMeasuredChipTargets({});
+      return;
+    }
+
+    const tableRect = tableNode.getBoundingClientRect();
+    if (!tableRect.width || !tableRect.height) return;
+
+    const nextTargets = {};
+    winners.forEach((winner) => {
+      const seat = Number(winner.seat);
+      const node = stackAmountRefs.current[stackTargetKey(seat)];
+      if (!seat || !node) return;
+      const rect = node.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      nextTargets[seat] = {
+        xPct: ((rect.left + rect.width / 2 - tableRect.left) / tableRect.width) * 100,
+        yPct: ((rect.top + rect.height / 2 - tableRect.top) / tableRect.height) * 100,
+      };
+    });
+    setMeasuredChipTargets(nextTargets);
+  }, [activeChipTransfer, stackTargetKey]);
+
+  const chipTransferStreams = useMemo(() => {
+    const result = activeChipTransfer?.result;
+    if (!result?.winners?.length) return [];
+    return result.winners
+      .map((winner) => {
+        const seat = Number(winner.seat);
+        if (!seat) return null;
+        const measuredTarget = measuredChipTargets[seat];
+        if (Number(seat) === Number(mySeat)) {
+          const point = measuredTarget || (isDesktop
+            ? { xPct: 50, yPct: 92 }
+            : mobileStadiumPositionPoint(
+                stadiumPointAtFraction(
+                  MOBILE_TABLE_HERO_FRACTION,
+                  MOBILE_TABLE_STRAIGHT_HALF_PCT,
+                  MOBILE_TABLE_RADIUS_PCT
+                )
+              ));
+          return {
+            key: `${activeChipTransfer.key}-${seat}`,
+            seat,
+            amount: winner.amount,
+            end: point,
+          };
+        }
+
+        const opponentIndex = opponents.findIndex((player) => Number(player.seat) === seat);
+        if (opponentIndex < 0) return null;
+        const point = measuredTarget || (isDesktop
+          ? pointToPercent(desktopSeatPoint(opponentIndex, opponents.length))
+          : mobileStadiumPositionPoint(mobileSeatPoint(opponentIndex, opponents.length)));
+        return {
+          key: `${activeChipTransfer.key}-${seat}`,
+          seat,
+          amount: winner.amount,
+          end: point,
+        };
+      })
+      .filter(Boolean);
+  }, [activeChipTransfer, isDesktop, measuredChipTargets, mySeat, opponents]);
+  const payoutPulseSeats = useMemo(
+    () => new Set((activeChipTransfer?.result?.winners || []).map((winner) => Number(winner.seat)).filter(Boolean)),
+    [activeChipTransfer]
+  );
   const isMyTurn = game?.current_turn === mySeat && !game?.is_completed;
   const can = (action) => game?.legal_actions?.includes(action);
   const minRaiseTo = game?.min_raise_to;
@@ -1204,7 +1461,6 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
     ? 0
     : Math.max(0, Math.min(100, (timerRemaining / Math.max(1, game?.turn_timer_seconds || 1)) * 100));
   const timerUrgent = timerRemaining != null && timerRemaining <= 8;
-  const isDesktopLayout = useMediaQuery("(min-width: 1024px)");
   const { smallBlindSeat, bigBlindSeat } = useMemo(
     () => getBlindSeats(game, activeTablePlayers),
     [activeTablePlayers, game]
@@ -1288,6 +1544,72 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
   }, [game?.current_turn]);
 
   useEffect(() => {
+    const result = handResultAnimation?.result;
+    if (!handResultAnimation?.key || !result?.winners?.length) return undefined;
+
+    const winners = result.winners
+      .map((winner) => ({
+        seat: Number(winner.seat),
+        amount: Number(winner.amount || 0),
+      }))
+      .filter((winner) => winner.seat && winner.amount > 0);
+    if (!winners.length) return undefined;
+
+    const previousGame = handResultAnimation.previousGame;
+    const finalStacks = {};
+    const startStacks = {};
+    winners.forEach((winner) => {
+      finalStacks[winner.seat] = chipValueForSeat(game, winner.seat);
+      startStacks[winner.seat] = previousGame
+        ? chipValueForSeat(previousGame, winner.seat)
+        : finalStacks[winner.seat] - winner.amount;
+    });
+
+    const startPot = Math.max(
+      Number(previousGame?.pot || 0),
+      winners.reduce((total, winner) => total + winner.amount, 0)
+    );
+    const startedAt = performance.now();
+    let frame = null;
+    let settleTimer = null;
+
+    setActiveChipTransfer(handResultAnimation);
+    setPotCountOverride(startPot);
+    setChipCountOverrides(startStacks);
+
+    const tick = (now) => {
+      const elapsed = now - startedAt;
+      const stackProgress = Math.min(1, elapsed / CHIP_TRANSFER_STACK_DURATION_MS);
+      const potProgress = Math.min(1, elapsed / CHIP_TRANSFER_POT_DURATION_MS);
+      const easedStack = 1 - Math.pow(1 - stackProgress, 3);
+      const easedPot = 1 - Math.pow(1 - potProgress, 3);
+      const nextStacks = {};
+      winners.forEach((winner) => {
+        nextStacks[winner.seat] = Math.round(
+          startStacks[winner.seat] + (finalStacks[winner.seat] - startStacks[winner.seat]) * easedStack
+        );
+      });
+      setChipCountOverrides(nextStacks);
+      setPotCountOverride(Math.max(0, Math.round(startPot * (1 - easedPot))));
+
+      if (stackProgress < 1) {
+        frame = window.requestAnimationFrame(tick);
+        return;
+      }
+
+      setChipCountOverrides({});
+      setPotCountOverride(null);
+      settleTimer = window.setTimeout(() => setActiveChipTransfer(null), 180);
+    };
+
+    frame = window.requestAnimationFrame(tick);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      if (settleTimer) window.clearTimeout(settleTimer);
+    };
+  }, [game, handResultAnimation]);
+
+  useEffect(() => {
     const interval = window.setInterval(() => setClientNow(Date.now()), 250);
     return () => window.clearInterval(interval);
   }, []);
@@ -1344,13 +1666,6 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [communityCount, game?.id, game?.is_completed, handNumber]);
 
-  useEffect(() => {
-    if (!game?.current_turn || Number(game.current_turn) === Number(mySeat)) return;
-    const tile = opponentTileRefs.current[String(game.current_turn)];
-    if (!tile) return;
-    tile.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-  }, [game?.current_turn, mySeat]);
-
   const handleCopyTableLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -1364,7 +1679,7 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1280px] flex-col gap-2 pb-[calc(env(safe-area-inset-bottom)+150px)] sm:gap-3 sm:pb-0">
-      <div className="hidden flex-col gap-3 px-1 sm:flex sm:flex-row sm:items-center sm:justify-between">
+      <div className="hidden flex-col gap-3 px-1 md:flex md:flex-row md:items-center md:justify-between">
         <div>
           <div className="text-[11px] uppercase tracking-[0.28em] text-amber-200/75">No-limit Texas Hold'em</div>
           <h1 className="text-2xl font-semibold text-text-primary">Poker Table</h1>
@@ -1387,68 +1702,25 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 sm:hidden">
-        <div className="min-w-0">
-          <div className="text-[9px] font-semibold uppercase tracking-[0.22em] text-amber-200/75">Texas Hold'em</div>
-          <div className="truncate text-sm font-semibold text-text-primary">Hand {game?.hand_number || 1}</div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {wsStatus ? (
-            <span className="rounded-full bg-emerald-300/10 px-2 py-1 text-[10px] font-semibold text-emerald-200">
-              {wsStatus === "connected" ? "Live" : wsStatus}
-            </span>
-          ) : null}
-          <Tooltip content="Seats">
-            <button
-              type="button"
-              onClick={() => setSeatsOpen(true)}
-              className="grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-slate-950/75 text-text-primary"
-              aria-label="Show seats"
-            >
-              <LuUsers size={15} />
-            </button>
-          </Tooltip>
-          <Tooltip content="Copy table link">
-            <button
-              type="button"
-              onClick={handleCopyTableLink}
-              className="grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-slate-950/75 text-text-primary"
-              aria-label="Copy table link"
-            >
-              <LuCopy size={15} />
-            </button>
-          </Tooltip>
-        </div>
-      </div>
-
-      <div ref={opponentRailRef} className="hidden gap-2 overflow-x-auto pb-1 pt-4 sm:flex lg:hidden tron-scrollbar-dark">
-        {opponents.map((opponent) => (
-          <MobileOpponentTile
-            key={opponent.seat}
-            player={opponent}
-            active={Number(game?.current_turn) === Number(opponent.seat) && !game?.is_completed && !pendingLabelForSeat(opponent.seat)}
-            dealer={Number(game?.dealer) === Number(opponent.seat)}
-            handNumber={game?.hand_number || 1}
-            pendingLabel={pendingLabelForSeat(opponent.seat)}
-            faceDown
-            tileRef={(node) => {
-              if (node) opponentTileRefs.current[String(opponent.seat)] = node;
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="relative min-h-[min(66dvh,620px)] flex-1 overflow-hidden rounded-full border border-emerald-200/15 bg-[#1b1009] shadow-[0_28px_90px_rgba(0,0,0,0.5)] sm:min-h-[min(70dvh,640px)] lg:min-h-[500px] lg:flex-none xl:min-h-[540px] 2xl:min-h-[580px]">
+      <div
+        ref={tableRef}
+        className="relative mx-auto aspect-[2/3] min-h-[430px] w-[min(100%,60dvh,600px)] flex-none overflow-hidden rounded-full border border-emerald-200/15 bg-[#1b1009] shadow-[0_28px_90px_rgba(0,0,0,0.5)] [container-type:inline-size] sm:min-h-[500px] sm:flex-none md:aspect-[var(--desktop-poker-table-ratio)] md:h-auto md:w-[var(--desktop-poker-table-w)] md:min-h-0 md:flex-none"
+        style={{
+          "--desktop-poker-table-ratio": DESKTOP_TABLE_ASPECT_RATIO,
+          "--desktop-poker-table-w": DESKTOP_TABLE_WIDTH,
+        }}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_24%,rgba(120,64,24,0.5),transparent_34%),linear-gradient(90deg,rgba(40,20,10,0.96),rgba(88,45,19,0.88),rgba(28,14,8,0.96))]" />
-        <div className="absolute inset-x-2 inset-y-5 rounded-full border-[8px] border-[#8a4b18] bg-[radial-gradient(ellipse_at_50%_48%,rgba(22,101,52,0.98),rgba(5,76,44,0.94)_52%,rgba(3,49,32,0.98)_100%)] shadow-[inset_0_0_0_2px_rgba(250,204,21,0.25),inset_0_0_0_8px_rgba(15,23,42,0.28),inset_0_24px_58px_rgba(0,0,0,0.4),0_18px_38px_rgba(0,0,0,0.5)] sm:inset-x-6 sm:inset-y-10 sm:border-[10px] lg:inset-x-[15%] lg:inset-y-[20%]" />
-        {isDesktopLayout ? <CasinoDealer activeOpponentCount={opponents.length} /> : null}
-
+        <div className="absolute inset-3 rounded-full border-[7px] border-[#8a4b18] bg-[radial-gradient(ellipse_at_50%_48%,rgba(22,101,52,0.98),rgba(5,76,44,0.94)_52%,rgba(3,49,32,0.98)_100%)] shadow-[inset_0_0_0_2px_rgba(250,204,21,0.25),inset_0_0_0_8px_rgba(15,23,42,0.28),inset_0_24px_58px_rgba(0,0,0,0.4),0_18px_38px_rgba(0,0,0,0.5)] sm:inset-6 sm:border-[10px] md:inset-x-[15%] md:inset-y-[20%]" />
         <MobileTableSeatMarkers
           opponents={opponents}
           currentTurn={game?.current_turn}
           dealerSeat={game?.dealer}
           smallBlindSeat={smallBlindSeat}
           bigBlindSeat={bigBlindSeat}
+          chipCountOverrides={chipCountOverrides}
+          payoutPulseSeats={payoutPulseSeats}
+          stackAmountRefForSeat={(seat) => stackAmountRefForSeat(seat, "mobile")}
         />
         {!heroEliminated ? (
           <MobileHeroSeatMarker
@@ -1460,10 +1732,13 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
             timerPercent={timerPercent}
             timerUrgent={timerUrgent}
             pendingLabel={pendingLabelForSeat(me?.seat)}
+            displayChips={chipCountOverrides[me?.seat]}
+            payoutPulse={payoutPulseSeats.has(Number(me?.seat))}
+            stackAmountRef={stackAmountRefForSeat(me?.seat, "mobile")}
           />
         ) : null}
 
-        <div className="pointer-events-none absolute inset-0 z-20 hidden lg:block">
+        <div className="pointer-events-none absolute inset-0 z-20 hidden md:block">
           {opponents.slice(0, 8).map((opponent, idx) => {
             const seatPosition = desktopSeatPosition(idx, opponents.length);
             const pendingLabel = pendingLabelForSeat(opponent.seat);
@@ -1482,6 +1757,9 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                   timerRemaining={timerRemaining}
                   timerPercent={timerPercent}
                   timerUrgent={timerUrgent}
+                  displayChips={chipCountOverrides[opponent.seat]}
+                  payoutPulse={payoutPulseSeats.has(Number(opponent.seat))}
+                  stackAmountRef={stackAmountRefForSeat(opponent.seat, "desktop")}
                 />
               </React.Fragment>
             );
@@ -1498,7 +1776,8 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
                 roleLabel={roleForSeat(opponent.seat)}
                 faceDown
                 betMarkerStyle={betMarkerStyleForStadiumPoint(cardPoint)}
-                roleChipClassName={roleChipClassForStadiumPoint(cardPoint)}
+                roleChipStyle={roleChipStyleForStadiumPoint(cardPoint)}
+                elasticRoleChip
               />
             );
           })}
@@ -1514,6 +1793,9 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
             timerRemaining={timerRemaining}
             timerPercent={timerPercent}
             timerUrgent={timerUrgent}
+            displayChips={chipCountOverrides[me?.seat]}
+            payoutPulse={payoutPulseSeats.has(Number(me?.seat))}
+            stackAmountRef={stackAmountRefForSeat(me?.seat, "desktop")}
           />
           {!heroEliminated ? (
             <FeltHoleCards
@@ -1523,16 +1805,17 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
               handNumber={game?.hand_number || 1}
               roleLabel={roleForSeat(me?.seat)}
               betMarkerStyle={betMarkerStyleForStadiumPoint(heroCardPoint)}
-              roleChipClassName={roleChipClassForStadiumPoint(heroCardPoint)}
+              roleChipStyle={roleChipStyleForStadiumPoint(heroCardPoint)}
+              elasticRoleChip
             />
           ) : null}
         </div>
 
         <div className="pointer-events-none absolute inset-0 z-10">
-          <div className="absolute left-1/2 top-[calc(50%-50px)] -translate-x-1/2 sm:top-[calc(50%-56px)] lg:top-[calc(50%-54px)]">
+          <div className="absolute left-1/2 top-[calc(50%-50px)] -translate-x-1/2 sm:top-[calc(50%-56px)] md:top-[calc(50%-clamp(38px,4.2cqw,54px))]">
             <FeltRoundMeta game={game} />
           </div>
-          <div className="absolute left-1/2 top-1/2 flex min-h-[70px] -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-1.5 px-1 py-2 sm:gap-2 sm:min-h-[86px] sm:px-4 sm:py-3 lg:min-h-[74px]">
+          <div className="absolute left-1/2 top-1/2 flex min-h-[70px] -translate-x-1/2 -translate-y-1/2 items-center justify-center gap-1.5 px-1 py-2 sm:gap-2 sm:min-h-[86px] sm:px-4 sm:py-3 md:min-h-[clamp(54px,5.8cqw,74px)] md:[&>div]:h-[clamp(43px,5cqw,64px)] md:[&>div]:w-[clamp(30px,3.45cqw,44px)]">
             {Array.from({ length: 5 }).map((_, idx) => (
               <PokerCard
                 key={`${game?.hand_number || 1}-${idx}-${displayedCommunityCards?.[idx] || "empty"}`}
@@ -1544,13 +1827,14 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
               />
             ))}
           </div>
-          <div className="absolute left-1/2 top-[calc(50%+40px)] -translate-x-1/2 sm:top-[calc(50%+48px)] lg:top-[calc(50%+44px)]">
-            <FeltInfoPanel game={game} />
+          <div className="absolute left-1/2 top-[calc(50%+40px)] -translate-x-1/2 sm:top-[calc(50%+48px)] md:top-[calc(50%+clamp(32px,3.45cqw,44px))]">
+            <FeltInfoPanel game={game} displayPot={potCountOverride} />
           </div>
         </div>
+        <ChipTransferOverlay streams={chipTransferStreams} />
       </div>
 
-      <div className="hidden justify-center pt-2 sm:flex lg:hidden">
+      <div className="hidden justify-center pt-2">
         <PlayerPanel
           label={heroEliminated ? "Out" : pendingLabelForSeat(me?.seat)}
           active={!heroEliminated && isMyTurn && !pendingLabelForSeat(me?.seat)}
@@ -1563,170 +1847,24 @@ export default function PokerTable({ game, wsStatus, onAction, onNextHand, onPla
         />
       </div>
 
-      <SeatStatusSheet
-        open={seatsOpen}
-        players={displayedTablePlayers}
-        currentTurn={game?.current_turn}
-        dealerSeat={game?.dealer}
-        mySeat={mySeat}
-        onClose={() => setSeatsOpen(false)}
-      />
-
-      <div className="fixed inset-x-0 bottom-0 z-40 min-h-0 flex flex-col items-center justify-center gap-2 border-t border-stone-200/[0.08] bg-[#080706]/96 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 shadow-[0_-18px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:static sm:mx-auto sm:w-full sm:max-w-[980px] sm:rounded-lg sm:border sm:bg-[linear-gradient(180deg,rgba(18,15,12,0.86),rgba(7,6,5,0.96))] sm:px-3 sm:py-4 sm:shadow-none sm:backdrop-blur-0 sm:min-h-[150px] sm:gap-3">
-        <div className="flex w-full max-w-[920px] flex-col items-center justify-center gap-2 sm:gap-3 lg:flex-row lg:items-stretch lg:gap-3">
-        <div className="flex min-w-0 flex-col items-center justify-center gap-2 sm:gap-3 lg:w-[540px]">
-          {game?.is_completed ? (
-            <div className="flex flex-col items-center justify-center gap-2 text-center">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-secondary">
-                Next hand auto-deals shortly
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-              {onNextHand ? (
-                <Tooltip content="Deal next hand now">
-                  <Button type="button" variant="outline" size="sm" onClick={onNextHand}>
-                    Deal Now
-                  </Button>
-                </Tooltip>
-              ) : null}
-              {onPlayAgain ? (
-                <Tooltip content="New table">
-                  <Button type="button" variant="secondary" size="sm" onClick={onPlayAgain} aria-label="New table">
-                    <LuRefreshCw size={16} />
-                  </Button>
-                </Tooltip>
-              ) : null}
-              <Tooltip content="Home">
-                <Button type="button" variant="outline" size="sm" onClick={() => navigate("/")} aria-label="Home">
-                  <CiHome size={16} />
-                </Button>
-              </Tooltip>
-              </div>
-            </div>
-          ) : (
-            <>
-            <div className="grid w-full grid-cols-4 gap-1.5 rounded-lg border border-white/[0.06] bg-black/24 p-1 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-center sm:gap-2 sm:bg-black/18 sm:p-1.5">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-11 border-emerald-200/10 bg-emerald-950/28 px-1 text-xs text-emerald-50 hover:border-emerald-200/24 hover:bg-emerald-900/45 sm:h-9 sm:px-4 sm:text-sm"
-                disabled={!can("check")}
-                onClick={() => handleAction("check")}
-              >
-                Check
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-11 border-cyan-200/10 bg-cyan-950/22 px-1 text-xs text-cyan-50 hover:border-cyan-200/24 hover:bg-cyan-900/34 sm:h-9 sm:px-4 sm:text-sm"
-                disabled={!can("call")}
-                onClick={() => handleAction("call")}
-              >
-                Call {game?.call_amount || ""}
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                className="hidden border border-emerald-200/20 !bg-emerald-300/88 px-2 !text-slate-950 shadow-[0_8px_22px_rgba(16,185,129,0.14)] hover:!bg-emerald-200 sm:inline-flex sm:px-4"
-                disabled={!can("raise")}
-                onClick={() => handleAction("raise", raiseTo)}
-              >
-                Raise {raiseTo || ""}
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                className="h-11 border border-emerald-200/20 !bg-emerald-300/88 px-1 text-xs !text-slate-950 shadow-[0_8px_22px_rgba(16,185,129,0.14)] hover:!bg-emerald-200 sm:hidden"
-                disabled={!canRaiseOrAllIn}
-                onClick={() => setRaisePanelOpen((open) => !open)}
-              >
-                Bet
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="hidden border-fuchsia-300/22 !bg-fuchsia-500/16 px-2 !text-fuchsia-100 !shadow-none hover:border-fuchsia-200/32 hover:!bg-fuchsia-500/24 sm:inline-flex sm:px-4"
-                disabled={!can("all_in")}
-                onClick={() => handleAction("all_in")}
-              >
-                All In
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-11 border-slate-300/10 bg-slate-950/28 px-1 text-xs text-slate-200 hover:border-slate-200/20 hover:bg-slate-800/40 sm:h-9 sm:px-4 sm:text-sm"
-                disabled={!can("fold")}
-                onClick={() => handleAction("fold")}
-              >
-                Fold
-              </Button>
-            </div>
-
-            <div className={[
-              "w-full max-w-md rounded-lg border border-stone-200/[0.08] bg-[linear-gradient(180deg,rgba(18,15,12,0.84),rgba(8,7,6,0.96))] px-2 py-2 sm:px-3 sm:py-3",
-              raisePanelOpen ? "block" : "hidden sm:block",
-              canRaiseOrAllIn ? "opacity-100" : "opacity-45",
-            ].join(" ")}>
-              <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-[0.16em] text-text-muted">
-                <span>Raise To</span>
-                <span className="rounded bg-emerald-300/12 px-2 py-0.5 text-emerald-100">{raiseTo || "-"}</span>
-              </div>
-              <input
-                type="range"
-                min={minRaiseTo || 0}
-                max={maxRaiseTo || minRaiseTo || 0}
-                step="10"
-                value={raiseTo || minRaiseTo || 0}
-                disabled={!can("raise")}
-                onChange={(e) => setRaiseTo(Number(e.target.value))}
-                className="mt-2 w-full accent-emerald-200"
-              />
-              <div className="mt-2 grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap">
-                {raisePresets.map((amount) => (
-                  <button
-                    key={amount}
-                    type="button"
-                    disabled={!can("raise")}
-                    onClick={() => setRaiseTo(amount)}
-                    className="rounded-md border border-emerald-200/14 bg-emerald-300/[0.07] px-2 py-1 text-[11px] font-bold text-emerald-100/90 transition hover:border-emerald-200/28 hover:bg-emerald-300/13 disabled:opacity-40"
-                  >
-                    {amount === maxRaiseTo ? "Max" : amount}
-                  </button>
-                ))}
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-1.5 sm:hidden">
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  className="h-11 border border-emerald-200/20 !bg-emerald-300/88 text-xs !text-slate-950 shadow-[0_8px_22px_rgba(16,185,129,0.14)] hover:!bg-emerald-200"
-                  disabled={!can("raise")}
-                  onClick={() => handleAction("raise", raiseTo)}
-                >
-                  Raise {raiseTo || ""}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-11 border-fuchsia-300/22 !bg-fuchsia-500/16 text-xs !text-fuchsia-100 !shadow-none hover:border-fuchsia-200/32 hover:!bg-fuchsia-500/24"
-                  disabled={!can("all_in")}
-                  onClick={() => handleAction("all_in")}
-                >
-                  All In
-                </Button>
-              </div>
-            </div>
-            </>
-          )}
-        </div>
+      <div className="fixed inset-x-0 bottom-0 z-40 min-h-0 flex flex-col items-center justify-center gap-2 border-t border-stone-200/[0.08] bg-[#080706]/96 px-3 pb-[calc(env(safe-area-inset-bottom)+10px)] pt-2 shadow-[0_-18px_60px_rgba(0,0,0,0.55)] backdrop-blur-xl sm:static sm:mx-auto sm:w-full sm:max-w-[980px] sm:rounded-lg sm:border sm:bg-[linear-gradient(180deg,rgba(18,15,12,0.86),rgba(7,6,5,0.96))] sm:px-3 sm:py-4 sm:shadow-none sm:backdrop-blur-0 sm:min-h-[150px] sm:gap-3 md:h-auto md:w-fit md:max-w-none md:flex-row md:items-start md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <PokerActionControls
+          game={game}
+          raiseTo={raiseTo}
+          setRaiseTo={setRaiseTo}
+          raisePanelOpen={raisePanelOpen}
+          setRaisePanelOpen={setRaisePanelOpen}
+          raisePresets={raisePresets}
+          minRaiseTo={minRaiseTo}
+          maxRaiseTo={maxRaiseTo}
+          can={can}
+          canRaiseOrAllIn={canRaiseOrAllIn}
+          handleAction={handleAction}
+          onNextHand={onNextHand}
+          onPlayAgain={onPlayAgain}
+          navigate={navigate}
+        />
         <PokerTableChat gameId={game?.id} />
-        </div>
       </div>
     </div>
   );
