@@ -6,7 +6,7 @@ export default function HomeFeatureCard({ title, description, icon, badge, disab
   return (
     <Card
       variant="outline"
-      className={`relative p-4 flex items-start gap-3 transition-all duration-200 ${
+      className={`relative p-4 flex items-start gap-3 transition-all duration-200 [@media(min-width:768px)_and_(max-height:820px)]:p-3 ${
         disabled ? "opacity-45 cursor-default" : "cursor-pointer hover:border-border-strong hover:bg-surface"
       }`}
       onClick={disabled ? undefined : onClick}
