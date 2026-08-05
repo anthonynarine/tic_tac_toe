@@ -120,10 +120,9 @@ export default function SudokuPage() {
     : difficulty;
 
   return (
-    <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 md:pt-10 pb-20 sm:pb-24">
+    <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 md:flex md:h-full md:min-h-0 md:items-center md:justify-center md:pt-0 pb-20 sm:pb-24 md:pb-0">
       <div
-        className="mx-auto max-w-lg flex flex-col items-center gap-3 sm:gap-5"
-        style={{ minHeight: "clamp(520px, calc(100dvh - 180px), 710px)" }}
+        className="mx-auto max-w-lg flex min-h-[clamp(520px,calc(100dvh-180px),710px)] md:min-h-0 flex-col items-center justify-center gap-3 sm:gap-5"
       >
         {/* Header */}
         <div className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

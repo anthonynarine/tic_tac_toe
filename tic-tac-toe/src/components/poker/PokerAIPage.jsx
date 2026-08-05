@@ -31,7 +31,7 @@ export default function PokerAIPage() {
     <div className="flex h-full min-h-0 w-full flex-col">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-[1680px] flex-col">
         {!gameId ? (
-          <div className="grid min-h-[calc(100dvh-120px)] place-items-center px-4">
+          <div className="grid h-full min-h-0 place-items-center px-4">
             <div className="w-full max-w-md rounded-xl border border-stone-200/[0.08] bg-[linear-gradient(180deg,rgba(18,15,12,0.86),rgba(7,6,5,0.96))] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.38)]">
               <div className="text-[11px] font-black uppercase tracking-[0.24em] text-amber-100/75">No-limit Texas Hold'em</div>
               <h1 className="mt-2 text-2xl font-bold text-text-primary">AI Table</h1>
@@ -78,8 +78,8 @@ export default function PokerAIPage() {
             </div>
           </div>
         ) : null}
-        {state.status === "loading" && <div className="grid min-h-[calc(100dvh-120px)] place-items-center text-sm text-text-secondary">Loading poker...</div>}
-        {state.status === "error" && <div className="grid min-h-[calc(100dvh-120px)] place-items-center text-sm text-brand-rose">{state.error}</div>}
+        {state.status === "loading" && <div className="grid h-full min-h-0 place-items-center text-sm text-text-secondary">Loading poker...</div>}
+        {state.status === "error" && <div className="grid h-full min-h-0 place-items-center text-sm text-brand-rose">{state.error}</div>}
         {state.game && state.status !== "error" ? (
           <PokerTable
             game={state.game}

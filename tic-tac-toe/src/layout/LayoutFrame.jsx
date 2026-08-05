@@ -10,6 +10,7 @@ export default function LayoutFrame({
   overlay,
   contentMaxWidth = "max-w-[1120px]",
   contentClassName = "",
+  contentFill = false,
   fullBleed,
 }) {
   const location = useLocation();
@@ -71,7 +72,7 @@ export default function LayoutFrame({
                     ? "flex min-h-full w-full items-center justify-center"
                     : resolvedFullBleed
                       ? "w-full"
-                      : `w-full ${contentMaxWidth}`
+                      : `${contentFill ? "h-full min-h-0" : ""} w-full ${contentMaxWidth}`
                 }
               >
                 {children}

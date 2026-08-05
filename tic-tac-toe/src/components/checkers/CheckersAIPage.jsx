@@ -30,8 +30,8 @@ export default function CheckersAIPage() {
   }, [gameId, createInitial]);
 
   return (
-    <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 md:pt-10 pb-20 sm:pb-24">
-      <div className="mx-auto max-w-lg min-h-[calc(100dvh-180px)] sm:min-h-[620px] flex flex-col items-center gap-3 sm:gap-5">
+    <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 md:flex md:h-full md:min-h-0 md:items-center md:justify-center md:pt-0 pb-20 sm:pb-24 md:pb-0">
+      <div className="mx-auto max-w-lg min-h-[calc(100dvh-180px)] sm:min-h-[620px] md:min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-5">
         <div className="w-full">
           <div className="hidden text-[11px] tracking-[0.28em] text-text-muted uppercase sm:block">
             vs AI

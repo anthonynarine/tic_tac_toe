@@ -1,7 +1,7 @@
 // # Filename: tic-tac-toe/src/layout/ResponsiveLayout.jsx
 
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 import Navbar from "../components/navbar/Navbar";
 import FriendsSidebar from "../components/friends/FriendsSidebar";
@@ -15,6 +15,8 @@ import { useUserContext } from "../context/userContext";
 
 export default function ResponsiveLayout() {
   const { authLoaded, isLoggedIn } = useUserContext();
+  const location = useLocation();
+  const shouldFillContent = location.pathname.startsWith("/games/");
 
   // Step 1: loading state (stable layout, no flicker)
   // - Keeps navbar mounted for consistent HUD
@@ -41,6 +43,7 @@ export default function ResponsiveLayout() {
       <LayoutFrame
         header={<Navbar />}
         sidebar={<FriendsSidebar />}
+        contentFill={shouldFillContent}
         overlay={
           <>
             <DMDrawer />
@@ -48,7 +51,7 @@ export default function ResponsiveLayout() {
           </>
         }
       >
-        <div className="w-full min-w-0">
+        <div className={`${shouldFillContent ? "h-full min-h-0" : ""} w-full min-w-0`}>
           <Outlet />
         </div>
       </LayoutFrame>
