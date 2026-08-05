@@ -17,8 +17,8 @@ function StandardCard({ game, onComingSoon }) {
   const isLive = game.statusText === "Live";
 
   return (
-    <Card variant="glass" interactive className="relative p-3.5 sm:p-5 [@media(min-width:768px)_and_(max-height:820px)]:p-3.5">
-      <div className="flex items-start justify-between mb-3 sm:mb-4 [@media(min-width:768px)_and_(max-height:820px)]:mb-3">
+    <Card variant="glass" interactive className="relative p-3.5 sm:p-5 [@media(min-width:768px)_and_(max-height:700px)]:p-3.5">
+      <div className="flex items-start justify-between mb-3 sm:mb-4 [@media(min-width:768px)_and_(max-height:700px)]:mb-3">
         <div className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg sm:rounded-xl bg-brand-cyan/10 border border-brand-cyan/25">
           <Icon size={20} className="text-brand-cyan" />
         </div>
@@ -28,7 +28,7 @@ function StandardCard({ game, onComingSoon }) {
       <h3 className="text-base font-semibold tracking-tight mb-1 text-text-primary">
         {game.title}
       </h3>
-      <p className="text-[12px] mb-3.5 sm:mb-5 leading-relaxed text-text-secondary [@media(min-width:768px)_and_(max-height:820px)]:mb-3.5">
+      <p className="text-[12px] mb-3.5 sm:mb-5 leading-relaxed text-text-secondary [@media(min-width:768px)_and_(max-height:700px)]:mb-3.5">
         {tagline}
       </p>
 
@@ -55,7 +55,7 @@ function FeaturedCard({ game, onComingSoon }) {
       {/* Subtle cyan top sheen */}
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-brand-cyan/40 to-transparent" />
 
-      <div className="p-3.5 sm:flex sm:items-center sm:gap-6 sm:p-5 [@media(min-width:768px)_and_(max-height:820px)]:p-3.5">
+      <div className="p-3.5 sm:flex sm:items-center sm:gap-6 sm:p-5 [@media(min-width:768px)_and_(max-height:700px)]:p-3.5">
         {/* Icon */}
         <div className="w-11 h-11 sm:w-14 sm:h-14 flex items-center justify-center shrink-0 mb-3 sm:mb-0 rounded-lg sm:rounded-xl bg-brand-cyan/10 border border-brand-cyan/30">
           <Icon size={28} className="text-brand-cyan" />

@@ -27,7 +27,7 @@ export default function LayoutFrame({
       className={[
         "h-[100dvh] w-full overflow-hidden bg-background-app md:flex md:items-center md:justify-center",
         isPokerGameplay ? "md:py-2" : "md:py-10",
-        isPokerGameplay ? "" : "[@media(min-width:768px)_and_(max-height:820px)]:py-3",
+        isPokerGameplay ? "" : "[@media(min-width:768px)_and_(max-height:700px)]:py-3",
       ].join(" ")}
       style={{ "--sidebar-w": sidebarWidth }}
     >
@@ -36,7 +36,7 @@ export default function LayoutFrame({
           "w-full flex flex-col h-[100dvh] overflow-hidden bg-background-app-panel",
           isPokerGameplay
             ? "md:h-[calc(100dvh-1rem)] md:max-h-[calc(100dvh-1rem)] md:max-w-[1800px] md:rounded-xl md:border md:border-border md:shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
-            : "md:h-[calc(100dvh-5rem)] md:max-h-[calc(100dvh-5rem)] md:max-w-[1440px] md:rounded-panel md:border md:border-border md:shadow-[0_8px_40px_rgba(0,0,0,0.6)] [@media(min-width:768px)_and_(max-height:820px)]:h-[calc(100dvh-1.5rem)] [@media(min-width:768px)_and_(max-height:820px)]:max-h-[calc(100dvh-1.5rem)]",
+            : "md:h-[calc(100dvh-5rem)] md:max-h-[calc(100dvh-5rem)] md:max-w-[1440px] md:rounded-panel md:border md:border-border md:shadow-[0_8px_40px_rgba(0,0,0,0.6)] [@media(min-width:768px)_and_(max-height:700px)]:h-[calc(100dvh-1.5rem)] [@media(min-width:768px)_and_(max-height:700px)]:max-h-[calc(100dvh-1.5rem)]",
         ].join(" ")}
       >
         {header && <div className="shrink-0">{header}</div>}
@@ -57,7 +57,7 @@ export default function LayoutFrame({
                 "h-full min-h-0 overflow-y-auto lol-scrollbar",
                 isPokerGameplay
                   ? "px-1.5 py-2 sm:px-3 sm:py-3 md:px-4 md:py-4"
-                  : "px-2.5 sm:px-5 md:px-8 py-4 sm:py-6 md:py-10 [@media(min-width:768px)_and_(max-height:820px)]:py-4",
+                  : "px-2.5 sm:px-5 md:px-8 py-4 sm:py-6 md:py-10 [@media(min-width:768px)_and_(max-height:700px)]:py-4",
                 isFocusedFlow
                   ? "pb-3 lg:pb-[calc(24px+env(safe-area-inset-bottom))]"
                   : "pb-[calc(92px+env(safe-area-inset-bottom))] lg:pb-[calc(24px+env(safe-area-inset-bottom))]",

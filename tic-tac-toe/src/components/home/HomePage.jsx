@@ -182,16 +182,16 @@ export default function HomePage() {
   const [featuredGame, ...secondaryGames] = games;
 
   return (
-    <div className="w-full px-1 sm:px-4 pt-1 pb-4 sm:pb-8 [@media(min-width:768px)_and_(max-height:820px)]:pb-3">
+    <div className="w-full px-1 sm:px-4 pt-1 pb-4 sm:pb-8 [@media(min-width:768px)_and_(max-height:700px)]:pb-3">
       <div className="mx-auto max-w-3xl">
 
         {/* ── HERO ─────────────────────────────── */}
-        <div className="relative mb-6 sm:mb-10 [@media(min-width:768px)_and_(max-height:820px)]:mb-4">
+        <div className="relative mb-6 sm:mb-10 [@media(min-width:768px)_and_(max-height:700px)]:mb-4">
           <div className="absolute -top-8 -left-8 -z-10 h-44 w-44 bg-radial-cyan-glow opacity-50 sm:h-64 sm:w-64 sm:opacity-60" />
-          <p className="text-[10px] tracking-[0.32em] sm:tracking-[0.4em] uppercase font-semibold mb-3 sm:mb-4 text-text-muted [@media(min-width:768px)_and_(max-height:820px)]:mb-2">
+          <p className="text-[10px] tracking-[0.32em] sm:tracking-[0.4em] uppercase font-semibold mb-3 sm:mb-4 text-text-muted [@media(min-width:768px)_and_(max-height:700px)]:mb-2">
             Game Hub
           </p>
-          <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight leading-tight mb-2 sm:mb-3 text-text-primary [@media(min-width:768px)_and_(max-height:820px)]:text-4xl [@media(min-width:768px)_and_(max-height:820px)]:mb-2">
+          <h1 className="text-3xl sm:text-5xl font-semibold tracking-tight leading-tight mb-2 sm:mb-3 text-text-primary [@media(min-width:768px)_and_(max-height:700px)]:text-4xl [@media(min-width:768px)_and_(max-height:700px)]:mb-2">
             {isLoggedIn ? (
               <>Welcome back, <span className="text-brand-cyan">{displayName}</span></>
             ) : (
@@ -224,11 +224,11 @@ export default function HomePage() {
         </div>
 
         {/* ── GAMES ────────────────────────────── */}
-        <div className="mb-7 sm:mb-10 [@media(min-width:768px)_and_(max-height:820px)]:mb-4">
+        <div className="mb-7 sm:mb-10 [@media(min-width:768px)_and_(max-height:700px)]:mb-4">
           <SectionDivider label="Games" />
-          <div className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3 [@media(min-width:768px)_and_(max-height:820px)]:mt-3 [@media(min-width:768px)_and_(max-height:820px)]:space-y-2.5">
+          <div className="mt-4 space-y-2.5 sm:mt-5 sm:space-y-3 [@media(min-width:768px)_and_(max-height:700px)]:mt-3 [@media(min-width:768px)_and_(max-height:700px)]:space-y-2.5">
             <HomeGameCard game={featuredGame} featured onComingSoon={handleComingSoon} />
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 [@media(min-width:768px)_and_(max-height:820px)]:gap-2.5">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3 [@media(min-width:768px)_and_(max-height:700px)]:gap-2.5">
               {secondaryGames.map((game) => (
                 <HomeGameCard key={game.id} game={game} onComingSoon={handleComingSoon} />
               ))}
@@ -239,7 +239,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => navigate("/leaderboard")}
-              className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-text-secondary hover:text-brand-cyan transition-colors [@media(min-width:768px)_and_(max-height:820px)]:mt-2"
+              className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-text-secondary hover:text-brand-cyan transition-colors [@media(min-width:768px)_and_(max-height:700px)]:mt-2"
             >
               <LuTrophy size={14} />
               View friends leaderboard
@@ -250,7 +250,7 @@ export default function HomePage() {
         {/* ── COMING SOON ──────────────────────── */}
         <div>
           <SectionDivider label="Coming Soon" muted />
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 [@media(min-width:768px)_and_(max-height:820px)]:mt-3">
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 [@media(min-width:768px)_and_(max-height:700px)]:mt-3">
             {features.map((f) => (
               <HomeFeatureCard
                 key={f.key}
