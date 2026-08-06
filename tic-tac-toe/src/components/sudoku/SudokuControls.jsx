@@ -5,7 +5,7 @@ export default function SudokuControls({ notesMode, onNumber, onErase, onToggleN
   return (
     <div
       className="flex flex-col items-center gap-2 sm:gap-3 w-full shrink-0 mx-auto"
-      style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
+      style={{ maxWidth: "min(90vw, 620px, calc(100dvh - 500px))" }}
     >
       {/* Number pad */}
       <div className="grid grid-cols-9 gap-0.5 sm:gap-1 w-full">

@@ -18,10 +18,15 @@ export default function CheckersStatusBar({
 
   return (
     <div
-      className="w-full mx-auto rounded-t-xl border border-b-0 border-brand-cyan/20 bg-background-app px-3 pt-2.5 pb-2"
-      style={{ maxWidth: "min(88vw, 640px, 66dvh)" }}
+      className="
+        w-full mx-auto rounded-t-xl border border-b-0 border-brand-cyan/20 bg-background-app
+        px-3 pt-2.5 pb-2
+        [@media(min-width:768px)_and_(max-height:700px)]:pt-1.5
+        [@media(min-width:768px)_and_(max-height:700px)]:pb-1
+      "
+      style={{ maxWidth: "min(88vw, 640px, calc(100dvh - 450px))" }}
     >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
+      <div className="mb-1.5 flex items-center justify-between gap-2 [@media(min-width:768px)_and_(max-height:700px)]:mb-1">
         <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-text-muted">
           {isAI ? "vs AI" : "Multiplayer"}
         </span>

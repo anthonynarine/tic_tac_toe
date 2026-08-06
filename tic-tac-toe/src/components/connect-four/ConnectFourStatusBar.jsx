@@ -44,10 +44,12 @@ export default function ConnectFourStatusBar({
         rounded-t-2xl border-2 border-b-0 border-brand-cyan/25
         bg-surface backdrop-blur
         px-3 pt-2.5 pb-2
+        [@media(min-width:768px)_and_(max-height:700px)]:pt-1.5
+        [@media(min-width:768px)_and_(max-height:700px)]:pb-1
       "
-      style={{ maxWidth: "min(92vw, 640px, calc(64dvh * 7 / 6))" }}
+      style={{ maxWidth: "min(92vw, 640px, calc((100dvh - 465px) * 7 / 6))" }}
     >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
+      <div className="mb-1.5 flex items-center justify-between gap-2 [@media(min-width:768px)_and_(max-height:700px)]:mb-1">
         <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-text-muted">
           {isAI ? "vs AI" : "Multiplayer"}
         </span>

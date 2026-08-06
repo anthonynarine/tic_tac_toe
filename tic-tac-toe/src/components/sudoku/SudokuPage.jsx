@@ -134,8 +134,11 @@ export default function SudokuPage() {
               rounded-t-lg border-2 border-b-0 border-brand-cyan/40
               bg-surface backdrop-blur
               px-3 pt-2.5 pb-2
+              [@media(min-width:768px)_and_(max-height:700px)]:pt-1.5
+              [@media(min-width:768px)_and_(max-height:700px)]:pb-1
+              [@media(min-width:768px)_and_(max-height:700px)]:gap-1
             "
-            style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
+            style={{ maxWidth: "min(90vw, 620px, calc(100dvh - 500px))" }}
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="grid w-full grid-cols-4 gap-1 sm:flex sm:w-auto">
@@ -188,7 +191,7 @@ export default function SudokuPage() {
                 w-full shrink-0
                 mx-auto aspect-square bg-surface
               "
-              style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
+              style={{ maxWidth: "min(90vw, 620px, calc(100dvh - 500px))" }}
             >
               {Array.from({ length: 81 }).map((_, idx) => (
                 <div
@@ -208,7 +211,7 @@ export default function SudokuPage() {
             onToggleNotes={handleToggleNotes}
           />
         ) : (
-          <div className="w-full mx-auto min-h-[96px]" style={{ maxWidth: "min(90vw, 620px, 58dvh)" }} />
+          <div className="w-full mx-auto min-h-[96px]" style={{ maxWidth: "min(90vw, 620px, calc(100dvh - 500px))" }} />
         )}
 
         {/* New game button */}

@@ -31,7 +31,7 @@ export default function ConnectFourBoard({
         shadow-glow-cyan
         w-full shrink-0 mx-auto select-none
       "
-      style={{ maxWidth: "min(92vw, 640px, calc(64dvh * 7 / 6))" }}
+      style={{ maxWidth: "min(92vw, 640px, calc((100dvh - 465px) * 7 / 6))" }}
     >
       <div
         className="relative grid"
