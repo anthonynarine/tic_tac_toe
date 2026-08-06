@@ -34,22 +34,16 @@
   overflow: hidden;
 }
 
-/* === 🏷 Title === */
-.game-title {
-  font-size: clamp(1.4rem, 3.5vw, 2rem);
-  margin-bottom: 0.75rem;
-  font-weight: 600;
-  color: #F8FAFC;
-}
-
-/* === 🌀 Turn Indicator === */
+/* === 🌀 Turn Indicator — attached directly above the board as one connected unit === */
 .turn-indicator {
   font-size: clamp(1rem, 2.8vw, 1.25rem);
-  margin-bottom: clamp(1rem, 3vh, 2rem);
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.75rem;
   text-align: center;
   font-weight: 500;
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.5rem;
+  padding: 0.4rem 0.75rem 0.6rem;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.18);
   opacity: 0.9;
 }
 

@@ -13,38 +13,30 @@ export default function ConnectFourAIPage() {
 
   return (
     <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 pb-20 sm:pb-24 md:pb-4 min-h-[calc(100dvh-180px)] sm:min-h-[620px] md:min-h-0 md:h-full flex flex-col">
-      {/* Header - always visible, normal top-of-flow position */}
-      <div className="w-full max-w-2xl mx-auto shrink-0 mb-3 sm:mb-5">
-        <div className="hidden text-[11px] tracking-[0.28em] text-text-muted uppercase sm:block">
-          vs AI
-        </div>
-        <h1 className="text-xl sm:text-2xl font-semibold text-text-primary tracking-wide">
-          Connect Four
-        </h1>
-      </div>
-
-      {/* Board section - centered within remaining space below header */}
+      {/* Board section - centered within remaining space; nav breadcrumb already shows the game name, so status bar attaches directly to the board as one connected unit instead of a separate duplicate title */}
       <div className="w-full max-w-2xl mx-auto flex-1 min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-5">
-        <ConnectFourStatusBar
-          status={isGameOver ? (status === "draw" ? "draw" : "won") : isThinking ? "playing" : "playing"}
-          currentTurn={currentTurn}
-          myPiece={PIECE.ONE}
-          winner={winner}
-          p1Name="You"
-          p2Name="AI"
-          isAI
-        />
+        <div className="w-full flex flex-col items-center">
+          <ConnectFourStatusBar
+            status={isGameOver ? (status === "draw" ? "draw" : "won") : isThinking ? "playing" : "playing"}
+            currentTurn={currentTurn}
+            myPiece={PIECE.ONE}
+            winner={winner}
+            p1Name="You"
+            p2Name="AI"
+            isAI
+          />
 
-        <ConnectFourBoard
-          board={board}
-          winCells={winCells}
-          myPiece={PIECE.ONE}
-          currentTurn={currentTurn}
-          isGameOver={isGameOver}
-          isDisabled={isThinking || isGameOver}
-          lastDrop={lastDrop}
-          onColumnClick={dropHuman}
-        />
+          <ConnectFourBoard
+            board={board}
+            winCells={winCells}
+            myPiece={PIECE.ONE}
+            currentTurn={currentTurn}
+            isGameOver={isGameOver}
+            isDisabled={isThinking || isGameOver}
+            lastDrop={lastDrop}
+            onColumnClick={dropHuman}
+          />
+        </div>
 
         {!isGameOver && (
           <button

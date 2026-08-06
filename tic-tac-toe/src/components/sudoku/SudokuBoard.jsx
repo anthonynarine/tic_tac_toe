@@ -13,8 +13,8 @@ export default function SudokuBoard({
     <div
       className="
         grid grid-cols-9
-        border-2 border-brand-cyan/40
-        rounded-lg overflow-hidden
+        border-2 border-t-0 border-brand-cyan/40
+        rounded-b-lg overflow-hidden
         shadow-glow-cyan
         w-full aspect-square shrink-0 mx-auto
       "

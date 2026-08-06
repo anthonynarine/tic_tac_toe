@@ -25,7 +25,7 @@ export default function ConnectFourBoard({
   return (
     <div
       className="
-        rounded-2xl border-2 border-brand-cyan/25
+        rounded-b-2xl border-2 border-t-0 border-brand-cyan/25
         bg-surface backdrop-blur
         p-2 sm:p-3
         shadow-glow-cyan

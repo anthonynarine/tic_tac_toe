@@ -113,60 +113,11 @@ export default function SudokuPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [handleNumber, handleErase, dispatch]);
 
-  const currentDifficulty = state.sessionId
-    ? state.board.length > 0
-      ? difficulty
-      : "medium"
-    : difficulty;
 
   return (
     <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 pb-20 sm:pb-24 md:pb-4 min-h-[clamp(520px,calc(100dvh-180px),710px)] md:min-h-0 md:h-full flex flex-col">
-      {/* Header - always visible, normal top-of-flow position */}
-      <div className="w-full max-w-2xl mx-auto shrink-0 mb-3 sm:mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="hidden text-[11px] tracking-[0.28em] text-text-muted uppercase sm:block">
-            Puzzle
-          </div>
-          <h1 className="text-xl sm:text-2xl font-semibold text-text-primary tracking-wide">Sudoku</h1>
-        </div>
-
-        {/* Difficulty picker */}
-        <div className="flex flex-col items-start gap-1 sm:items-end">
-          <div className="grid w-full grid-cols-4 gap-1 sm:flex sm:w-auto">
-          {DIFFICULTIES.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => handleDifficultyChange(d)}
-              disabled={loading}
-              className={[
-                "px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition focus:outline-none",
-                difficulty === d
-                  ? "border border-brand-cyan/40 bg-brand-cyan/12 text-brand-cyan"
-                  : "border border-border-soft bg-transparent text-text-muted hover:text-text-secondary",
-              ].join(" ")}
-            >
-              {d}
-            </button>
-          ))}
-          </div>
-          <div className="text-[11px] text-text-faint">
-            Best: <span className="text-brand-cyan font-semibold">{formatSeconds(myBests[difficulty])}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Board section - centered within remaining space below header */}
+      {/* Board section - centered within remaining space; nav breadcrumb already shows the game name, so the difficulty/timer/mistakes info bar attaches directly to the board as one connected unit instead of a separate duplicate title */}
       <div className="w-full max-w-2xl mx-auto flex-1 min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-5">
-        {/* Status bar */}
-        {state.board.length > 0 && (
-          <SudokuStatusBar
-            difficulty={currentDifficulty}
-            timerFormatted={timerFormatted}
-            mistakes={state.mistakes}
-          />
-        )}
-
         {/* Loading / error states */}
         {loading && (
           <div className="text-text-secondary text-sm py-2">Generating puzzle…</div>
@@ -175,9 +126,51 @@ export default function SudokuPage() {
           <div className="text-brand-rose text-sm py-4">{error}</div>
         )}
 
-        {/* Board */}
-        {state.board.length > 0 ? (
-          <>
+        <div className="w-full flex flex-col items-center">
+          {/* Difficulty picker + status info, attached flush on top of the board */}
+          <div
+            className="
+              w-full mx-auto flex flex-col gap-2
+              rounded-t-lg border-2 border-b-0 border-brand-cyan/40
+              bg-surface backdrop-blur
+              px-3 pt-2.5 pb-2
+            "
+            style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="grid w-full grid-cols-4 gap-1 sm:flex sm:w-auto">
+                {DIFFICULTIES.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => handleDifficultyChange(d)}
+                    disabled={loading}
+                    className={[
+                      "px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition focus:outline-none",
+                      difficulty === d
+                        ? "border border-brand-cyan/40 bg-brand-cyan/12 text-brand-cyan"
+                        : "border border-border-soft bg-transparent text-text-muted hover:text-text-secondary",
+                    ].join(" ")}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+              <div className="text-[11px] text-text-faint shrink-0">
+                Best: <span className="text-brand-cyan font-semibold">{formatSeconds(myBests[difficulty])}</span>
+              </div>
+            </div>
+
+            {state.board.length > 0 && (
+              <SudokuStatusBar
+                timerFormatted={timerFormatted}
+                mistakes={state.mistakes}
+              />
+            )}
+          </div>
+
+          {/* Board */}
+          {state.board.length > 0 ? (
             <SudokuBoard
               board={state.board}
               selected={state.selected}
@@ -186,23 +179,14 @@ export default function SudokuPage() {
               selectedValue={selectedValue}
               onCellClick={handleCellClick}
             />
-
-            <SudokuControls
-              notesMode={state.notesMode}
-              onNumber={handleNumber}
-              onErase={handleErase}
-              onToggleNotes={handleToggleNotes}
-            />
-          </>
-        ) : (
-          <>
+          ) : (
             <div
               className="
                 grid grid-cols-9
-                border-2 border-brand-cyan/20
-                rounded-lg overflow-hidden
+                border-2 border-t-0 border-brand-cyan/20
+                rounded-b-lg overflow-hidden
                 w-full shrink-0
-                mx-auto aspect-square bg-surface/40
+                mx-auto aspect-square bg-surface
               "
               style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
             >
@@ -213,9 +197,18 @@ export default function SudokuPage() {
                 />
               ))}
             </div>
+          )}
+        </div>
 
-            <div className="w-full mx-auto min-h-[96px]" style={{ maxWidth: "min(90vw, 620px, 58dvh)" }} />
-          </>
+        {state.board.length > 0 ? (
+          <SudokuControls
+            notesMode={state.notesMode}
+            onNumber={handleNumber}
+            onErase={handleErase}
+            onToggleNotes={handleToggleNotes}
+          />
+        ) : (
+          <div className="w-full mx-auto min-h-[96px]" style={{ maxWidth: "min(90vw, 620px, 58dvh)" }} />
         )}
 
         {/* New game button */}

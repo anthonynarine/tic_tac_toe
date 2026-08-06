@@ -27,8 +27,6 @@ const ResponsiveBoard = ({
 
   return (
     <div className="responsive-game-container">
-      <h1 className="game-title">Tic Tac Toe</h1>
-
       <div
         className={classNames("turn-indicator", {
           "your-turn": !isGameOver && currentTurn === playerRole,

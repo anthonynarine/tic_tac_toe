@@ -14,6 +14,7 @@ export default function ConnectFourStatusBar({
   p1Name,
   p2Name,
   isAI,
+  wsStatus,
 }) {
   const p1Label = p1Name || "Player 1";
   const p2Label = isAI ? "AI" : (p2Name || "Player 2");
@@ -37,21 +38,42 @@ export default function ConnectFourStatusBar({
   };
 
   return (
-    <div className="w-full max-w-[min(92vw,480px)] mx-auto flex items-center justify-between px-1">
-      {/* Player labels */}
-      <div className="flex items-center gap-2">
-        <div className={`w-3 h-3 rounded-full ${DOT[PIECE.ONE]}`} />
-        <span className="text-xs text-text-secondary">{p1Label}</span>
+    <div
+      className="
+        w-full mx-auto
+        rounded-t-2xl border-2 border-b-0 border-brand-cyan/25
+        bg-surface backdrop-blur
+        px-3 pt-2.5 pb-2
+      "
+      style={{ maxWidth: "min(92vw, 640px, calc(64dvh * 7 / 6))" }}
+    >
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-text-muted">
+          {isAI ? "vs AI" : "Multiplayer"}
+        </span>
+        {wsStatus ? (
+          <span className="rounded-full border border-brand-cyan/20 bg-brand-cyan/10 px-2 py-0.5 text-[10px] text-brand-cyan">
+            WS: {wsStatus === "connected" ? "LIVE" : wsStatus}
+          </span>
+        ) : null}
       </div>
 
-      {/* Status */}
-      <span className="text-xs font-semibold text-text-primary text-center">
-        {statusText()}
-      </span>
+      <div className="flex items-center justify-between gap-3">
+        {/* Player labels */}
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-full ${DOT[PIECE.ONE]}`} />
+          <span className="text-xs text-text-secondary">{p1Label}</span>
+        </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-text-secondary">{p2Label}</span>
-        <div className={`w-3 h-3 rounded-full ${DOT[PIECE.TWO]}`} />
+        {/* Status */}
+        <span className="text-xs font-semibold text-text-primary text-center">
+          {statusText()}
+        </span>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-text-secondary">{p2Label}</span>
+          <div className={`w-3 h-3 rounded-full ${DOT[PIECE.TWO]}`} />
+        </div>
       </div>
     </div>
   );
