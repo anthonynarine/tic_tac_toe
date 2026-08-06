@@ -4,7 +4,7 @@ import { LuEraser, LuPencil } from "react-icons/lu";
 export default function SudokuControls({ notesMode, onNumber, onErase, onToggleNotes }) {
   return (
     <div
-      className="flex flex-col items-center gap-2 sm:gap-3 w-full mx-auto"
+      className="flex flex-col items-center gap-2 sm:gap-3 w-full shrink-0 mx-auto"
       style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
     >
       {/* Number pad */}

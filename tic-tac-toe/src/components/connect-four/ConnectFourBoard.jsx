@@ -29,7 +29,7 @@ export default function ConnectFourBoard({
         bg-surface backdrop-blur
         p-2 sm:p-3
         shadow-glow-cyan
-        w-full mx-auto select-none
+        w-full shrink-0 mx-auto select-none
       "
       style={{ maxWidth: "min(92vw, 640px, calc(64dvh * 7 / 6))" }}
     >

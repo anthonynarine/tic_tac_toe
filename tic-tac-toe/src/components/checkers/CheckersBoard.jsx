@@ -54,7 +54,7 @@ export default function CheckersBoard({
 
   return (
     <div
-      className="w-full aspect-square rounded-xl overflow-hidden border border-brand-cyan/20 bg-background-app shadow-[0_18px_60px_rgba(0,0,0,0.4)] mx-auto"
+      className="w-full aspect-square shrink-0 rounded-xl overflow-hidden border border-brand-cyan/20 bg-background-app shadow-[0_18px_60px_rgba(0,0,0,0.4)] mx-auto"
       style={{ maxWidth: "min(88vw, 640px, 66dvh)" }}
     >
       <div className="grid grid-cols-8 h-full">

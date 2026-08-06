@@ -120,45 +120,44 @@ export default function SudokuPage() {
     : difficulty;
 
   return (
-    <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 md:flex md:h-full md:min-h-0 md:items-center md:justify-center md:pt-0 pb-20 sm:pb-24 md:pb-0">
-      <div
-        className="mx-auto max-w-2xl flex min-h-[clamp(520px,calc(100dvh-180px),710px)] md:min-h-0 flex-col items-center justify-center gap-3 sm:gap-5"
-      >
-        {/* Header */}
-        <div className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="hidden text-[11px] tracking-[0.28em] text-text-muted uppercase sm:block">
-              Puzzle
-            </div>
-            <h1 className="text-xl sm:text-2xl font-semibold text-text-primary tracking-wide">Sudoku</h1>
+    <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 pb-20 sm:pb-24 md:pb-4 min-h-[clamp(520px,calc(100dvh-180px),710px)] md:min-h-0 md:h-full flex flex-col">
+      {/* Header - always visible, normal top-of-flow position */}
+      <div className="w-full max-w-2xl mx-auto shrink-0 mb-3 sm:mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="hidden text-[11px] tracking-[0.28em] text-text-muted uppercase sm:block">
+            Puzzle
           </div>
-
-          {/* Difficulty picker */}
-          <div className="flex flex-col items-start gap-1 sm:items-end">
-            <div className="grid w-full grid-cols-4 gap-1 sm:flex sm:w-auto">
-            {DIFFICULTIES.map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => handleDifficultyChange(d)}
-                disabled={loading}
-                className={[
-                  "px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition focus:outline-none",
-                  difficulty === d
-                    ? "border border-brand-cyan/40 bg-brand-cyan/12 text-brand-cyan"
-                    : "border border-border-soft bg-transparent text-text-muted hover:text-text-secondary",
-                ].join(" ")}
-              >
-                {d}
-              </button>
-            ))}
-            </div>
-            <div className="text-[11px] text-text-faint">
-              Best: <span className="text-brand-cyan font-semibold">{formatSeconds(myBests[difficulty])}</span>
-            </div>
-          </div>
+          <h1 className="text-xl sm:text-2xl font-semibold text-text-primary tracking-wide">Sudoku</h1>
         </div>
 
+        {/* Difficulty picker */}
+        <div className="flex flex-col items-start gap-1 sm:items-end">
+          <div className="grid w-full grid-cols-4 gap-1 sm:flex sm:w-auto">
+          {DIFFICULTIES.map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => handleDifficultyChange(d)}
+              disabled={loading}
+              className={[
+                "px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition focus:outline-none",
+                difficulty === d
+                  ? "border border-brand-cyan/40 bg-brand-cyan/12 text-brand-cyan"
+                  : "border border-border-soft bg-transparent text-text-muted hover:text-text-secondary",
+              ].join(" ")}
+            >
+              {d}
+            </button>
+          ))}
+          </div>
+          <div className="text-[11px] text-text-faint">
+            Best: <span className="text-brand-cyan font-semibold">{formatSeconds(myBests[difficulty])}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Board section - centered within remaining space below header */}
+      <div className="w-full max-w-2xl mx-auto flex-1 min-h-0 flex flex-col items-center justify-center gap-3 sm:gap-5">
         {/* Status bar */}
         {state.board.length > 0 && (
           <SudokuStatusBar
@@ -202,7 +201,7 @@ export default function SudokuPage() {
                 grid grid-cols-9
                 border-2 border-brand-cyan/20
                 rounded-lg overflow-hidden
-                w-full
+                w-full shrink-0
                 mx-auto aspect-square bg-surface/40
               "
               style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
