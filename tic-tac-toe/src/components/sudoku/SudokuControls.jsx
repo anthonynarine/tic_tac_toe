@@ -3,7 +3,10 @@ import { LuEraser, LuPencil } from "react-icons/lu";
 
 export default function SudokuControls({ notesMode, onNumber, onErase, onToggleNotes }) {
   return (
-    <div className="flex flex-col items-center gap-2 sm:gap-3 w-full max-w-[min(90vw,480px)] mx-auto">
+    <div
+      className="flex flex-col items-center gap-2 sm:gap-3 w-full mx-auto"
+      style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
+    >
       {/* Number pad */}
       <div className="grid grid-cols-9 gap-0.5 sm:gap-1 w-full">
         {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (

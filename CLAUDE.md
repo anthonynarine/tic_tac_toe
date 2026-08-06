@@ -98,6 +98,11 @@ UserProvider
 - `ResponsiveLayout.jsx` - Desktop (sidebar + main + drawer) / Mobile (sidebar overlay)
 - `AppShell.jsx` - Mounts TrinityDrawer globally (AI assistant)
 - `LayoutFrame.jsx`, `PublicAuthLayout.jsx` - Page wrapper components
+- `LayoutFrame.jsx` owns the post-navbar content height. Game pages rendered inside it
+  should center content with parent-relative sizing (`h-full min-h-0`, flex/grid
+  centering) rather than recalculating from `100vh` / `100dvh`. The navbar is 60px tall
+  on mobile and 64px from `sm` upward; duplicating viewport-height subtractions inside
+  individual pages has caused short-laptop vertical centering bugs.
 
 **Authentication** (in `src/auth/`):
 - `tokenStore.js` - Token storage (mode-aware: cookie/localStorage/sessionStorage)

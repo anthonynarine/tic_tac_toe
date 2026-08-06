@@ -122,7 +122,7 @@ export default function SudokuPage() {
   return (
     <div className="w-full px-1 sm:px-4 pt-1 sm:pt-6 md:flex md:h-full md:min-h-0 md:items-center md:justify-center md:pt-0 pb-20 sm:pb-24 md:pb-0">
       <div
-        className="mx-auto max-w-lg flex min-h-[clamp(520px,calc(100dvh-180px),710px)] md:min-h-0 flex-col items-center justify-center gap-3 sm:gap-5"
+        className="mx-auto max-w-2xl flex min-h-[clamp(520px,calc(100dvh-180px),710px)] md:min-h-0 flex-col items-center justify-center gap-3 sm:gap-5"
       >
         {/* Header */}
         <div className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -202,9 +202,10 @@ export default function SudokuPage() {
                 grid grid-cols-9
                 border-2 border-brand-cyan/20
                 rounded-lg overflow-hidden
-                w-full max-w-[min(90vw,480px)]
+                w-full
                 mx-auto aspect-square bg-surface/40
               "
+              style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
             >
               {Array.from({ length: 81 }).map((_, idx) => (
                 <div
@@ -214,7 +215,7 @@ export default function SudokuPage() {
               ))}
             </div>
 
-            <div className="w-full max-w-[min(90vw,480px)] min-h-[96px]" />
+            <div className="w-full mx-auto min-h-[96px]" style={{ maxWidth: "min(90vw, 620px, 58dvh)" }} />
           </>
         )}
 

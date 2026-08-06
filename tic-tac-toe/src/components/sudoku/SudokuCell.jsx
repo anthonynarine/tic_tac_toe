@@ -60,8 +60,8 @@ export default function SudokuCell({
             <span
               key={n}
               className={[
-                "flex items-center justify-center text-[7px] sm:text-[8px] leading-none",
-                notes.has(n) ? "text-text-faint" : "text-transparent",
+                "flex items-center justify-center text-[10px] sm:text-[14px] font-semibold leading-none",
+                notes.has(n) ? "text-white/80" : "text-transparent",
               ].join(" ")}
             >
               {n}

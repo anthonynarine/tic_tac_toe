@@ -16,9 +16,9 @@ export default function SudokuBoard({
         border-2 border-brand-cyan/40
         rounded-lg overflow-hidden
         shadow-glow-cyan
-        w-full max-w-[min(90vw,480px)]
-        mx-auto
+        w-full mx-auto
       "
+      style={{ maxWidth: "min(90vw, 620px, 58dvh)" }}
     >
       {board.map((cell, idx) => (
         <SudokuCell
